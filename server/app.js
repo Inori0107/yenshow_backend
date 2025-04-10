@@ -15,6 +15,7 @@ import helmet from "helmet";
 import routeUser from "./routes/user.js";
 import routeAdmin from "./routes/admin.js";
 import routeHierarchy from "./routes/hierarchyRoutes.js";
+import routeSync from "./routes/syncRoutes.js";
 
 // 初始化路徑
 const __filename = fileURLToPath(import.meta.url);
@@ -152,6 +153,7 @@ const configureRoutes = (app) => {
 	app.use("/user", routeUser);
 	app.use("/admin", routeAdmin);
 	app.use("/api", routeHierarchy);
+	app.use("/sync", routeSync);
 
 	// 調試路由 - 用於檢查 API 是否正常運行
 	app.get("/ping", (req, res) => {
@@ -248,6 +250,12 @@ const startServer = async () => {
 
 		// 啟動 HTTP 服務器
 		startHttpServer(app);
+
+		// 在 startServer 函數中添加
+		if (process.env.CLOUD_SYNC_ENABLED === "true") {
+			console.log("啟用雲端同步...");
+			import("./scripts/scheduledSync.js");
+		}
 	} catch (error) {
 		console.error("❌ 伺服器啟動失敗:", error);
 		process.exit(1);

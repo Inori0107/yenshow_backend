@@ -1,91 +1,45 @@
 <template>
   <section class="w-full flex justify-center items-center min-h-screen">
-    <div class="login-container" :class="cardClass">
+    <div class="login-box">
       <div class="title-container">
         <h2
           class="title-text text-[24px] lg:text-[36px] font-semibold text-center mb-[12px] lg:mb-[24px]"
-          :class="conditionalClass('text-white', 'text-slate-700')"
         >
           後台管理系統
         </h2>
-        <div
-          class="title-decoration"
-          :class="
-            conditionalClass(
-              'bg-gradient-to-r from-transparent via-white/80 to-transparent',
-              'bg-gradient-to-r from-transparent via-blue-500/80 to-transparent',
-            )
-          "
-        ></div>
+        <div class="title-decoration"></div>
       </div>
       <form @submit.prevent="handleLogin" class="flex flex-col gap-[24px]">
         <!-- 帳號 -->
         <div>
-          <label
-            for="account"
-            :class="conditionalClass('text-gray-200', 'text-slate-700 font-medium')"
-            >帳號</label
-          >
+          <label for="account" class="text-white">帳號</label>
           <div class="relative">
-            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
             <input
               type="text"
               id="account"
               v-model="account"
               required
               placeholder="請輸入帳號"
-              :class="inputClass + ' pl-10'"
+              class="bg-white/10 text-white placeholder-white/50 w-full"
             />
           </div>
         </div>
         <!-- 密碼 -->
         <div>
-          <label
-            for="password"
-            :class="conditionalClass('text-gray-200', 'text-slate-700 font-medium')"
-            >密碼</label
-          >
+          <label for="password" class="text-white">密碼</label>
           <div class="relative">
-            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-            </div>
             <input
               type="password"
               id="password"
               v-model="password"
               required
               placeholder="請輸入密碼"
-              :class="inputClass + ' pl-10'"
+              class="bg-white/10 text-white placeholder-white/50 w-full"
             />
           </div>
         </div>
         <!-- 錯誤訊息 -->
-        <div
-          v-if="error"
-          class="error-message bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg text-center"
-        >
+        <div v-if="error" class="error-message">
           {{ error }}
         </div>
 
@@ -93,7 +47,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
+          class="bg-white text-[#212a37] hover:bg-white/90 flex items-center justify-center"
         >
           <span v-if="loading" class="mr-2">
             <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -123,11 +77,9 @@
 import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifications } from '@/composables/notificationCenter'
-import { useThemeClass } from '@/composables/useThemeClass'
 
 const userStore = useUserStore()
 const notify = useNotifications()
-const { cardClass, inputClass, conditionalClass } = useThemeClass()
 
 // 表單狀態
 const account = ref('')
@@ -183,11 +135,14 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-.login-container {
+.login-box {
+  background: rgba(33, 42, 55, 0.7);
   padding: 48px;
-  border-radius: 20px;
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   width: fit-content;
-  max-width: 90%;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .title-container {
@@ -197,6 +152,18 @@ const handleLogin = async () => {
   padding: 24px 0;
 }
 
+.title-text {
+  font-size: 48px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .title-decoration {
   position: absolute;
   bottom: 0;
@@ -204,11 +171,32 @@ const handleLogin = async () => {
   transform: translateX(-50%);
   width: 180px;
   height: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
   border-radius: 2px;
 }
 
+input {
+  width: 360px;
+  padding: 12px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
 button {
-  width: 100%;
+  width: 360px;
   padding: 12px 24px;
   border-radius: 10px;
   font-size: 24px;
@@ -218,19 +206,20 @@ button {
 }
 
 button:disabled {
-  opacity: 0.7;
+  background-color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
+}
+
+.error-message {
+  color: #ff6b6b;
+  text-align: center;
+  font-size: 16px;
 }
 
 label {
   display: block;
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-@media (min-width: 768px) {
-  .login-container {
-    width: 480px;
-  }
+  font-size: 24px;
+  margin-bottom: 12px;
+  opacity: 0.9;
 }
 </style>

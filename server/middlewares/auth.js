@@ -225,9 +225,9 @@ export const jwtAuth = authMiddleware.verifyJWT; // 為了向後兼容
 
 // API 金鑰驗證中間件
 export const apiKeyAuth = (req, res, next) => {
-	const apiKey = req.header("X-API-Key");
+	const apiKey = req.headers["x-api-key"];
 
-	if (!process.env.WEBSITE_API_KEY || !apiKey || apiKey !== process.env.WEBSITE_API_KEY) {
+	if (!apiKey || apiKey !== process.env.API_KEY) {
 		return res.status(401).json({
 			success: false,
 			message: "無效的 API 金鑰"
