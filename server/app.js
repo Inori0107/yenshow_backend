@@ -15,7 +15,15 @@ import helmet from "helmet";
 import routeUser from "./routes/user.js";
 import routeAdmin from "./routes/admin.js";
 import routeHierarchy from "./routes/hierarchyRoutes.js";
-import routeSync from "./routes/syncRoutes.js";
+import routeSync from "./routes/syncRouter.js";
+
+// 導入模型 - 僅用於初始化檢查，確保模型正確載入
+import "./models/products.js";
+import "./models/categories.js";
+import "./models/series.js";
+import "./models/specifications.js";
+import "./models/subCategories.js";
+import "./models/user.js";
 
 // 初始化路徑
 const __filename = fileURLToPath(import.meta.url);
@@ -46,7 +54,7 @@ const configureApp = () => {
 				// 允許沒有來源的請求 (如 Postman)
 				if (!origin) return callback(null, true);
 
-				if (allowedOrigins.indexOf(origin) !== -1) {
+				if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
 					callback(null, true);
 				} else {
 					console.warn(`CORS 拒絕來源: ${origin}`);
@@ -54,7 +62,7 @@ const configureApp = () => {
 				}
 			},
 			methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-			allowedHeaders: ["Content-Type", "Authorization"]
+			allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-secret"]
 		})
 	);
 

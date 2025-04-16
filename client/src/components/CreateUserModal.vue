@@ -5,72 +5,70 @@
 
     <!-- Modal 內容 -->
     <div class="relative min-h-screen flex items-center justify-center p-4">
-      <div
-        class="relative rounded-xl max-w-md w-full p-6"
-        :class="
-          conditionalClass(
-            'bg-[#1e293b] border border-white/10 text-white',
-            'bg-white border border-slate-200 text-slate-700 shadow-lg',
-          )
-        "
-      >
+      <div :class="[cardClass, 'relative rounded-xl max-w-md w-full p-6']">
         <!-- 標題 -->
-        <h3 class="text-xl font-semibold mb-6">新增用戶</h3>
+        <h3 class="text-xl font-semibold mb-6 theme-text">新增用戶</h3>
 
         <!-- 表單 -->
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <!-- 帳號 -->
           <div>
-            <label for="account" class="block text-sm font-medium mb-2">帳號 *</label>
+            <label for="account" class="block text-sm font-medium mb-2 theme-text">帳號 *</label>
             <input
               type="text"
               id="account"
               v-model="formData.account"
               required
-              :class="inputClass"
+              :class="[
+                inputClass,
+                'w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500',
+              ]"
               placeholder="請輸入帳號（4-20個字元）"
             />
           </div>
 
           <!-- 電子郵件 -->
           <div>
-            <label for="email" class="block text-sm font-medium mb-2">電子郵件 *</label>
+            <label for="email" class="block text-sm font-medium mb-2 theme-text">電子郵件 *</label>
             <input
               type="email"
               id="email"
               v-model="formData.email"
               required
-              :class="inputClass"
+              :class="[
+                inputClass,
+                'w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500',
+              ]"
               placeholder="請輸入電子郵件"
             />
           </div>
 
           <!-- 密碼 -->
           <div>
-            <label for="password" class="block text-sm font-medium mb-2">密碼 *</label>
+            <label for="password" class="block text-sm font-medium mb-2 theme-text">密碼 *</label>
             <input
               type="password"
               id="password"
               v-model="formData.password"
               required
-              :class="inputClass"
+              :class="[
+                inputClass,
+                'w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500',
+              ]"
               placeholder="請輸入密碼（4-20個字元）"
             />
           </div>
 
           <!-- 角色選擇 -->
           <div>
-            <label for="role" class="block text-sm font-medium mb-2">用戶角色</label>
+            <label for="role" class="block text-sm font-medium mb-2 theme-text">用戶角色</label>
             <select
               id="role"
               v-model="formData.role"
-              class="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500"
-              :class="
-                conditionalClass(
-                  'bg-white/10 border border-white/20 text-white',
-                  'bg-white border border-slate-200 text-slate-700',
-                )
-              "
+              :class="[
+                inputClass,
+                'w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500',
+              ]"
             >
               <option :value="UserRole.USER">一般用戶</option>
               <option :value="UserRole.ADMIN">管理員</option>
@@ -87,17 +85,18 @@
               @click="close"
               :class="
                 conditionalClass(
-                  'px-4 py-2 text-white/70 hover:text-white transition',
-                  'px-4 py-2 text-slate-500 hover:text-slate-700 transition',
+                  'text-white/70 hover:text-white',
+                  'text-slate-500 hover:text-slate-700',
                 )
               "
+              class="px-4 py-2 transition"
             >
               取消
             </button>
             <button
               type="submit"
               :disabled="loading"
-              class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition flex items-center gap-2"
+              class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition flex items-center gap-2 text-white"
             >
               <span
                 v-if="loading"
@@ -115,9 +114,12 @@
 <script setup>
 import { ref, reactive, toRefs } from 'vue'
 import { useAdminStore } from '@/stores/admin'
-import { useThemeClass } from '@/composables/useThemeClass'
 import UserRole from '@/enums/UserRole'
 import validator from 'validator'
+import { useThemeClass } from '@/composables/useThemeClass'
+
+// 獲取主題相關工具
+const { cardClass, inputClass, conditionalClass } = useThemeClass()
 
 const props = defineProps({
   show: {
@@ -131,7 +133,6 @@ const { show } = toRefs(props)
 
 const emit = defineEmits(['update:show'])
 const adminStore = useAdminStore()
-const { conditionalClass, inputClass } = useThemeClass()
 
 const formData = reactive({
   account: '',
