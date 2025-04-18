@@ -211,12 +211,10 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useUserStore } from '@/stores/user'
-import { useApi } from '@/composables/axios'
+import { useUserStore } from '@/stores/userStore'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
 
-const { apiAuth } = useApi()
 const userStore = useUserStore()
 const notify = useNotifications()
 const { cardClass, inputClass, conditionalClass } = useThemeClass()
@@ -271,19 +269,14 @@ const updatePassword = async () => {
   console.log('正在提交密碼變更請求...')
 
   try {
-    const { data } = await apiAuth.post('/user/change-password', {
-      currentPassword: currentPassword.value,
-      newPassword: newPassword.value,
-    })
+    const result = await userStore.changePassword(currentPassword.value, newPassword.value)
 
-    console.log('密碼變更回應:', data)
-
-    if (data && data.success) {
+    if (result.success) {
       // 清空表單
       currentPassword.value = ''
       newPassword.value = ''
       confirmPassword.value = ''
-      notify.notifySuccess(data.message || '密碼更新成功')
+      notify.notifySuccess(result.message)
 
       // 延遲登出，讓用戶有時間看到成功訊息
       setTimeout(async () => {
@@ -292,17 +285,13 @@ const updatePassword = async () => {
         window.location.href = '/login'
       }, 1500)
     } else {
-      errorMessage.value = data?.message || '密碼修改失敗'
-      console.error('密碼變更失敗:', data?.message)
+      errorMessage.value = result.message || '密碼修改失敗'
+      console.error('密碼變更失敗:', result.message)
     }
   } catch (error) {
     console.error('修改密碼過程中發生錯誤:', error)
-
-    // 從錯誤回應中提取訊息
-    const errorMsg = error?.response?.data?.message || '密碼修改失敗，請稍後再試'
-    errorMessage.value = errorMsg
-
-    notify.notifyError(errorMsg)
+    errorMessage.value = error.message || '密碼修改失敗，請稍後再試'
+    notify.notifyError(errorMessage.value)
   } finally {
     loading.value = false
   }

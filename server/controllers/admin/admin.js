@@ -1,38 +1,63 @@
-import User from "../models/user.js";
+import User from "../../models/user.js";
 import { StatusCodes } from "http-status-codes";
-import { ApiError, successResponse } from "../utils/responseHandler.js";
-import UserRole from "../enums/UserRole.js";
+import { ApiError, successResponse } from "../../utils/responseHandler.js";
+import UserRole from "../../enums/UserRole.js";
 
-export const getAllUsers = async (req, res, next) => {
+/**
+ * 獲取用戶列表 (支援過濾)
+ */
+export const getUsers = async (req, res, next) => {
 	try {
-		const users = await User.find({}).select("-password -tokens").sort({ createdAt: -1 });
+		const { role, isActive, sort = "createdAt" } = req.query;
+		const filter = {};
+
+		// 過濾條件
+		if (role) filter.role = role;
+		if (isActive !== undefined) filter.isActive = isActive === "true";
+
+		const users = await User.find(filter).select("-password -tokens").sort(sort);
+
 		return successResponse(res, StatusCodes.OK, "獲取用戶列表成功", { users });
 	} catch (error) {
 		next(error);
 	}
 };
 
+/**
+ * 創建用戶 (通用方法)
+ */
 export const createUser = async (req, res, next) => {
 	try {
-		const { account, email, password, role } = req.body;
+		const { account, email, password, role, ...additionalInfo } = req.body;
 
-		if (!account || !email || !password) {
-			throw ApiError.badRequest("帳號、信箱和密碼為必填欄位");
+		// 基本驗證
+		if (!account || !password || !email || !role) {
+			throw ApiError.badRequest("帳號、密碼、郵箱和角色為必填欄位");
 		}
 
-		const existingUser = await User.findOne({ $or: [{ account }, { email }] });
-		if (existingUser) {
-			throw ApiError.badRequest(existingUser.account === account ? "用戶帳號已存在" : "用戶信箱已存在");
+		// 角色驗證
+		if (!Object.values(UserRole).includes(role)) {
+			throw ApiError.badRequest("無效的用戶角色");
 		}
 
-		const user = await User.create({
+		// 建立用戶資料
+		const userData = {
 			account,
 			password,
 			email,
-			role: role || UserRole.USER,
+			role,
 			isActive: true,
 			isFirstLogin: true
-		});
+		};
+
+		// 根據角色添加特定資訊
+		if (role === UserRole.CLIENT && additionalInfo.clientInfo) {
+			userData.clientInfo = additionalInfo.clientInfo;
+		} else if ((role === UserRole.STAFF || role === UserRole.ADMIN) && additionalInfo.staffInfo) {
+			userData.staffInfo = additionalInfo.staffInfo;
+		}
+
+		const user = await User.create(userData);
 
 		return successResponse(res, StatusCodes.CREATED, "用戶創建成功", {
 			user: {
@@ -40,7 +65,8 @@ export const createUser = async (req, res, next) => {
 				account: user.account,
 				email: user.email,
 				role: user.role,
-				isActive: user.isActive
+				...(user.clientInfo ? { clientInfo: user.clientInfo } : {}),
+				...(user.staffInfo ? { staffInfo: user.staffInfo } : {})
 			}
 		});
 	} catch (error) {
@@ -48,12 +74,25 @@ export const createUser = async (req, res, next) => {
 	}
 };
 
+/**
+ * 更新用戶 (通用方法)
+ */
 export const updateUser = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { email, role, isActive } = req.body;
+		const { email, role, isActive, clientInfo, staffInfo } = req.body;
 
-		const user = await User.findByIdAndUpdate(id, { email, role, isActive }, { new: true }).select("-password -tokens");
+		// 基本更新數據
+		const updateData = { email, role, isActive };
+
+		// 根據角色添加特定資訊
+		if (role === UserRole.CLIENT && clientInfo) {
+			updateData.clientInfo = clientInfo;
+		} else if ((role === UserRole.STAFF || role === UserRole.ADMIN) && staffInfo) {
+			updateData.staffInfo = staffInfo;
+		}
+
+		const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select("-password -tokens");
 
 		if (!user) {
 			throw ApiError.notFound("用戶不存在");
@@ -65,6 +104,9 @@ export const updateUser = async (req, res, next) => {
 	}
 };
 
+/**
+ * 重置用戶密碼
+ */
 export const resetPassword = async (req, res, next) => {
 	try {
 		const { id } = req.params;
@@ -94,6 +136,9 @@ export const resetPassword = async (req, res, next) => {
 	}
 };
 
+/**
+ * 啟用用戶
+ */
 export const activateUser = async (req, res, next) => {
 	try {
 		const { id } = req.params;
@@ -109,6 +154,9 @@ export const activateUser = async (req, res, next) => {
 	}
 };
 
+/**
+ * 停用用戶
+ */
 export const deactivateUser = async (req, res, next) => {
 	try {
 		const { id } = req.params;
@@ -126,8 +174,6 @@ export const deactivateUser = async (req, res, next) => {
 
 /**
  * 刪除用戶
- * @route DELETE /admin/users/:id
- * @access Admin
  */
 export const deleteUser = async (req, res, next) => {
 	try {

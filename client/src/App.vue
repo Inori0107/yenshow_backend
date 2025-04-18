@@ -245,7 +245,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/userStore'
 import { useThemeStore } from '@/stores/theme'
 import { storeToRefs } from 'pinia'
 import { useNotifications } from '@/composables/notificationCenter'

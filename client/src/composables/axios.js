@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/userStore'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguageStore } from '@/stores/languageStore'
 // 建立實例

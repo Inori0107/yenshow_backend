@@ -1,4 +1,5 @@
 export default {
   ADMIN: 'admin',
-  USER: 'user',
+  STAFF: 'staff',
+  CLIENT: 'client',
 }

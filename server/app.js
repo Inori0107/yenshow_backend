@@ -12,11 +12,8 @@ import { ApiError, errorResponse, createErrorHandlerMiddleware } from "./utils/r
 import helmet from "helmet";
 
 // 路由導入
-import routeUser from "./routes/user.js";
-import routeAdmin from "./routes/admin.js";
-import routeHierarchy from "./routes/hierarchyRoutes.js";
-import routeSync from "./routes/syncRouter.js";
-
+import userRoutes from "./routes/user.js";
+import hierarchyRoutes from "./routes/hierarchyRoutes.js";
 // 導入模型 - 僅用於初始化檢查，確保模型正確載入
 import "./models/products.js";
 import "./models/categories.js";
@@ -158,12 +155,10 @@ const configureRoutes = (app) => {
 	});
 
 	// API 路由
-	app.use("/user", routeUser);
-	app.use("/admin", routeAdmin);
-	app.use("/api", routeHierarchy);
-	app.use("/sync", routeSync);
+	app.use("/users", userRoutes);
+	app.use("/api", hierarchyRoutes);
 
-	// 調試路由 - 用於檢查 API 是否正常運行
+	// 調試路由
 	app.get("/ping", (req, res) => {
 		res.status(200).send("pong");
 	});
@@ -258,12 +253,6 @@ const startServer = async () => {
 
 		// 啟動 HTTP 服務器
 		startHttpServer(app);
-
-		// 在 startServer 函數中添加
-		if (process.env.CLOUD_SYNC_ENABLED === "true") {
-			console.log("啟用雲端同步...");
-			import("./scripts/scheduledSync.js");
-		}
 	} catch (error) {
 		console.error("❌ 伺服器啟動失敗:", error);
 		process.exit(1);

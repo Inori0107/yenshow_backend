@@ -1,28 +1,30 @@
 import { Router } from "express";
-import { login, extend, profile, logout, changePassword } from "../controllers/user.js";
-import authMiddleware from "../middlewares/auth.js";
+import { login, logout, getProfile, changePassword } from "../controllers/authController.js";
+import { getUsers, createUser, updateUser, resetPassword, deactivateUser, activateUser, deleteUser } from "../controllers/admin/admin.js";
+import { requireAuth } from "../middlewares/auth.js";
+import { checkRole, Permissions } from "../middlewares/permission.js";
+import { login as loginMiddleware } from "../middlewares/auth.js";
 
 const router = Router();
 
-/**
- * 公開路由 - 不需要身份驗證
- */
-// 用戶登入
-router.post("/login", authMiddleware.login, login);
+// 公開路由 - 不需要身份驗證
+router.post("/login", loginMiddleware, login);
 
-/**
- * 受保護路由 - 需要身份驗證
- */
-// 延長用戶登入時間
-router.patch("/extend", authMiddleware.verifyJWT, extend);
+// 受保護的基本路由 - 所有已認證用戶皆可使用
+router.use(requireAuth);
+router.get("/profile", getProfile);
+router.delete("/logout", logout);
+router.post("/change-password", changePassword);
 
-// 獲取用戶個人資料
-router.get("/profile", authMiddleware.verifyJWT, profile);
+// 客戶特有功能
 
-// 用戶登出
-router.delete("/logout", authMiddleware.verifyJWT, logout);
-
-// 修改密碼（包括首次登入強制修改密碼）
-router.post("/change-password", authMiddleware.verifyJWT, changePassword);
+// 僅管理員可訪問的用戶管理功能
+router.get("/users", checkRole([Permissions.ADMIN]), getUsers);
+router.post("/users", checkRole([Permissions.ADMIN]), createUser);
+router.put("/users/:id", checkRole([Permissions.ADMIN]), updateUser);
+router.delete("/users/:id", checkRole([Permissions.ADMIN]), deleteUser);
+router.post("/users/:id/reset-password", checkRole([Permissions.ADMIN]), resetPassword);
+router.post("/users/:id/deactivate", checkRole([Permissions.ADMIN]), deactivateUser);
+router.post("/users/:id/activate", checkRole([Permissions.ADMIN]), activateUser);
 
 export default router;

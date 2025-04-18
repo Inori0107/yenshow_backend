@@ -3,6 +3,11 @@ import validator from "validator";
 import bcrypt from "bcrypt";
 import UserRole from "../enums/UserRole.js";
 
+// 使用者角色枚舉（可以移至 UserRole.js）
+// ADMIN: 管理員 - 最高權限
+// STAFF: 公司內部員工（原 USER）
+// CLIENT: 外部客戶
+
 // 使用者資料
 const schema = new Schema(
 	{
@@ -40,7 +45,8 @@ const schema = new Schema(
 		},
 		role: {
 			type: String,
-			default: UserRole.USER
+			enum: [UserRole.ADMIN, UserRole.STAFF, UserRole.CLIENT],
+			default: UserRole.CLIENT
 		},
 		isActive: {
 			type: Boolean,
@@ -49,6 +55,18 @@ const schema = new Schema(
 		isFirstLogin: {
 			type: Boolean,
 			default: true
+		},
+		// 客戶專屬資料
+		clientInfo: {
+			companyName: String, // 公司名稱
+			contactPerson: String, // 聯絡人
+			phone: String, // 電話
+			address: String // 地址
+		},
+		// 員工專屬資料
+		staffInfo: {
+			department: String, // 部門
+			position: String // 職位
 		}
 	},
 	{
