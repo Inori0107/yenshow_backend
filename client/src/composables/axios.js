@@ -226,22 +226,30 @@ export const useApi = () => {
   const entityApi = (entityType, options = {}) => {
     const responseKey = options.responseKey || `${entityType}List`
 
+    // 判斷是否需要認證，默認為 true
+    const requiresAuth = options.requiresAuth !== false
+    const instance = requiresAuth ? apiAuth : api
+
     return {
       // 獲取所有項目 (對應 BaseController.getAllItems)
       getAll: async (params = {}) => {
-        const response = await safeApiCall(() => api.get(`/api/${entityType}`, { params }))
+        const response = await safeApiCall(() => instance.get(`/api/${entityType}`, { params }))
         return response?.data?.result?.[responseKey] || []
       },
 
       // 獲取單個項目 (對應 BaseController.getItemById)
       getById: async (id, params = {}) => {
-        const response = await safeApiCall(() => api.get(`/api/${entityType}/${id}`, { params }))
+        const response = await safeApiCall(() =>
+          instance.get(`/api/${entityType}/${id}`, { params }),
+        )
         return response?.data?.result?.[entityType] || null
       },
 
       // 搜索項目 (對應 BaseController.searchItems)
       search: async (params = {}) => {
-        const response = await safeApiCall(() => api.get(`/api/${entityType}/search`, { params }))
+        const response = await safeApiCall(() =>
+          instance.get(`/api/${entityType}/search`, { params }),
+        )
         return {
           items: response?.data?.result?.[responseKey] || [],
           pagination: response?.data?.result?.pagination || null,
@@ -250,25 +258,25 @@ export const useApi = () => {
 
       // 創建項目 (對應 BaseController.createItem)
       create: async (data) => {
-        const response = await safeApiCall(() => api.post(`/api/${entityType}`, data))
+        const response = await safeApiCall(() => instance.post(`/api/${entityType}`, data))
         return response?.data?.result?.[entityType] || null
       },
 
       // 更新項目 (對應 BaseController.updateItem)
       update: async (id, data) => {
-        const response = await safeApiCall(() => api.put(`/api/${entityType}/${id}`, data))
+        const response = await safeApiCall(() => instance.put(`/api/${entityType}/${id}`, data))
         return response?.data?.result?.[entityType] || null
       },
 
       // 刪除項目 (對應 BaseController.deleteItem)
       delete: async (id) => {
-        const response = await safeApiCall(() => api.delete(`/api/${entityType}/${id}`))
+        const response = await safeApiCall(() => instance.delete(`/api/${entityType}/${id}`))
         return response?.data?.success || false
       },
 
       // 批量處理 (對應 BaseController.batchProcess)
       batchProcess: async (data) => {
-        const response = await safeApiCall(() => api.post(`/api/${entityType}/batch`, data))
+        const response = await safeApiCall(() => instance.post(`/api/${entityType}/batch`, data))
         return response?.data?.result || null
       },
     }
@@ -278,22 +286,22 @@ export const useApi = () => {
   const hierarchyApi = {
     // 獲取完整層次結構 (對應 HierarchyManager.getFullHierarchy)
     getFullHierarchy: async (params = {}) => {
-      const response = await safeApiCall(() => api.get('/api/hierarchy', { params }))
+      const response = await safeApiCall(() => apiAuth.get('/api/hierarchy', { params })) // 假設需要認證
       return response?.data?.result?.hierarchy || []
     },
 
     // 根據父項獲取子項 (對應 HierarchyManager.getChildrenByParentId)
     getChildrenByParent: async (parentType, parentId, params = {}) => {
-      const response = await safeApiCall(() =>
-        api.get(`/api/hierarchy/children/${parentType}/${parentId}`, { params }),
+      const response = await safeApiCall(
+        () => apiAuth.get(`/api/hierarchy/children/${parentType}/${parentId}`, { params }), // 假設需要認證
       )
       return response?.data?.result || null
     },
 
     // 獲取父層結構 (對應 HierarchyManager.getParentHierarchy)
     getParentHierarchy: async (itemType, itemId, params = {}) => {
-      const response = await safeApiCall(() =>
-        api.get(`/api/hierarchy/parents/${itemType}/${itemId}`, { params }),
+      const response = await safeApiCall(
+        () => apiAuth.get(`/api/hierarchy/parents/${itemType}/${itemId}`, { params }), // 假設需要認證
       )
       return response?.data?.result?.hierarchy || []
     },

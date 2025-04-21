@@ -296,8 +296,8 @@ class FileUpload {
 			const subCategoryName = this.sanitizeFileName(subCategory.name?.TW || "unknown");
 			const specificationName = this.sanitizeFileName(specification.name?.TW || "unknown");
 
-			// 產品根目錄的Web路徑
-			const productWebPath = `/storage/products/${seriesName}/${categoryName}/${subCategoryName}/${specificationName}`;
+			// 產品根目錄的Web路徑 - **修改點：包含 productCode**
+			const productWebPath = `/storage/products/${seriesName}/${categoryName}/${subCategoryName}/${specificationName}/${productCode}`;
 
 			// 轉換為實體路徑
 			const productPhysicalPath = this.webToPhysicalPath(productWebPath);
@@ -306,36 +306,21 @@ class FileUpload {
 			if (!fs.existsSync(productPhysicalPath) || !fs.statSync(productPhysicalPath).isDirectory()) {
 				console.log(`產品目錄不存在: ${productPhysicalPath}`);
 				return {
-					success: false,
-					message: "產品目錄不存在"
+					success: true, // 目錄不存在，視為成功（無需刪除）
+					message: "產品目錄不存在，無需刪除"
 				};
 			}
 
-			// 刪除產品相關目錄（僅刪除 images 和 documents 子目錄）
-			const results = {
-				images: false,
-				documents: false
-			};
+			// **修改點：直接嘗試刪除產品主目錄及其所有內容**
+			const deleteSuccess = this.deleteDirectory(productPhysicalPath);
+			console.log(`刪除產品主目錄 ${productPhysicalPath}: ${deleteSuccess ? "成功" : "失敗"}`);
 
-			// 刪除 images 目錄
-			const imagesPath = path.join(productPhysicalPath, "images");
-			if (fs.existsSync(imagesPath)) {
-				results.images = this.deleteDirectory(imagesPath);
-				console.log(`刪除產品圖片目錄: ${results.images ? "成功" : "失敗"}`);
-			}
-
-			// 刪除 documents 目錄
-			const documentsPath = path.join(productPhysicalPath, "documents");
-			if (fs.existsSync(documentsPath)) {
-				results.documents = this.deleteDirectory(documentsPath);
-				console.log(`刪除產品文檔目錄: ${results.documents ? "成功" : "失敗"}`);
-			}
-
+			// 返回刪除結果
 			return {
-				success: true,
-				path: productWebPath,
+				success: deleteSuccess,
+				path: productWebPath, // 保留原始路徑信息以供參考
 				physicalPath: productPhysicalPath,
-				results
+				message: deleteSuccess ? `產品目錄 '${productCode}' 已刪除` : `產品目錄 '${productCode}' 刪除失敗` // **修改點：更新消息**
 			};
 		} catch (error) {
 			console.error("刪除產品目錄失敗:", error);

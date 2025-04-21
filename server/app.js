@@ -158,8 +158,8 @@ const configureRoutes = (app) => {
 	app.use("/users", userRoutes);
 	app.use("/api", hierarchyRoutes);
 
-	// 調試路由
-	app.get("/ping", (req, res) => {
+	// 調試路由 - 修改路徑
+	app.get("/api/ping", (req, res) => {
 		res.status(200).send("pong");
 	});
 

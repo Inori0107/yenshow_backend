@@ -415,11 +415,11 @@ class ProductsController {
 				const deleteResult = fileUpload.deleteProductDirectories(hierarchyData, product.code);
 
 				if (deleteResult.success) {
-					console.log(`成功刪除產品目錄: ${deleteResult.path}`);
-					console.log(`- 圖片目錄: ${deleteResult.results.images ? "已刪除" : "不存在或刪除失敗"}`);
-					console.log(`- 文件目錄: ${deleteResult.results.documents ? "已刪除" : "不存在或刪除失敗"}`);
+					console.log(`成功刪除產品 '${product.code}' 的主目錄: ${deleteResult.physicalPath}`);
 				} else {
-					console.log(`產品目錄刪除失敗: ${deleteResult.message || "未知原因"}`);
+					console.log(`刪除產品 '${product.code}' 的主目錄失敗: ${deleteResult.message || "未知原因"}`);
+					// 可以在這裡記錄更詳細的錯誤信息，例如 deleteResult.path
+					console.log(`(目標路徑: ${deleteResult.physicalPath})`);
 				}
 			} catch (dirError) {
 				// 目錄刪除失敗不應該阻止產品刪除，因此僅記錄錯誤

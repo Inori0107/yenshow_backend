@@ -58,6 +58,20 @@ export const handleLogout = async (user, token) => {
 };
 
 /**
+ * 處理 Token 延長
+ */
+export const handleTokenExtension = async (user, currentToken) => {
+	// 1. 移除當前的 (可能已過期的) token
+	user.tokens = user.tokens.filter((t) => t !== currentToken);
+
+	// 2. 建立並儲存一個新的 token
+	const newToken = await createToken(user);
+
+	// 3. 返回新的 token
+	return newToken;
+};
+
+/**
  * 獲取用戶資料
  * 根據用戶角色返回適當的資料格式
  */

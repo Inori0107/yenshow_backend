@@ -140,7 +140,7 @@
             @error="handleImageError($event)"
           />
           <span class="truncate theme-text">{{
-            getLocalizedField(product || {}, 'name', '未命名產品', 'TW')
+            getLocalizedField(product || {}, 'code', '未命名產品', 'TW')
           }}</span>
         </div>
 

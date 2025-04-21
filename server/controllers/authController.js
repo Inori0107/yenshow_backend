@@ -1,7 +1,7 @@
 // controllers/auth/authController.js
 import { StatusCodes } from "http-status-codes";
 import { ApiError, successResponse } from "../utils/responseHandler.js";
-import { handleLogin, handleLogout, getUserProfile } from "../services/authService.js";
+import { handleLogin, handleLogout, getUserProfile, handleTokenExtension } from "../services/authService.js";
 import User from "../models/user.js";
 
 /**
@@ -26,6 +26,21 @@ export const logout = async (req, res, next) => {
 		return successResponse(res, StatusCodes.OK, "登出成功");
 	} catch (error) {
 		console.error("登出失敗:", error);
+		next(error);
+	}
+};
+
+/**
+ * 延長 Token 有效期
+ */
+export const extendToken = async (req, res, next) => {
+	try {
+		// req.user 和 req.token 由 Passport 的 jwt 策略提供
+		const newToken = await handleTokenExtension(req.user, req.token);
+
+		return successResponse(res, StatusCodes.OK, "Token 已延長", { result: newToken });
+	} catch (error) {
+		console.error("延長 Token 失敗:", error);
 		next(error);
 	}
 };

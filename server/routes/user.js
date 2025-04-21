@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { login, logout, getProfile, changePassword } from "../controllers/authController.js";
+import { login, logout, getProfile, changePassword, extendToken } from "../controllers/authController.js";
 import { getUsers, createUser, updateUser, resetPassword, deactivateUser, activateUser, deleteUser } from "../controllers/admin/admin.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
@@ -15,6 +15,7 @@ router.use(requireAuth);
 router.get("/profile", getProfile);
 router.delete("/logout", logout);
 router.post("/change-password", changePassword);
+router.patch("/extend", extendToken);
 
 // 客戶特有功能
 
