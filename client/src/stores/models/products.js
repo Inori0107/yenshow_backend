@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/axios'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 
 /**
  * 產品管理 Store

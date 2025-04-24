@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSearchStore } from '@/stores/searchStore'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useSearchStore } from '@/stores/core/searchStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 
 export function useGlobalSearch() {
   const searchStore = useSearchStore()

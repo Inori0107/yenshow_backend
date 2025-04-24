@@ -109,8 +109,8 @@ export class EntityService {
 	 */
 	async create(data, options = {}) {
 		try {
-			// 檢查必要欄位
-			if (!data.code) {
+			// 檢查必要欄位，但對 Faq 和 News 模型例外
+			if (!data.code && this.modelName !== "Faq" && this.modelName !== "News") {
 				throw new ApiError(StatusCodes.BAD_REQUEST, `${this.modelName} 代碼欄位不能為空`);
 			}
 

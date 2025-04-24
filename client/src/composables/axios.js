@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useUserStore } from '@/stores/userStore'
 import { useNotifications } from '@/composables/notificationCenter'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 // 建立實例
 const api = axios.create({
   baseURL: import.meta.env.VITE_API,
@@ -153,6 +153,15 @@ export const useApi = () => {
       const response = await apiCall()
       return response
     } catch (error) {
+      // 簡化錯誤日誌，只保留關鍵信息
+      if (error.response) {
+        console.error(`API錯誤 (${error.response.status}):`, error.response.data)
+      } else if (error.request) {
+        console.error('API請求未收到回應')
+      } else {
+        console.error('API請求錯誤:', error.message)
+      }
+
       const notify = useNotifications()
       notify.handleApiError(error, errorOptions)
       throw error // 重新拋出錯誤，以便調用者可以進一步處理
@@ -265,6 +274,10 @@ export const useApi = () => {
       // 更新項目 (對應 BaseController.updateItem)
       update: async (id, data) => {
         const response = await safeApiCall(() => instance.put(`/api/${entityType}/${id}`, data))
+        // 增加處理：如果響應包含 success=true 但沒有實體數據，視為成功並回傳 true
+        if (response?.data?.success === true) {
+          return response?.data?.result?.[entityType] || { _id: id, ...data }
+        }
         return response?.data?.result?.[entityType] || null
       },
 

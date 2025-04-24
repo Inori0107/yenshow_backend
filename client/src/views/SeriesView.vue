@@ -47,7 +47,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSeriesStore } from '@/stores/models/series'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useHierarchyStore } from '@/stores/hierarchyStore'
-import SeriesSwitch from '@/components/SeriesSwitch.vue'
+import SeriesSwitch from '@/components/products/SeriesSwitch.vue'
 
 // 初始化 stores
 const seriesStore = useSeriesStore()

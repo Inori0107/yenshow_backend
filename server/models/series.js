@@ -32,9 +32,4 @@ const seriesSchema = new Schema(
 	}
 );
 
-// 添加獲取特定語言名稱的方法
-seriesSchema.methods.getNameByLang = function (lang = "TW") {
-	return this.name && this.name[lang] ? this.name[lang] : "";
-};
-
 export default model("Series", seriesSchema);

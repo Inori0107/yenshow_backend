@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 
 /**
  * 統一的多語言處理工具

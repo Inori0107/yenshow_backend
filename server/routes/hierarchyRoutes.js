@@ -20,9 +20,11 @@ router.get("/hierarchy/parents/:itemType/:itemId", checkRole([Permissions.PUBLIC
 router.get("/series", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SeriesController.getAllItems);
 router.get("/series/search", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SeriesController.searchItems);
 router.get("/series/:id", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SeriesController.getItemById);
+
 router.get("/categories", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), CategoriesController.getAllItems);
 router.get("/categories/search", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), CategoriesController.searchItems);
 router.get("/categories/:id", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), CategoriesController.getItemById);
+
 router.get("/subCategories", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SubCategoriesController.getAllItems);
 router.get(
 	"/subCategories/search",
@@ -34,6 +36,7 @@ router.get(
 	checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]),
 	SubCategoriesController.getItemById
 );
+
 router.get("/specifications", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SpecificationsController.getAllItems);
 router.get(
 	"/specifications/search",
@@ -45,6 +48,7 @@ router.get(
 	checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]),
 	SpecificationsController.getItemById
 );
+
 router.get("/products", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.getProducts);
 router.get("/products/search", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.searchProducts);
 router.get("/products/:id", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.getProductById);
@@ -53,15 +57,23 @@ router.get("/products/:id", checkRole([Permissions.ADMIN, Permissions.STAFF, Per
 router.post("/series", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SeriesController.createItem);
 router.put("/series/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SeriesController.updateItem);
 router.delete("/series/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SeriesController.deleteItem);
+router.post("/series/batch", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SeriesController.batchProcess);
+
 router.post("/categories", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), CategoriesController.createItem);
 router.put("/categories/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), CategoriesController.updateItem);
 router.delete("/categories/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), CategoriesController.deleteItem);
+router.post("/categories/batch", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), CategoriesController.batchProcess);
+
 router.post("/subCategories", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SubCategoriesController.createItem);
 router.put("/subCategories/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SubCategoriesController.updateItem);
 router.delete("/subCategories/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SubCategoriesController.deleteItem);
+router.post("/subCategories/batch", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SubCategoriesController.batchProcess);
+
 router.post("/specifications", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SpecificationsController.createItem);
 router.put("/specifications/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SpecificationsController.updateItem);
 router.delete("/specifications/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SpecificationsController.deleteItem);
+router.post("/specifications/batch", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), SpecificationsController.batchProcess);
+
 router.post(
 	"/products",
 	requireAuth,
@@ -77,12 +89,6 @@ router.put(
 	ProductsController.updateProduct
 );
 router.delete("/products/:id", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), ProductsController.deleteProduct);
-
-// 批量操作 - 僅管理員
-router.post("/series/batch", requireAuth, checkRole([Permissions.ADMIN]), SeriesController.batchProcess);
-router.post("/categories/batch", requireAuth, checkRole([Permissions.ADMIN]), CategoriesController.batchProcess);
-router.post("/subCategories/batch", requireAuth, checkRole([Permissions.ADMIN]), SubCategoriesController.batchProcess);
-router.post("/specifications/batch", requireAuth, checkRole([Permissions.ADMIN]), SpecificationsController.batchProcess);
-router.post("/products/batch", requireAuth, checkRole([Permissions.ADMIN]), ProductsController.batchProcess);
+router.post("/products/batch", requireAuth, checkRole([Permissions.ADMIN, Permissions.STAFF]), ProductsController.batchProcess);
 
 export default router;

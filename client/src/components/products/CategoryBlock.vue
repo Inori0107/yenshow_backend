@@ -252,9 +252,9 @@ import { useSeriesStore } from '@/stores/models/series'
 import { useHierarchyStore } from '@/stores/hierarchyStore'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
-import MultilingualFormDialog from '@/components/MultilingualFormDialog.vue'
-import ProductTable from '@/components/ProductTable.vue'
-import ProductFormModal from '@/components/ProductFormModal.vue'
+import MultilingualFormDialog from '@/components/products/MultilingualFormDialog.vue'
+import ProductTable from '@/components/products/ProductTable.vue'
+import ProductFormModal from '@/components/products/ProductFormModal.vue'
 import { useThemeClass } from '@/composables/useThemeClass'
 
 // Props

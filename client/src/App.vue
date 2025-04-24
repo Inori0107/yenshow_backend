@@ -69,7 +69,7 @@
 
           <!-- 專欄圖標 -->
           <svg
-            v-else-if="link.name === 'news'"
+            v-else-if="link.name === 'contentManagement'"
             class="w-[36px] lg:w-[48px] aspect-square"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -246,7 +246,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/stores/core/theme'
 import { storeToRefs } from 'pinia'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
@@ -273,7 +273,7 @@ const toggleTheme = themeStore.toggleTheme
 const navLinks = computed(() => [
   { to: '/', name: 'home', text: '首頁', icon: '/Dashboard.svg' },
   { to: '/series', name: 'series', text: '產品', icon: '/Products.svg' },
-  { to: '/news', name: 'news', text: '專欄', icon: '/News.svg' },
+  { to: '/contentManagement', name: 'contentManagement', text: '專欄', icon: '/News.svg' },
 ])
 
 // 控制狀態

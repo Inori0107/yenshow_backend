@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@/stores/core/theme'
 import { storeToRefs } from 'pinia'
 
 export function useThemeClass() {
@@ -24,13 +24,6 @@ export function useThemeClass() {
     return isDarkTheme.value
       ? 'bg-white/10 border border-white/20 text-white placeholder-white/50 focus:border-blue-500'
       : 'bg-white border border-slate-200 text-slate-700 placeholder-slate-400 focus:border-blue-500'
-  })
-
-  // 表單按鈕樣式
-  const buttonClass = computed(() => {
-    return isDarkTheme.value
-      ? 'bg-[#212a37] hover:bg-[#2a323c] border-2 border-[#3F5069] text-white'
-      : 'bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700'
   })
 
   // 主按鈕樣式
@@ -60,7 +53,6 @@ export function useThemeClass() {
     cardClass,
     bgClass,
     inputClass,
-    buttonClass,
     primaryButtonClass,
     secondaryButtonClass,
     dangerButtonClass,

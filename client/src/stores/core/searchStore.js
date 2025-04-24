@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import { useSeriesStore } from './models/series'
-import { useCategoriesStore } from './models/categories'
-import { useSubCategoriesStore } from './models/subCategories'
-import { useSpecificationsStore } from './models/specifications'
-import { useProductsStore } from './models/products'
+import { useSeriesStore } from '../models/series'
+import { useCategoriesStore } from '../models/categories'
+import { useSubCategoriesStore } from '../models/subCategories'
+import { useSpecificationsStore } from '../models/specifications'
+import { useProductsStore } from '../models/products'
 
 export const useSearchStore = defineStore('search', {
   state: () => ({

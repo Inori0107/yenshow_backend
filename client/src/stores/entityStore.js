@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/axios'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 
 // 通用實體 store 工廠函數
 export const createEntityStore = (entityType, options = {}) => {
@@ -136,10 +136,24 @@ export const createEntityStore = (entityType, options = {}) => {
               ...data,
               lang: languageStore.currentLang,
             }
+
+            // 簡化日誌輸出
+            console.log(`[${entityType}] 創建請求`)
+
             return await entityApi(entityType).create(updatedData)
           }
         } catch (error) {
-          this.error = error.message || `創建${entityType}時發生錯誤`
+          // 簡化錯誤處理
+          console.error(`[${entityType}] 創建錯誤:`, error.message)
+
+          if (error.response?.data?.message) {
+            this.error = error.response.data.message
+          } else if (error.response?.data?.error) {
+            this.error = error.response.data.error
+          } else {
+            this.error = error.message || `創建${entityType}時發生錯誤`
+          }
+
           return null
         } finally {
           this.isLoading = false
@@ -180,24 +194,42 @@ export const createEntityStore = (entityType, options = {}) => {
               lang: languageStore.currentLang,
             }
 
+            // 簡化日誌輸出
+            console.log(`[${entityType}] 更新請求 ID:${id}`)
+
             const result = await entityApi(entityType).update(id, updatedData)
 
-            // 更新本地數據
-            if (result) {
-              if (this.currentItem && this.currentItem._id === id) {
-                this.currentItem = result
-              }
-
-              const index = this.items.findIndex((item) => item._id === id)
-              if (index !== -1) {
-                this.items[index] = result
-              }
+            // 假設後端成功處理但未返回更新後的實體
+            // 則手動構建一個結果對象作為回應
+            const finalResult = result || {
+              _id: id,
+              ...updatedData,
             }
 
-            return result
+            // 更新本地數據
+            if (this.currentItem && this.currentItem._id === id) {
+              this.currentItem = finalResult
+            }
+
+            const index = this.items.findIndex((item) => item._id === id)
+            if (index !== -1) {
+              this.items[index] = finalResult
+            }
+
+            return finalResult
           }
         } catch (error) {
-          this.error = error.message || `更新${entityType}時發生錯誤`
+          // 簡化錯誤處理
+          console.error(`[${entityType}] 更新錯誤:`, error.message)
+
+          if (error.response?.data?.message) {
+            this.error = error.response.data.message
+          } else if (error.response?.data?.error) {
+            this.error = error.response.data.error
+          } else {
+            this.error = error.message || `更新${entityType}時發生錯誤`
+          }
+
           return null
         } finally {
           this.isLoading = false

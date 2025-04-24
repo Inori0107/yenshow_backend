@@ -298,7 +298,7 @@ import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/axios'
 import { useThemeClass } from '@/composables/useThemeClass'
-import ProductFormModal from '@/components/ProductFormModal.vue'
+import ProductFormModal from '@/components/products/ProductFormModal.vue'
 
 const props = defineProps({
   categoriesId: {

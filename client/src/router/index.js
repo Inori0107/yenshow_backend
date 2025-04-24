@@ -29,15 +29,15 @@ const router = createRouter({
         {
           path: ':seriesCode',
           name: 'series-category',
-          component: () => import('@/components/CategoryBlock.vue'),
+          component: () => import('@/components/products/CategoryBlock.vue'),
           props: true,
         },
       ],
     },
     {
-      path: '/news',
-      name: 'news',
-      component: () => import('@/views/NewsView.vue'),
+      path: '/contentManagement',
+      name: 'contentManagement',
+      component: () => import('@/views/ContentManagementView.vue'),
       meta: { requiresAuth: true },
     },
     {

@@ -27,12 +27,12 @@ services:
     ports:
       - "${DOCKER_API_PORT:-4000}:4000"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=4000
       - DB_URL=mongodb://${MONGO_USER:-user}:${MONGO_PASSWORD:-pass}@mongodb:27017/yenshow?directConnection=true&authSource=admin
       - MONGO_URI=mongodb://${MONGO_USER:-user}:${MONGO_PASSWORD:-pass}@mongodb:27017/yenshow?directConnection=true&authSource=admin
       - JWT_SECRET=${JWT_SECRET:-qwiektfgjwqeinjgmqiprhgnjqipw}
-      - CORS_ORIGIN=${LAN_CORS_ORIGINS:-http://localhost:3000,http://${LAN_IP}:3000,https://yenshow-website.vercel.app,https://yenshow.com,https://api.yenshow.com}
+      - CORS_ORIGIN=${LAN_CORS_ORIGINS}
       - HOST=0.0.0.0
       - FILES_ROOT=/app/storage
       - API_BASE_URL=http://localhost:${DOCKER_API_PORT:-4000}

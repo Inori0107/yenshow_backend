@@ -238,7 +238,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { useLanguageStore } from '@/stores/languageStore'
+import { useLanguageStore } from '@/stores/core/languageStore'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useLanguage } from '@/composables/useLanguage'
 import { useNotifications } from '@/composables/notificationCenter'

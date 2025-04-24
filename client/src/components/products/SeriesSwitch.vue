@@ -101,7 +101,7 @@ import { useSeriesStore } from '@/stores/models/series'
 import { useLanguage } from '@/composables/useLanguage'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
-import MultilingualFormDialog from '@/components/MultilingualFormDialog.vue'
+import MultilingualFormDialog from '@/components/products/MultilingualFormDialog.vue'
 
 // 定義 props 和 emits
 const props = defineProps({

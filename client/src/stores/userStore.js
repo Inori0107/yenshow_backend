@@ -35,7 +35,7 @@ export const useUserStore = defineStore(
     const login = async (values) => {
       try {
         console.log('發送登入請求:', values)
-        const { data } = await api.post('/users/login', values)
+        const { data } = await api.post('/api/users/login', values)
         console.log('登入回應:', data)
 
         if (!data || !data.success) {
@@ -79,7 +79,7 @@ export const useUserStore = defineStore(
       if (!isLogin.value) return
 
       try {
-        const { data } = await apiAuth.get('/users/profile')
+        const { data } = await apiAuth.get('/api/users/profile')
 
         if (!data || !data.success) {
           throw new Error(data?.message || '獲取個人資料失敗')
@@ -114,7 +114,7 @@ export const useUserStore = defineStore(
     const logout = async () => {
       try {
         if (isLogin.value) {
-          await apiAuth.delete('/users/logout')
+          await apiAuth.delete('/api/users/logout')
         }
       } catch (error) {
         console.error('登出錯誤:', error)
@@ -137,7 +137,7 @@ export const useUserStore = defineStore(
           loading.value = true
           console.log('正在提交密碼變更請求...')
 
-          const { data } = await apiAuth.post('/users/change-password', {
+          const { data } = await apiAuth.post('/api/users/change-password', {
             currentPassword,
             newPassword,
           })
@@ -167,7 +167,7 @@ export const useUserStore = defineStore(
 
       try {
         console.log('獲取用戶列表開始')
-        const { data } = await apiAuth.get('/users/users')
+        const { data } = await apiAuth.get('/api/users/users')
         console.log('獲取用戶列表回應:', data)
 
         if (!data || !data.success) {
@@ -217,7 +217,7 @@ export const useUserStore = defineStore(
             requestData.staffInfo = userData.staffInfo
           }
 
-          const { data } = await apiAuth.post('/users/users', requestData)
+          const { data } = await apiAuth.post('/api/users/users', requestData)
           console.log('創建用戶回應:', data)
 
           if (!data || !data.success) {
@@ -266,7 +266,7 @@ export const useUserStore = defineStore(
             requestData.staffInfo = userData.staffInfo
           }
 
-          const { data } = await apiAuth.put(`/users/users/${userId}`, requestData)
+          const { data } = await apiAuth.put(`/api/users/users/${userId}`, requestData)
           console.log('更新用戶回應:', data)
 
           if (!data || !data.success) {
@@ -305,7 +305,7 @@ export const useUserStore = defineStore(
           // 使用固定的預設密碼
           const defaultPassword = 'Aa83124007'
 
-          const { data } = await apiAuth.post(`/users/users/${userId}/reset-password`, {
+          const { data } = await apiAuth.post(`/api/users/users/${userId}/reset-password`, {
             password: defaultPassword,
           })
           console.log('重置密碼回應:', data)
@@ -334,7 +334,7 @@ export const useUserStore = defineStore(
         async () => {
           loading.value = true
           console.log('啟用用戶開始:', userId)
-          const { data } = await apiAuth.post(`/users/users/${userId}/activate`)
+          const { data } = await apiAuth.post(`/api/users/users/${userId}/activate`)
           console.log('啟用用戶回應:', data)
 
           if (!data || !data.success) {
@@ -371,7 +371,7 @@ export const useUserStore = defineStore(
         async () => {
           loading.value = true
           console.log('停用用戶開始:', userId)
-          const { data } = await apiAuth.post(`/users/users/${userId}/deactivate`)
+          const { data } = await apiAuth.post(`/api/users/users/${userId}/deactivate`)
           console.log('停用用戶回應:', data)
 
           if (!data || !data.success) {
@@ -408,7 +408,7 @@ export const useUserStore = defineStore(
         async () => {
           loading.value = true
           console.log('刪除用戶開始:', userId)
-          const { data } = await apiAuth.delete(`/users/users/${userId}`)
+          const { data } = await apiAuth.delete(`/api/users/users/${userId}`)
           console.log('刪除用戶回應:', data)
 
           if (!data || !data.success) {

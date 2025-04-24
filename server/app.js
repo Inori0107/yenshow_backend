@@ -14,6 +14,8 @@ import helmet from "helmet";
 // 路由導入
 import userRoutes from "./routes/user.js";
 import hierarchyRoutes from "./routes/hierarchyRoutes.js";
+import faqRoutes from "./routes/faq.js";
+import newsRoutes from "./routes/news.js";
 // 導入模型 - 僅用於初始化檢查，確保模型正確載入
 import "./models/products.js";
 import "./models/categories.js";
@@ -48,8 +50,16 @@ const configureApp = () => {
 				const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3001";
 				const allowedOrigins = corsOrigin.split(",");
 
+				// 開發環境放寬限制
+				const isDevelopment = process.env.NODE_ENV === "development";
+
 				// 允許沒有來源的請求 (如 Postman)
 				if (!origin) return callback(null, true);
+
+				// 在開發模式下允許所有來源
+				if (isDevelopment) {
+					return callback(null, true);
+				}
 
 				if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
 					callback(null, true);
@@ -59,7 +69,8 @@ const configureApp = () => {
 				}
 			},
 			methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-			allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-secret"]
+			allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-secret"],
+			credentials: true // 允許跨域請求攜帶憑證
 		})
 	);
 
@@ -155,8 +166,10 @@ const configureRoutes = (app) => {
 	});
 
 	// API 路由
-	app.use("/users", userRoutes);
+	app.use("/api/users", userRoutes);
 	app.use("/api", hierarchyRoutes);
+	app.use("/api/faqs", faqRoutes);
+	app.use("/api/news", newsRoutes);
 
 	// 調試路由 - 修改路徑
 	app.get("/api/ping", (req, res) => {
