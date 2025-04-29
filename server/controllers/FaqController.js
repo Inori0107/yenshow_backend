@@ -1,7 +1,7 @@
-import { BaseController } from "./BaseController.js";
 import Faq from "../models/Faq.js";
+import { EntityController } from "./EntityController.js";
 
-class FaqController extends BaseController {
+class FaqController extends EntityController {
 	constructor() {
 		super(Faq, {
 			entityName: "Faq",

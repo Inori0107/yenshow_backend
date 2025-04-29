@@ -15,6 +15,7 @@ const router = express.Router();
 router.get("/hierarchy", checkRole([Permissions.PUBLIC]), HierarchyManager.getFullHierarchy);
 router.get("/hierarchy/children/:parentType/:parentId", checkRole([Permissions.PUBLIC]), HierarchyManager.getChildrenByParentId);
 router.get("/hierarchy/parents/:itemType/:itemId", checkRole([Permissions.PUBLIC]), HierarchyManager.getParentHierarchy);
+router.get("/hierarchy/subtree/:itemType/:itemId", checkRole([Permissions.PUBLIC]), HierarchyManager.getSubHierarchy);
 
 // 讀取操作 - 所有角色都可訪問
 router.get("/series", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), SeriesController.getAllItems);

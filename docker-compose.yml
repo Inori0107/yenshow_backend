@@ -36,6 +36,7 @@ services:
       - HOST=0.0.0.0
       - FILES_ROOT=/app/storage
       - API_BASE_URL=http://localhost:${DOCKER_API_PORT:-4000}
+      - PUBLIC_BASE_URL=https://api.yenshow.com
     volumes:
       - D:/storage:/app/storage
     depends_on:

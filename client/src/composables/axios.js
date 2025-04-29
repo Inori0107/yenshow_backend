@@ -41,21 +41,6 @@ apiAuth.interceptors.response.use(
   },
 )
 
-// 新增 pingServer 函式以防止後端進入休眠狀態
-function pingServer() {
-  api
-    .get('/ping')
-    .then(() => {
-      console.log('Ping success')
-    })
-    .catch((error) => {
-      console.error('Ping failed:', error)
-    })
-}
-
-// 每 5 分鐘 (300000 毫秒) ping 一次伺服器
-setInterval(pingServer, 300000)
-
 // 批次請求隊列
 const batchQueue = []
 let batchTimeout = null
@@ -317,6 +302,16 @@ export const useApi = () => {
         () => apiAuth.get(`/api/hierarchy/parents/${itemType}/${itemId}`, { params }), // 假設需要認證
       )
       return response?.data?.result?.hierarchy || []
+    },
+
+    // 新增：獲取指定項目以下的子階層 (對應 HierarchyManager.getSubHierarchy)
+    getSubHierarchy: async (itemType, itemId, params = {}) => {
+      // params 可能包含 lang, maxDepth 等
+      const response = await safeApiCall(
+        () => apiAuth.get(`/api/hierarchy/subtree/${itemType}/${itemId}`, { params }), // 假設需要認證
+      )
+      // 後端返回的結構是 { result: { hierarchy: { ... } } }
+      return response?.data?.result?.hierarchy || null
     },
   }
 

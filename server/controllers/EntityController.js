@@ -2,7 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import { successResponse } from "../utils/responseHandler.js";
 import { EntityService } from "../services/EntityService.js";
 
-export class BaseController {
+export class EntityController {
 	constructor(model, options = {}) {
 		// 基本配置
 		this.model = model;
@@ -181,7 +181,7 @@ export class BaseController {
 					...parentFilter
 				},
 				{
-					term: keyword,
+					keyword,
 					pagination: { page: parseInt(page) || 1, limit: parseInt(limit) || 20 },
 					sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 }
 				}

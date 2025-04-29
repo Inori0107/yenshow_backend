@@ -348,41 +348,53 @@ watch(
 
 // 載入數據
 const loadData = async () => {
-  if (!props.parentId || !entityStore.value) return
-
   loading.value = true
   error.value = ''
-  resetForm()
+  // resetForm(); // 暫時註釋掉 resetForm，以便觀察 formData 的變化
 
   try {
-    // 使用 API 直接獲取子項目
     const { apiAuth } = useApi()
-    const { data } = await apiAuth.get(
-      `/api/hierarchy/children/${props.parentField}/${props.parentId}`,
-      {
-        params: { lang: languageStore.currentLang },
-      },
-    )
+    const requestUrl = `/api/hierarchy/children/${props.parentField}/${props.parentId}`
+
+    const { data } = await apiAuth.get(requestUrl, {
+      params: { lang: languageStore.currentLang },
+    })
 
     if (!data || !data.success) {
+      console.error('[MultilingualFormDialog] API call failed or data.success is false.')
       throw new Error(`無法載入${props.itemLabel}數據`)
     }
 
-    // 設置父項目 ID
-    formData.value.parentId = props.parentId
+    formData.value.parentId = props.parentId // 設置 parentId
 
-    // 從 API 回傳的結果中提取數據
-    // 根據 API 返回格式，應該是 result.${modelType}List
-    const responseKey = `${props.modelType}List`
-    const itemsData = data.result[responseKey] || []
+    // 新方式：同時檢查 <modelType> 和 <modelType>List 鍵名
+    const listKey = `${props.modelType}List`
+    const singleKey = props.modelType // 例如 "subCategories"
 
-    // 轉換數據為表單格式
-    formData.value.items = convertToFormFormat(itemsData)
+    let itemsData = null
+    if (data.result && Array.isArray(data.result[listKey])) {
+      itemsData = data.result[listKey]
+    } else if (data.result && Array.isArray(data.result[singleKey])) {
+      itemsData = data.result[singleKey]
+    } else {
+      console.warn(
+        `[MultilingualFormDialog] Could not find valid array data under keys '${listKey}' or '${singleKey}'.`,
+      )
+    }
+    if (!Array.isArray(itemsData)) {
+      // 保留這個檢查以防萬一
+      console.warn('[MultilingualFormDialog] itemsData is not a valid array after checking keys.')
+      formData.value.items = [] // 確保 items 是數組
+    } else {
+      formData.value.items = convertToFormFormat(itemsData)
+    }
   } catch (err) {
+    console.error('[MultilingualFormDialog] Error in loadData:', err) // 打印錯誤
     error.value = notify.handleApiError(err, {
       showToast: false,
       defaultMessage: `無法載入${props.itemLabel}數據，請稍後再試`,
     }).message
+    formData.value.items = [] // 出錯時清空列表
   } finally {
     loading.value = false
   }
@@ -602,7 +614,6 @@ async function submitForm() {
     if (!data || !data.success) {
       throw new Error(data?.message || `更新${props.itemLabel}失敗`)
     }
-    console.log('data', data)
     // 刷新資料 (在 pinia store 和本地資料都標記為需要刷新)
     entityStore.value.fetchAll({ force: true })
 

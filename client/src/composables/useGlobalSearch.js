@@ -62,7 +62,7 @@ export function useGlobalSearch() {
 
   // 點擊搜尋結果進行導航
   function navigateToResult(entityType, item) {
-    searchStore.closeSearch()
+    closeSearch()
 
     if (!item || !item._id) return
 
@@ -102,6 +102,12 @@ export function useGlobalSearch() {
   // 初始化
   loadRecentSearches()
 
+  // 修改 closeSearch 函數
+  function closeSearch() {
+    inputKeyword.value = ''
+    searchStore.closeSearch()
+  }
+
   return {
     // 狀態
     isVisible: computed(() => searchStore.isVisible),
@@ -118,7 +124,7 @@ export function useGlobalSearch() {
 
     // 工具函數
     toggleSearch: () => searchStore.toggleSearch(),
-    closeSearch: () => searchStore.closeSearch(),
+    closeSearch,
     setActiveTab: (tab) => searchStore.setActiveTab(tab),
     search: performSearch,
     debouncedSearch,

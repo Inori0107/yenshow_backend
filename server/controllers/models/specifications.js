@@ -1,12 +1,12 @@
 import Specifications from "../../models/specifications.js";
 import SubCategories from "../../models/subCategories.js";
-import { BaseController } from "../BaseController.js";
+import { EntityController } from "../EntityController.js";
 
 /**
  * Specifications 控制器 - 管理規格資料
  * 規格是子分類的子層，屬於第四層級
  */
-class SpecificationsController extends BaseController {
+class SpecificationsController extends EntityController {
 	constructor() {
 		super(Specifications, {
 			entityName: "specifications",

@@ -1,12 +1,12 @@
 import SubCategories from "../../models/subCategories.js";
 import Categories from "../../models/categories.js";
-import { BaseController } from "../BaseController.js";
+import { EntityController } from "../EntityController.js";
 
 /**
  * SubCategories 控制器 - 管理子分類資料
  * 子分類是分類的子層，屬於第三層級
  */
-class SubCategoriesController extends BaseController {
+class SubCategoriesController extends EntityController {
 	constructor() {
 		super(SubCategories, {
 			entityName: "subCategories",

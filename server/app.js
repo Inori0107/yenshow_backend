@@ -193,6 +193,8 @@ const configureRoutes = (app) => {
 					// 其他檔案快取時間較短
 					res.setHeader("Cache-Control", "public, max-age=3600"); // 1 小時
 				}
+				// 設定 Cross-Origin Resource Policy 允許跨來源存取
+				res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 			}
 		})
 	);

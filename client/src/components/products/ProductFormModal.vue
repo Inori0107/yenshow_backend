@@ -119,11 +119,11 @@
           <div>
             <label class="block mb-3">產品規格 *</label>
             <select
-              v-model="form.specificationsId"
+              v-model="form.specifications"
               :class="[
                 inputClass,
                 'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors['specificationsId'] ? 'border-red-500' : '',
+                validationErrors['specifications'] ? 'border-red-500' : '',
               ]"
               required
               :disabled="specifications.length === 0"
@@ -139,8 +139,8 @@
                 {{ getSpecificationName(spec) }}
               </option>
             </select>
-            <div v-if="validationErrors['specificationsId']" class="text-red-500 text-sm mt-1">
-              {{ validationErrors['specificationsId'] }}
+            <div v-if="validationErrors['specifications']" class="text-red-500 text-sm mt-1">
+              {{ validationErrors['specifications'] }}
             </div>
             <span
               v-if="specifications.length === 0"
@@ -452,9 +452,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNotifications } from '@/composables/notificationCenter'
-import { useApi } from '@/composables/axios'
 import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
@@ -469,9 +468,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  categoriesId: {
-    type: String,
+  categoryData: {
+    type: Object,
     required: true,
+    default: () => ({ _id: '', name: '', subCategories: [] }),
   },
 })
 
@@ -479,7 +479,6 @@ const emit = defineEmits(['update:visible', 'submit-success', 'close'])
 
 // 初始化工具與狀態
 const notify = useNotifications()
-const { hierarchyApi } = useApi()
 const { getLocalizedField } = useLanguage()
 const { validateRequired, errors: validationErrors, clearErrors, setError } = useFormValidation()
 const productsStore = useProductsStore()
@@ -499,9 +498,8 @@ const form = ref({
   name_TW: '',
   name_EN: '',
   code: '',
-  categoriesId: '',
   subCategoriesId: '',
-  specificationsId: '',
+  specifications: '',
   features: [{ TW: '', EN: '', featureId: 'feature_1' }],
   description_TW: '',
   description_EN: '',
@@ -509,74 +507,157 @@ const form = ref({
 })
 
 // 相關數據
-const subCategories = ref([])
-const specifications = ref([])
 const imageFile = ref(null)
 const imagePreview = ref(null)
 const pdfFile = ref(null)
 const pdfFileName = ref(null)
 const uploadProgress = ref(0)
 const uploadStatus = ref('')
+const specifications = ref([])
 
 // 語言切換狀態
 const featureLanguage = ref('TW')
 const descriptionLanguage = ref('TW')
 
+// ===== 計算屬性 (用於獲取子分類) =====
+const subCategories = computed(() => {
+  const extractedSubCats = props.categoryData?.subCategories || []
+  console.log('[ProductFormModal] Extracted subCategories from prop:', extractedSubCats)
+  return extractedSubCats
+})
+
 // ===== 資料載入方法 =====
 
 /**
- * 載入產品數據
+ * 載入產品數據 (Refactored to use props and search within categoryData for parent IDs)
  */
 const loadProductData = async () => {
-  if (!props.productId) return resetForm()
+  resetForm() // Reset form before loading/setting new data
 
+  // Pre-populate subCategories from props immediately
+  // No need to call loadSubCategories()
+
+  if (!isEditing.value) {
+    // New Product logic remains the same...
+    if (subCategories.value.length > 0 && !form.value.subCategoriesId) {
+      form.value.subCategoriesId = subCategories.value[0]._id
+      const defaultSubCat = subCategories.value[0]
+      specifications.value = defaultSubCat?.specifications || []
+      form.value.specifications = ''
+    }
+    return
+  }
+
+  // --- Editing Product ---
   loading.value = true
   formError.value = ''
   uploadStatus.value = ''
   uploadProgress.value = 0
 
   try {
-    // 使用新的 products store 獲取產品詳情
+    // Step 1: Fetch basic product details (name, desc, images, isActive etc.)
+    // We will IGNORE subCategoriesId and specifications returned from here.
     const productData = await productsStore.fetchProductById(props.productId)
-
     if (!productData) throw new Error('無法載入產品數據')
 
-    console.log('載入的產品數據:', productData)
+    // Step 2: Search within props.categoryData to find the product and its true parent IDs
+    let foundSubCatId = ''
+    let foundSpecId = ''
 
-    // 填充基本表單數據
+    console.log(
+      `[ProductFormModal] Searching for product ${props.productId} within props.categoryData:`,
+      props.categoryData,
+    )
+    if (props.categoryData?.subCategories) {
+      for (const subCat of props.categoryData.subCategories) {
+        if (subCat.specifications) {
+          for (const spec of subCat.specifications) {
+            if (spec.products && spec.products.some((p) => p._id === props.productId)) {
+              foundSubCatId = subCat._id
+              foundSpecId = spec._id
+              console.log(
+                `[ProductFormModal] Found product ${props.productId} under SubCategory ${foundSubCatId} and Specification ${foundSpecId}`,
+              )
+              break // Found product in spec
+            }
+          }
+        }
+        if (foundSubCatId) break // Found product in subCat
+      }
+    }
+
+    if (!foundSubCatId || !foundSpecId) {
+      console.error(
+        `[ProductFormModal] CRITICAL: Product ID ${props.productId} not found within the provided props.categoryData structure! Cannot determine parent IDs.`,
+      )
+      // Decide how to handle this error - show message, block form? Reset IDs?
+      // For now, let's try using the potentially incorrect ones from productData as a fallback, but log a warning.
+      foundSubCatId = productData.subCategoriesId || ''
+      foundSpecId = productData.specifications || ''
+      if (!foundSubCatId || !foundSpecId) {
+        throw new Error(
+          `無法在提供的分類數據中定位產品 ${props.productId}，且產品自身數據也缺少父級ID。`,
+        )
+      }
+      formError.value = `警告：無法在分類結構中定位產品，預選可能不準確。`
+      console.warn(
+        `[ProductFormModal] Fallback: Using subCategoriesId (${foundSubCatId}) and specifications (${foundSpecId}) from fetched productData because product was not found in props.categoryData.`,
+      )
+    }
+
+    // Step 3: Populate form fields using basic info from productData and FOUND parent IDs
     form.value = {
       _id: productData._id,
       name_TW: productData.name?.TW || '',
       name_EN: productData.name?.EN || '',
       code: productData.code || '',
-      categoriesId: productData.categoriesId || props.categoriesId,
-      subCategoriesId: productData.subCategoriesId || '',
-      specificationsId: productData.specifications || productData.specificationsId || '',
+      subCategoriesId: foundSubCatId, // Use the ID found by searching props.categoryData
+      specifications: foundSpecId, // Use the ID found by searching props.categoryData
       description_TW: productData.description?.TW || '',
       description_EN: productData.description?.EN || '',
       features: processFeatures(productData.features),
       isActive: productData.isActive !== undefined ? productData.isActive : true,
     }
+    console.log(
+      '[ProductFormModal] Form value after population (using found IDs):',
+      JSON.parse(JSON.stringify(form.value)),
+    )
 
-    // 設置圖片預覽
-    if (productData.images && productData.images.length > 0) {
-      imagePreview.value = productData.images[0]
-    } else {
-      imagePreview.value = null
-    }
+    // Step 4: Set files previews (from productData)
+    imagePreview.value =
+      productData.images && productData.images.length > 0 ? productData.images[0] : null
+    pdfFileName.value =
+      productData.documents && productData.documents.length > 0
+        ? productData.documents[0].split('/').pop()
+        : null
 
-    // 設置PDF檔案名稱
-    if (productData.documents && productData.documents.length > 0) {
-      const urlParts = productData.documents[0].split('/')
-      pdfFileName.value = urlParts[urlParts.length - 1]
-    } else {
-      pdfFileName.value = null
-    }
-
-    // 載入子分類和規格
-    await loadSubCategories()
+    // Step 5: Populate specifications dropdown based on the FOUND subCategoriesId
     if (form.value.subCategoriesId) {
-      await loadSpecifications(form.value.subCategoriesId)
+      const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
+      // console.log('[ProductFormModal] loadProductData - Found subCategory for dropdown population:', selectedSubCat)
+      specifications.value = selectedSubCat?.specifications || []
+      console.log(
+        '[ProductFormModal] loadProductData - Set specifications dropdown options based on found subCatId:',
+        specifications.value,
+      )
+
+      // Validation check remains useful: ensure the *selected* spec ID is actually in the list for that subCat
+      if (
+        form.value.specifications &&
+        !specifications.value.some((s) => s._id === form.value.specifications)
+      ) {
+        console.warn(
+          `[ProductFormModal] Consistency Check Failed: The determined specification ID ${form.value.specifications} is not found in the specifications list of the determined subCategory ${form.value.subCategoriesId}. Resetting selection.`,
+        )
+        form.value.specifications = '' // Reset if inconsistent
+      }
+    } else {
+      // This case should be less likely now if the search worked, but keep as safety net
+      specifications.value = []
+      form.value.specifications = ''
+      console.log(
+        '[ProductFormModal] loadProductData - Could not determine subCategoryId, specifications dropdown cleared.',
+      )
     }
   } catch (error) {
     console.error('載入產品錯誤:', error)
@@ -616,89 +697,36 @@ const processFeatures = (features) => {
   return [{ TW: '', EN: '', featureId: 'feature_1' }]
 }
 
-/**
- * 載入子分類數據
- */
-const loadSubCategories = async () => {
-  try {
-    if (!props.categoriesId) {
-      formError.value = '無法載入子分類：缺少類別ID'
-      return
-    }
-
-    const result = await hierarchyApi.getChildrenByParent('categories', props.categoriesId)
-    const subCategoriesData = result?.subCategories || result?.subCategoriesList || []
-
-    if (subCategoriesData.length > 0) {
-      subCategories.value = subCategoriesData
-
-      // 如果沒有選擇子分類且有可用的子分類，選擇第一個
-      if (!form.value.subCategoriesId && subCategories.value.length > 0) {
-        form.value.subCategoriesId = subCategories.value[0]._id
-        await loadSpecifications(form.value.subCategoriesId)
-      }
-    } else {
-      subCategories.value = []
-      formError.value = '該類別下沒有子分類，請先添加子分類'
-    }
-  } catch (error) {
-    formError.value = '載入子分類失敗: ' + (error.message || '未知錯誤')
-    subCategories.value = []
-  }
-}
-
-/**
- * 載入規格數據
- */
-const loadSpecifications = async (subCategoriesId) => {
-  if (!subCategoriesId) {
-    specifications.value = []
-    return
-  }
-
-  try {
-    const result = await hierarchyApi.getChildrenByParent('subCategories', subCategoriesId)
-    const specificationsData = result?.specifications || result?.specificationsList || []
-
-    if (specificationsData.length > 0) {
-      specifications.value = specificationsData
-
-      // 如果沒有選擇規格且有可用的規格，選擇第一個
-      if (!form.value.specificationsId && specifications.value.length > 0) {
-        form.value.specificationsId = specifications.value[0]._id
-      }
-    } else {
-      specifications.value = []
-      formError.value = '該子分類下沒有規格，請先添加規格'
-    }
-  } catch (error) {
-    specifications.value = []
-    formError.value = '載入規格失敗: ' + (error.message || '未知錯誤')
-  }
-}
-
 // ===== 表單處理方法 =====
 
 /**
- * 子分類變更處理
+ * 子分類變更處理 (Refactored)
  */
-const handleSubCategoriesChange = async () => {
-  form.value.specificationsId = ''
-  await loadSpecifications(form.value.subCategoriesId)
+const handleSubCategoriesChange = () => {
+  form.value.specifications = '' // Reset specification selection
+  specifications.value = [] // Clear specifications list first
 
-  // 檢查是否正確載入規格
-  console.log('子分類變更後的規格:', {
-    subCategoriesId: form.value.subCategoriesId,
-    specifications: specifications.value,
-    selectedSpecId: form.value.specificationsId,
-  })
+  if (!form.value.subCategoriesId) {
+    console.log('子分類未選擇，清空規格列表')
+    return
+  }
+
+  // Find the selected subcategory object from the computed list
+  const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
+
+  if (selectedSubCat && selectedSubCat.specifications) {
+    specifications.value = selectedSubCat.specifications
+    console.log('為子分類載入規格:', specifications.value)
+  } else {
+    console.warn(`子分類 ${form.value.subCategoriesId} 沒有找到或沒有規格數據`)
+  }
 }
 
 /**
  * 處理規格變更
  */
 const handleSpecificationsChange = () => {
-  console.log('規格已選擇:', form.value.specificationsId)
+  console.log('規格已選擇:', form.value.specifications)
 }
 
 /**
@@ -719,7 +747,6 @@ const addFeature = () => {
 const removeFeature = (index) => {
   if (form.value.features.length > 1) {
     form.value.features.splice(index, 1)
-    // 重新生成 featureId 以保持順序
     form.value.features.forEach((feature, idx) => {
       feature.featureId = `feature_${idx + 1}`
     })
@@ -759,7 +786,6 @@ const handlePdfUpload = (event) => {
  */
 const generateCode = () => {
   if (!form.value.name_EN) {
-    // 如果沒有英文名稱，則使用時間戳生成代碼
     form.value.code = 'PROD_' + Date.now().toString().substring(7)
     return
   }
@@ -777,42 +803,43 @@ const generateCode = () => {
   }
 
   form.value.code = code
-
-  // 添加日誌檢查
-  console.log('生成代碼:', form.value.code, '從名稱:', form.value.name_EN)
 }
 
 /**
- * 表單驗證
+ * 表單驗證 (Updated to use props.categoryData._id if needed)
  */
 const validateForm = () => {
   clearErrors()
   formError.value = ''
 
-  // 確保產品代碼存在
-  if (!form.value.code) {
-    generateCode()
-  }
+  if (!form.value.code) generateCode()
 
   // 驗證必填欄位
   const validations = [
     { field: 'name_TW', label: '產品名稱', minLength: 2 },
     { field: 'code', label: '產品代碼', minLength: 2 },
-    { field: 'categoriesId', label: '分類' },
     { field: 'subCategoriesId', label: '子分類' },
-    { field: 'specificationsId', label: '產品規格' },
+    { field: 'specifications', label: '產品規格' },
   ]
 
   let isValid = true
 
-  // 驗證必填欄位
   validations.forEach(({ field, label, minLength }) => {
-    const result = validateRequired(form.value[field], label)
+    const valueToValidate = form.value[field]
+    const result = validateRequired(valueToValidate, label)
+
     if (!result.valid) {
       setError(field, result.message)
       isValid = false
-    } else if (minLength && form.value[field].length < minLength) {
+    } else if (
+      minLength &&
+      typeof valueToValidate === 'string' &&
+      valueToValidate.length < minLength
+    ) {
       setError(field, `${label}至少需要 ${minLength} 個字符`)
+      isValid = false
+    } else if (field === 'specifications' && !valueToValidate) {
+      setError(field, `${label}不能為空`)
       isValid = false
     }
   })
@@ -824,9 +851,9 @@ const validateForm = () => {
   }
 
   // 檢查最關鍵的兩個參數
-  if (!form.value.specificationsId) {
-    setError('specificationsId', '產品規格不能為空，這是必要參數')
-    formError.value = '缺少必要參數: 產品規格'
+  if (!form.value.specifications) {
+    setError('specifications', '產品規格不能為空，這是必要參數')
+    formError.value = formError.value ? formError.value + '、產品規格' : '缺少必要參數: 產品規格'
     isValid = false
   }
 
@@ -861,21 +888,11 @@ const submitForm = async () => {
     uploadProgress.value = 0
     uploadStatus.value = '準備上傳...'
 
-    // 關鍵欄位檢查和日誌
-    console.log('提交前檢查關鍵欄位:', {
-      specificationsId: form.value.specificationsId,
-      code: form.value.code,
-      categoriesId: form.value.categoriesId,
-      subCategoriesId: form.value.subCategoriesId,
-      name_TW: form.value.name_TW,
-      name_EN: form.value.name_EN,
-    })
-
     // 構建 FormData - 確保符合後端要求
     const formData = new FormData()
 
     // 添加基本資料
-    formData.append('specificationsId', form.value.specificationsId)
+    formData.append('specifications', form.value.specifications)
     formData.append('code', form.value.code)
 
     // 添加多語言欄位 - 使用 name[TW] 格式與後端匹配
@@ -904,12 +921,6 @@ const submitForm = async () => {
 
     // 添加檔案 - 關鍵部分：確保檔案正確添加到 FormData 中
     if (imageFile.value) {
-      console.log(
-        '添加圖片檔案:',
-        imageFile.value.name,
-        imageFile.value.type,
-        imageFile.value.size + 'bytes',
-      )
       formData.append('images', imageFile.value, imageFile.value.name)
     } else if (imagePreview.value && imagePreview.value.startsWith('data:')) {
       // 如果是 data URL，轉換為 Blob 並添加
@@ -917,7 +928,6 @@ const submitForm = async () => {
         const response = await fetch(imagePreview.value)
         const blob = await response.blob()
         const file = new File([blob], 'image.jpg', { type: 'image/jpeg' })
-        console.log('添加圖片檔案(從預覽轉換):', file.name, file.type, file.size + 'bytes')
         formData.append('images', file)
       } catch (error) {
         console.error('轉換圖片預覽失敗:', error)
@@ -925,31 +935,12 @@ const submitForm = async () => {
     }
 
     if (pdfFile.value) {
-      console.log(
-        '添加PDF檔案:',
-        pdfFile.value.name,
-        pdfFile.value.type,
-        pdfFile.value.size + 'bytes',
-      )
       formData.append('documents', pdfFile.value, pdfFile.value.name)
     }
 
     // 其他選項
     formData.append('isActive', form.value.isActive ? 'true' : 'false')
 
-    // 確認 FormData 內容
-    console.log('FormData 內容檢查:')
-    for (const pair of formData.entries()) {
-      if (pair[0] === 'images' || pair[0] === 'documents') {
-        console.log(
-          `${pair[0]}: [檔案] ${pair[1].name}, 類型: ${pair[1].type}, 大小: ${pair[1].size}bytes`,
-        )
-      } else {
-        console.log(`${pair[0]}: ${pair[1]}`)
-      }
-    }
-
-    console.log('提交表單數據:', formData)
     // 使用 products store 提交數據
     let result
     uploadStatus.value = '正在上傳資料...'
@@ -965,9 +956,6 @@ const submitForm = async () => {
     if (!result) {
       throw new Error(productsStore.error || `產品${isEditing.value ? '更新' : '創建'}失敗`)
     }
-
-    console.log('提交表單結果:', result)
-
     // 處理成功
     uploadStatus.value = '上傳成功！'
     notify.notifySuccess(`產品${isEditing.value ? '更新' : '創建'}成功！`)
@@ -1020,7 +1008,7 @@ const closeModal = () => {
 }
 
 /**
- * 重置表單
+ * 重置表單 (Updated)
  */
 const resetForm = () => {
   // 重置基本表單數據
@@ -1029,31 +1017,38 @@ const resetForm = () => {
     name_TW: '',
     name_EN: '',
     code: '',
-    categoriesId: props.categoriesId,
     subCategoriesId: '',
-    specificationsId: '',
+    specifications: '',
     description_TW: '',
     description_EN: '',
     features: [{ TW: '', EN: '', featureId: 'feature_1' }],
     isActive: true,
   }
 
-  // 重置文件和預覽
+  // Reset specifications list based on potentially available subcategories
+  specifications.value = []
+  if (subCategories.value.length > 0) {
+    // Optionally pre-select first subcategory and its specs?
+    // Or just leave subCat selection blank until user selects.
+    // Let's leave it blank for now.
+  }
+
+  // Reset files and previews
   imageFile.value = null
   imagePreview.value = null
   pdfFile.value = null
   pdfFileName.value = null
 
-  // 重置上傳狀態
+  // Reset upload status
   uploadStatus.value = ''
   uploadProgress.value = 0
   isProcessing.value = false
 
-  // 重置錯誤和驗證
+  // Reset errors and validation
   formError.value = ''
   clearErrors()
 
-  // 重置語言選擇
+  // Reset language selection
   featureLanguage.value = 'TW'
   descriptionLanguage.value = 'TW'
 }
@@ -1088,21 +1083,12 @@ watch(
       uploadProgress.value = 0
       formError.value = ''
       await loadProductData()
+    } else {
+      // Optionally reset form when modal closes
+      // resetForm(); // uncomment if needed
     }
   },
-)
-
-// 監聽分類ID變化
-watch(
-  () => props.categoriesId,
-  (newValue) => {
-    if (newValue && props.visible) {
-      form.value.subCategoriesId = ''
-      form.value.specificationsId = ''
-      specifications.value = []
-      loadSubCategories()
-    }
-  },
+  { immediate: true }, // Run immediately if modal starts visible
 )
 
 // 監聽英文名稱變化，自動更新代碼
@@ -1111,10 +1097,6 @@ watch(
   () => generateCode(),
 )
 
-// 初始化
-onMounted(() => {
-  if (props.visible) {
-    loadProductData()
-  }
-})
+// 初始化 - Handled by watch on visible
+// onMounted(() => { ... })
 </script>

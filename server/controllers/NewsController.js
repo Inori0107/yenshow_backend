@@ -1,7 +1,7 @@
-import { BaseController } from "./BaseController.js";
 import News from "../models/News.js";
+import { EntityController } from "./EntityController.js";
 
-class NewsController extends BaseController {
+class NewsController extends EntityController {
 	constructor() {
 		super(News, {
 			entityName: "News",

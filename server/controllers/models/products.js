@@ -7,6 +7,7 @@ import fileUpload from "../../utils/fileUpload.js";
 import { ApiError } from "../../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
 import { performSearch } from "../../utils/searchHelper.js";
+import { transformProductImagePaths } from "../../utils/urlTransformer.js";
 
 /**
  * 產品控制器 - 專注於產品數據管理和檔案處理
@@ -16,11 +17,11 @@ class ProductsController {
 		// 為了與 HierarchyManager 兼容而添加的屬性
 		this.entityName = "products";
 		this.responseKey = "productsList";
-		this.parentField = "specificationsId";
+		this.parentField = "specifications";
 
 		// 添加兼容層 - 模擬 EntityService 的介面
 		this.entityService = {
-			parentField: "specificationsId",
+			parentField: "specifications",
 
 			// 與 EntityService.ensureExists 相容的方法
 			ensureExists: async (id, options = {}) => {
@@ -117,14 +118,14 @@ class ProductsController {
 	 */
 	async getProducts(req, res) {
 		try {
-			const { specificationsId, withImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { specifications, withImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
 
 			// 構建查詢條件 - 移除isActive過濾
 			const query = {};
 
 			// 父層關聯過濾
-			if (specificationsId) {
-				query.specificationsId = specificationsId;
+			if (specifications) {
+				query.specifications = specifications;
 			}
 
 			// 自定義過濾器
@@ -151,12 +152,16 @@ class ProductsController {
 				.skip(skip)
 				.limit(parseInt(limit));
 
+			// 應用轉換
+			const baseUrl = process.env.PUBLIC_BASE_URL;
+			const transformedProducts = products.map((p) => transformProductImagePaths(p.toObject(), baseUrl));
+
 			// 回傳結果
 			return res.status(StatusCodes.OK).json({
 				success: true,
 				message: "獲取產品列表成功",
 				result: {
-					productsList: products,
+					productsList: transformedProducts,
 					pagination: {
 						page: parseInt(page),
 						limit: parseInt(limit),
@@ -179,13 +184,13 @@ class ProductsController {
 	 */
 	async searchProducts(req, res) {
 		try {
-			const { keyword, specificationsId, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { keyword, specifications, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
 
 			// 構建附加條件 - 移除isActive過濾
 			const additionalConditions = {};
 
-			if (specificationsId) {
-				additionalConditions.specificationsId = specificationsId;
+			if (specifications) {
+				additionalConditions.specifications = specifications;
 			}
 
 			// 使用 searchHelper 進行搜索
@@ -197,7 +202,7 @@ class ProductsController {
 				sort,
 				sortDirection,
 				limit: parseInt(limit),
-				populate: "specificationsId"
+				populate: "specifications"
 			});
 
 			// 計算分頁
@@ -205,12 +210,16 @@ class ProductsController {
 			const skip = (parseInt(page) - 1) * parseInt(limit);
 			const paginatedItems = items.slice(skip, skip + parseInt(limit));
 
+			// 應用轉換
+			const baseUrl = process.env.PUBLIC_BASE_URL;
+			const transformedItems = paginatedItems.map((item) => transformProductImagePaths(item.toObject(), baseUrl));
+
 			// 回傳結果
 			return res.status(StatusCodes.OK).json({
 				success: true,
 				message: "搜索產品成功",
 				result: {
-					productsList: paginatedItems,
+					productsList: transformedItems,
 					pagination: {
 						page: parseInt(page),
 						limit: parseInt(limit),
@@ -241,10 +250,14 @@ class ProductsController {
 				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
 			}
 
+			// 應用轉換
+			const baseUrl = process.env.PUBLIC_BASE_URL;
+			const transformedProduct = transformProductImagePaths(product.toObject(), baseUrl);
+
 			return res.status(StatusCodes.OK).json({
 				success: true,
 				message: "獲取產品成功",
-				result: { products: product }
+				result: { products: transformedProduct }
 			});
 		} catch (error) {
 			console.error("獲取產品失敗:", error);
@@ -264,8 +277,8 @@ class ProductsController {
 			const productData = this._processFormData(req);
 
 			// 2. 驗證必要參數
-			if (!productData.specificationsId || !productData.code) {
-				throw new ApiError(StatusCodes.BAD_REQUEST, "缺少必要參數: specificationsId 和 code");
+			if (!productData.specifications || !productData.code) {
+				throw new ApiError(StatusCodes.BAD_REQUEST, "缺少必要參數: specifications 和 code");
 			}
 
 			// 3. 處理檔案上傳
@@ -409,7 +422,7 @@ class ProductsController {
 			// 新增部分：刪除產品目錄（僅刪除 images 和 documents 子目錄）
 			try {
 				// 獲取產品層級結構
-				const hierarchyData = await this._getProductHierarchy(product.specificationsId);
+				const hierarchyData = await this._getProductHierarchy(product.specifications);
 
 				// 刪除產品目錄
 				const deleteResult = fileUpload.deleteProductDirectories(hierarchyData, product.code);
@@ -459,11 +472,11 @@ class ProductsController {
 			for (const item of toCreate) {
 				try {
 					// 進行基本驗證
-					if (!item.code || !item.specificationsId || !item.name) {
+					if (!item.code || !item.specifications || !item.name) {
 						results.errors.push({
 							operation: "create",
 							data: item,
-							error: "缺少必要欄位: code, specificationsId, name"
+							error: "缺少必要欄位: code, specifications, name"
 						});
 						continue;
 					}
@@ -535,8 +548,8 @@ class ProductsController {
 		let productData = { ...req.body };
 
 		// 2. 處理查詢參數
-		if (req.query.specificationsId) {
-			productData.specificationsId = req.query.specificationsId;
+		if (req.query.specifications) {
+			productData.specifications = req.query.specifications;
 		}
 
 		if (req.query.code) {
@@ -626,14 +639,14 @@ class ProductsController {
 			return result;
 		}
 
-		const { specificationsId, code } = productData;
+		const { specifications, code } = productData;
 
-		if (!specificationsId || !code) {
-			throw new ApiError(StatusCodes.BAD_REQUEST, "缺少必要參數: specificationsId 和 code");
+		if (!specifications || !code) {
+			throw new ApiError(StatusCodes.BAD_REQUEST, "缺少必要參數: specifications 和 code");
 		}
 
 		// 獲取產品層級結構
-		const hierarchyData = await this._getProductHierarchy(specificationsId);
+		const hierarchyData = await this._getProductHierarchy(specifications);
 
 		// 處理圖片
 		if (req.files.images && req.files.images.length > 0) {
@@ -678,12 +691,12 @@ class ProductsController {
 	 * 獲取產品層級結構
 	 * @private
 	 */
-	async _getProductHierarchy(specificationsId) {
+	async _getProductHierarchy(specifications) {
 		try {
 			// 查詢規格信息
-			const specification = await Specifications.findById(specificationsId);
+			const specification = await Specifications.findById(specifications);
 			if (!specification) {
-				throw new ApiError(StatusCodes.NOT_FOUND, `找不到規格 ID: ${specificationsId}`);
+				throw new ApiError(StatusCodes.NOT_FOUND, `找不到規格 ID: ${specifications}`);
 			}
 
 			// 查詢子分類信息
@@ -712,7 +725,7 @@ class ProductsController {
 				specification
 			};
 		} catch (error) {
-			console.error(`獲取產品層級結構失敗 (ID: ${specificationsId}):`, error);
+			console.error(`獲取產品層級結構失敗 (ID: ${specifications}):`, error);
 			throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `無法取得產品層級結構: ${error.message}`);
 		}
 	}

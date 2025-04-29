@@ -108,6 +108,27 @@ export const useHierarchyStore = defineStore('hierarchy', {
       }
     },
 
+    // 新增：獲取指定項目以下的子階層結構
+    async fetchSubHierarchy(itemType, itemId, options = {}) {
+      // options 可能包含 maxDepth
+      this.isLoading = true
+      this.error = null
+      let subHierarchy = null
+
+      try {
+        const { hierarchyApi } = useApi()
+        // 將 options 作為 params 傳遞給 API 調用
+        subHierarchy = await hierarchyApi.getSubHierarchy(itemType, itemId, options)
+      } catch (error) {
+        this.error = error.message || `獲取 ${itemType} 子階層時發生錯誤`
+        console.error(`獲取 ${itemType} (ID: ${itemId}) 子階層錯誤:`, error)
+      } finally {
+        this.isLoading = false
+      }
+      // 直接返回獲取的子樹數據，讓組件處理
+      return subHierarchy
+    },
+
     // 設置當前實體
     setCurrentEntity(entity, type) {
       this.currentEntity = { ...entity, type }

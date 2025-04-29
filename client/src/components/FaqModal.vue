@@ -150,7 +150,7 @@
                 ),
               ]"
             ></div>
-            <span class="ml-3 text-sm font-medium theme-text">上架商品</span>
+            <span class="ml-3 text-sm font-medium theme-text">顯示</span>
           </label>
         </div>
 

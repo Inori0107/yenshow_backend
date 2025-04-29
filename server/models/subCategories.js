@@ -32,10 +32,24 @@ const subCategoriesSchema = new Schema(
 	},
 	{
 		timestamps: true,
-		versionKey: false,
-		toJSON: { virtuals: false },
-		toObject: { virtuals: false }
+		versionKey: false
 	}
 );
+
+const transformOptions = {
+	virtuals: true,
+	versionKey: false,
+	transform: function (doc, ret) {
+		if (ret._id) {
+			ret._id = ret._id.toString();
+		}
+		if (ret.categories && typeof ret.categories === "object" && ret.categories.toString) {
+			ret.categories = ret.categories.toString();
+		}
+		return ret;
+	}
+};
+subCategoriesSchema.set("toObject", transformOptions);
+subCategoriesSchema.set("toJSON", transformOptions);
 
 export default model("SubCategories", subCategoriesSchema);

@@ -1,6 +1,6 @@
 import { ApiError } from "../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
-import mongoose from "mongoose";
+import { performSearch } from "../utils/searchHelper.js";
 
 /**
  * EntityService 類 - 提供模型實體通用操作
@@ -214,62 +214,60 @@ export class EntityService {
 	 */
 	async search(query = {}, options = {}) {
 		try {
-			const { term, pagination, sort } = options;
+			const { keyword, pagination, sort } = options;
 
-			const searchQuery = { ...query };
+			// 基本查詢條件
+			const baseQuery = { ...query };
 
-			// 如果有搜索詞，使用正則表達式搜索（支持物件格式的多語言欄位）
-			if (term) {
-				// 確保 term 是字串類型
-				const termString = String(term);
-
-				const searchConditions = [{ code: { $regex: termString, $options: "i" } }];
-
-				// 為每個語言添加搜索條件
-				this.basicFields.forEach((field) => {
-					searchConditions.push({ [field]: { $regex: termString, $options: "i" } });
-				});
-
-				searchQuery.$or = searchConditions;
-			}
-
-			// 設置分頁
-			const page = pagination?.page || 1;
-			const limit = pagination?.limit || 50;
-			const skip = (page - 1) * limit;
-
-			// 執行計數查詢
-			const total = await this.model.countDocuments(searchQuery);
-
-			// 構建查詢
-			let dbQuery = this.model.find(searchQuery);
-
-			// 應用排序
+			// 從 options.sort 解析排序欄位和方向
+			let sortField = "createdAt";
+			let sortDirection = "asc"; // performSearch 預設 asc
 			if (sort) {
-				dbQuery = dbQuery.sort(sort);
+				const sortKey = Object.keys(sort)[0];
+				if (sortKey) {
+					sortField = sortKey;
+					sortDirection = sort[sortKey] === -1 ? "desc" : "asc";
+				}
 			}
 
-			// 應用分頁
-			if (pagination) {
-				dbQuery = dbQuery.skip(skip).limit(limit);
-			}
+			// 設置分頁，提供預設值
+			const page = pagination?.page || 1;
+			const limit = pagination?.limit || 100; // 維持原 search 的預設或用 performSearch 的
 
-			// 執行查詢
-			const results = await dbQuery;
+			// 定義搜尋欄位，只包含文本類型的欄位，例如 code 和 name
+			const searchFields = ["code", "name.TW", "name.EN"]; // 明確指定文本搜尋欄位
 
-			// 返回結果
+			// 使用 performSearch 進行搜尋
+			const searchResults = await performSearch({
+				model: this.model,
+				keyword,
+				additionalConditions: baseQuery,
+				searchFields: searchFields,
+				sort: sortField,
+				sortDirection: sortDirection,
+				limit: limit
+				// populate: options.populate // 如果需要，可以從 options 傳遞 populate
+			});
+
+			// 計算總頁數
+			const total = searchResults.total;
+			const totalPages = Math.ceil(total / limit);
+
+			// 格式化返回結果以匹配之前的結構
 			return {
-				data: results.map((item) => this.formatOutput(item)),
-				pagination: pagination
+				data: searchResults.items.map((item) => this.formatOutput(item)),
+				pagination: pagination // 保持傳入的分頁對象，如果需要包含 total 和 pages，則建立新的
 					? {
 							page,
 							limit,
 							total,
-							pages: Math.ceil(total / limit)
+							pages: totalPages
 					  }
-					: null
+					: null // 如果沒有傳入 pagination，則返回 null
 			};
 		} catch (error) {
+			// 保留原始的錯誤處理
+			if (error instanceof ApiError) throw error;
 			throw new ApiError(StatusCodes.BAD_REQUEST, `搜索${this.modelName.toLowerCase()}失敗: ${error.message}`);
 		}
 	}

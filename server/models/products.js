@@ -19,7 +19,7 @@ const productSchema = new Schema(
 			trim: true,
 			comment: "系列識別碼，用於系統識別和URL"
 		},
-		specificationsId: { type: Schema.Types.ObjectId, ref: "Specifications", required: true },
+		specifications: { type: Schema.Types.ObjectId, ref: "Specifications", required: true },
 		description: {
 			type: Object,
 			default: {
@@ -41,10 +41,36 @@ const productSchema = new Schema(
 	},
 	{
 		timestamps: true,
-		versionKey: false,
-		toJSON: { virtuals: false },
-		toObject: { virtuals: false }
+		versionKey: false
 	}
 );
+
+// --- 添加轉換配置 ---
+const transformOptions = {
+	virtuals: true,
+	versionKey: false,
+	transform: function (doc, ret) {
+		// 轉換 _id
+		if (ret._id) {
+			ret._id = ret._id.toString();
+		}
+		// 轉換 specifications ObjectId
+		if (ret.specifications && typeof ret.specifications === "object" && ret.specifications.toString) {
+			ret.specifications = ret.specifications.toString();
+		}
+		// 根據之前的日誌，轉換 features 陣列中的 _id (如果存在)
+		if (ret.features && Array.isArray(ret.features)) {
+			ret.features.forEach((feature) => {
+				if (feature._id && typeof feature._id === "object" && feature._id.toString) {
+					feature._id = feature._id.toString();
+				}
+			});
+		}
+		return ret;
+	}
+};
+productSchema.set("toObject", transformOptions);
+productSchema.set("toJSON", transformOptions);
+// --- 配置結束 ---
 
 export default model("Products", productSchema);

@@ -32,10 +32,28 @@ const specificationsSchema = new Schema(
 	},
 	{
 		timestamps: true,
-		versionKey: false,
-		toJSON: { virtuals: false },
-		toObject: { virtuals: false }
+		versionKey: false
 	}
 );
+
+// --- 添加轉換配置 ---
+const transformOptions = {
+	virtuals: true,
+	versionKey: false,
+	transform: function (doc, ret) {
+		// 轉換 _id
+		if (ret._id) {
+			ret._id = ret._id.toString();
+		}
+		// 轉換 subCategories ObjectId
+		if (ret.subCategories && typeof ret.subCategories === "object" && ret.subCategories.toString) {
+			ret.subCategories = ret.subCategories.toString();
+		}
+		return ret;
+	}
+};
+specificationsSchema.set("toObject", transformOptions);
+specificationsSchema.set("toJSON", transformOptions);
+// --- 配置結束 ---
 
 export default model("Specifications", specificationsSchema);

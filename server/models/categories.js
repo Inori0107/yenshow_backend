@@ -32,10 +32,24 @@ const categoriesSchema = new Schema(
 	},
 	{
 		timestamps: true,
-		versionKey: false,
-		toJSON: { virtuals: false },
-		toObject: { virtuals: false }
+		versionKey: false
 	}
 );
+
+const transformOptions = {
+	virtuals: true,
+	versionKey: false,
+	transform: function (doc, ret) {
+		if (ret._id) {
+			ret._id = ret._id.toString();
+		}
+		if (ret.series && typeof ret.series === "object" && ret.series.toString) {
+			ret.series = ret.series.toString();
+		}
+		return ret;
+	}
+};
+categoriesSchema.set("toObject", transformOptions);
+categoriesSchema.set("toJSON", transformOptions);
 
 export default model("Categories", categoriesSchema);

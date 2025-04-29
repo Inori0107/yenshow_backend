@@ -26,10 +26,24 @@ const seriesSchema = new Schema(
 	},
 	{
 		timestamps: true,
-		versionKey: false,
-		toJSON: { virtuals: false }, // 不使用虛擬欄位
-		toObject: { virtuals: false }
+		versionKey: false
 	}
 );
+
+// --- 添加轉換配置 ---
+const transformOptions = {
+	virtuals: true,
+	versionKey: false,
+	transform: function (doc, ret) {
+		// 轉換 _id
+		if (ret._id) {
+			ret._id = ret._id.toString();
+		}
+		return ret;
+	}
+};
+seriesSchema.set("toObject", transformOptions);
+seriesSchema.set("toJSON", transformOptions);
+// --- 配置結束 ---
 
 export default model("Series", seriesSchema);

@@ -1,11 +1,11 @@
 import Series from "../../models/series.js";
-import { BaseController } from "../BaseController.js";
+import { EntityController } from "../EntityController.js";
 
 /**
  * Series 控制器 - 管理系列資料
  * 系列是產品結構的最頂層
  */
-class SeriesController extends BaseController {
+class SeriesController extends EntityController {
 	constructor() {
 		super(Series, {
 			entityName: "series",
