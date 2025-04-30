@@ -35,7 +35,7 @@ const productSchema = new Schema(
 				EN: { type: String, default: "" }
 			}
 		],
-		images: [{ type: String, required: true }],
+		images: [{ type: String }],
 		documents: [{ type: String }],
 		isActive: { type: Boolean, default: true }
 	},

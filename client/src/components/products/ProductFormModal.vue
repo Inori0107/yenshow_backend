@@ -276,10 +276,7 @@
 
         <!-- 產品圖片上傳 -->
         <div class="mb-6">
-          <label class="block mb-3">
-            產品示圖
-            <span class="text-xs text-gray-400">必須上傳至少一張圖片</span>
-          </label>
+          <label class="block mb-3"> 產品示圖 </label>
           <div
             class="border-2 border-dashed rounded-[10px] p-4 text-center cursor-pointer hover:border-[#3490dc]"
             :class="[
@@ -861,12 +858,6 @@ const validateForm = () => {
     setError('code', '產品代碼不能為空，這是必要參數')
     formError.value = formError.value ? formError.value + '、產品代碼' : '缺少必要參數: 產品代碼'
     isValid = false
-  }
-
-  // 檢查圖片
-  if (!isEditing.value && !imageFile.value && !imagePreview.value) {
-    formError.value = '請上傳產品圖片'
-    return false
   }
 
   if (!isValid) {
