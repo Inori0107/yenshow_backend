@@ -16,6 +16,7 @@ import userRoutes from "./routes/user.js";
 import hierarchyRoutes from "./routes/hierarchyRoutes.js";
 import faqRoutes from "./routes/faq.js";
 import newsRoutes from "./routes/news.js";
+import contactRoutes from "./routes/contactRoutes.js";
 // 導入模型 - 僅用於初始化檢查，確保模型正確載入
 import "./models/products.js";
 import "./models/categories.js";
@@ -47,7 +48,7 @@ const configureApp = () => {
 		cors({
 			origin: function (origin, callback) {
 				// 允許的來源清單
-				const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3001";
+				const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3002";
 				const allowedOrigins = corsOrigin.split(",");
 
 				// 開發環境放寬限制
@@ -170,6 +171,7 @@ const configureRoutes = (app) => {
 	app.use("/api", hierarchyRoutes);
 	app.use("/api/faqs", faqRoutes);
 	app.use("/api/news", newsRoutes);
+	app.use("/api", contactRoutes);
 
 	// 調試路由 - 修改路徑
 	app.get("/api/ping", (req, res) => {
@@ -245,7 +247,7 @@ const startHttpServer = (app) => {
 	return app.listen(port, host, () => {
 		console.log(`✅ 伺服器啟動於 ${host}:${port}`);
 		console.log(`📌 API 基礎路徑: http://${host}:${port}/`);
-		console.log(`🔒 允許的 CORS 來源: ${process.env.CORS_ORIGIN || "http://localhost:3001"}`);
+		console.log(`🔒 允許的 CORS 來源: ${process.env.CORS_ORIGIN || "http://localhost:3002"}`);
 	});
 };
 

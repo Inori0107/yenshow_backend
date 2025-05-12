@@ -1,9 +1,3 @@
 <template>
-  <main>
-    <GoogleAnalysis />
-  </main>
+  <div></div>
 </template>
-
-<script setup>
-import GoogleAnalysis from '../components/GoogleAnalysis.vue'
-</script>

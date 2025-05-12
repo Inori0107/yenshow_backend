@@ -2,6 +2,38 @@ import { ApiError } from "../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
 import { EntityService } from "./EntityService.js";
 
+// 排序輔助函數
+function sortItemsByCode(items) {
+	if (!Array.isArray(items)) return [];
+
+	const parseCode = (code) => {
+		if (typeof code !== "string" || !code) {
+			return { num: Infinity, textPart: code || "" };
+		}
+		// 尋找第一個數字序列及其後的任何字符
+		const match = code.match(/(\d+)(.*)/);
+		if (match) {
+			const num = parseInt(match[1], 10);
+			const textPart = match[2] || ""; // 數字後的所有字符
+			return { num, textPart };
+		}
+		// 如果沒有數字，則整個作為文本比較，將 num 設為 Infinity 使其排在後面
+		return { num: Infinity, textPart: code };
+	};
+
+	return [...items].sort((a, b) => {
+		// 假設 item 對象有 code 屬性
+		const valA = parseCode(a.code);
+		const valB = parseCode(b.code);
+
+		if (valA.num !== valB.num) {
+			return valA.num - valB.num; // 按數字升序
+		}
+		// 數字相同時，按文本部分進行不區分大小寫的排序
+		return valA.textPart.localeCompare(valB.textPart, undefined, { sensitivity: "base" });
+	});
+}
+
 /**
  * HierarchyService 類 - 處理跨模型的層級關係邏輯
  */
@@ -137,13 +169,14 @@ class HierarchyService {
 				{
 					[childService.parentField]: id // 使用子服務的 parentField
 				},
-				{ language, sort: { createdAt: 1 } } // 傳遞 language 和排序選項
+				{ language } // 移除 sort 選項，排序將由後續的 sortItemsByCode 處理
 			);
 
 			// 遞迴處理每個子項
 			const childrenWithSubtree = [];
 			if (childrenResult && childrenResult.data) {
-				for (const child of childrenResult.data) {
+				const sortedChildren = sortItemsByCode(childrenResult.data); // 在此排序
+				for (const child of sortedChildren) {
 					// 遞迴調用，增加深度
 					const childWithSubtree = await this.buildHierarchyTree(childType, child._id, { ...options, currentDepth: currentDepth + 1 });
 					if (childWithSubtree) {
@@ -231,11 +264,13 @@ class HierarchyService {
 			{
 				[childService.parentField]: parentId
 			},
-			{ language, sort: { createdAt: 1 } }
+			{ language }
 		);
 
+		const sortedChildren = sortItemsByCode(childItemsResult.data || []); // 在此排序
+
 		return {
-			children: childItemsResult.data || [],
+			children: sortedChildren, // 使用排序後的子項
 			childType: childType,
 			parent: {
 				type: parentType,

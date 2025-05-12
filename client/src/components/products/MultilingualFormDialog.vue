@@ -90,7 +90,7 @@
                       <span
                         class="absolute right-3 top-3 text-xs"
                         :class="conditionalClass('text-gray-400', 'text-slate-500')"
-                        >繁體中文</span
+                        >TW</span
                       >
                       <input
                         v-model="item.name_TW"
@@ -116,7 +116,7 @@
                       <span
                         class="absolute right-3 top-3 text-xs"
                         :class="conditionalClass('text-gray-400', 'text-slate-500')"
-                        >English</span
+                        >EN</span
                       >
                       <input
                         v-model="item.name_EN"

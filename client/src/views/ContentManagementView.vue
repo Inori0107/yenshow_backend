@@ -240,7 +240,7 @@ import { useNewsStore } from '@/stores/newsStore'
 import { useFaqStore } from '@/stores/faqStore'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useNotifications } from '@/composables/notificationCenter'
-import NewsModal from '@/components/NewsModal.vue'
+import NewsModal from '@/components/news/NewsModal.vue'
 import FaqModal from '@/components/FaqModal.vue'
 
 const newsStore = useNewsStore()
@@ -303,10 +303,11 @@ const formatDate = (dateString) => {
   if (!dateString) return '-'
   try {
     const date = new Date(dateString)
-    return date.toLocaleDateString()
+    return date.toLocaleDateString() // 使用本地化日期格式
+    // 或者使用更詳細的格式: return date.toLocaleString();
   } catch /*(e)*/ {
     // 移除未使用的變數 e
-    return dateString
+    return dateString // 如果轉換失敗，返回原始字串
   }
 }
 

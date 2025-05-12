@@ -123,6 +123,9 @@ export class EntityService {
 				await entity.save();
 			}
 
+			if (options.returnRawInstance) {
+				return entity; // 返回原始 Mongoose Document 實例
+			}
 			return this.formatOutput(entity);
 		} catch (error) {
 			if (error instanceof ApiError) throw error;
@@ -157,6 +160,9 @@ export class EntityService {
 				throw new ApiError(StatusCodes.NOT_FOUND, `找不到要更新的${this.modelName.toLowerCase()}`);
 			}
 
+			if (options.returnRawInstance) {
+				return updatedEntity; // 返回原始 Mongoose Document 實例
+			}
 			return this.formatOutput(updatedEntity);
 		} catch (error) {
 			if (error instanceof ApiError) throw error;
@@ -262,7 +268,7 @@ export class EntityService {
 							limit,
 							total,
 							pages: totalPages
-					  }
+						}
 					: null // 如果沒有傳入 pagination，則返回 null
 			};
 		} catch (error) {

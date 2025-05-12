@@ -37,6 +37,10 @@ services:
       - FILES_ROOT=/app/storage
       - API_BASE_URL=http://localhost:${DOCKER_API_PORT:-4000}
       - PUBLIC_BASE_URL=https://api.yenshow.com
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM_ADDRESS_RESEND=${EMAIL_FROM_ADDRESS_RESEND}
+      - EMAIL_FROM_NAME_RESEND=${EMAIL_FROM_NAME_RESEND}
+      - CONTACT_EMAIL_RECIPIENT=${CONTACT_EMAIL_RECIPIENT}
     volumes:
       - D:/storage:/app/storage
     depends_on:

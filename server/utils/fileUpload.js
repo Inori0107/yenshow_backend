@@ -4,6 +4,9 @@ import multer from "multer";
 import { ApiError } from "./responseHandler.js";
 import os from "os";
 
+const MAX_TOTAL_NEWS_IMAGES = 20; // 新聞總圖片數上限 (封面+內容)
+const MAX_NEWS_CONTENT_IMAGES = MAX_TOTAL_NEWS_IMAGES - 1; // 內容圖片上限
+
 /**
  * 檔案上傳工具類
  * 提供檔案上傳處理、儲存和驗證功能
@@ -11,7 +14,7 @@ import os from "os";
 class FileUpload {
 	constructor() {
 		// 檢測操作系統類型
-		this.isWindows = os.platform() === "win64";
+		this.isWindows = os.platform() === "win32";
 
 		// 根據操作系統設置默認的檔案根目錄
 		let defaultRoot = "/app/storage";
@@ -35,22 +38,26 @@ class FileUpload {
 
 		// 檔案過濾器
 		this.fileFilter = (req, file, cb) => {
-			// 檢查檔案類型
-			switch (file.fieldname) {
-				case "images":
-					if (!file.mimetype.startsWith("image/")) {
-						return cb(new ApiError(400, "只允許上傳圖片檔案"), false);
-					}
-					break;
-				case "documents":
-					if (file.mimetype !== "application/pdf") {
-						return cb(new ApiError(400, "文檔僅允許 PDF 格式"), false);
-					}
-					break;
-				default:
-					if (!this.isAllowedMimeType(file.mimetype)) {
-						return cb(new ApiError(400, "不支援的檔案類型"), false);
-					}
+			// Specific handling for news uploads
+			if (file.fieldname === "coverImage" || file.fieldname === "contentImages") {
+				if (!file.mimetype.startsWith("image/")) {
+					return cb(new ApiError(400, "新聞相關圖片只允許上傳圖片檔案"), false);
+				}
+			}
+			// Handling for product uploads
+			else if (file.fieldname === "images" || file.fieldname === "documents") {
+				if (file.fieldname === "images" && !file.mimetype.startsWith("image/")) {
+					return cb(new ApiError(400, "產品示圖只允許上傳圖片檔案"), false);
+				}
+				if (file.fieldname === "documents" && file.mimetype !== "application/pdf") {
+					return cb(new ApiError(400, "產品文檔僅允許 PDF 格式"), false);
+				}
+			}
+			// Generic file type check for other potential uploads
+			else {
+				if (!this.isAllowedMimeType(file.mimetype)) {
+					return cb(new ApiError(400, "不支援的檔案類型"), false);
+				}
 			}
 
 			cb(null, true);
@@ -77,6 +84,23 @@ class FileUpload {
 			}
 		} catch (error) {
 			console.error(`無法創建檔案儲存根目錄: ${error.message}`);
+		}
+	}
+
+	/**
+	 * 確保指定目錄存在
+	 * @param {String} directoryPath - 目錄的絕對路徑
+	 */
+	ensureDirectory(directoryPath) {
+		try {
+			if (!fs.existsSync(directoryPath)) {
+				fs.mkdirSync(directoryPath, { recursive: true });
+				console.log(`已創建目錄: ${directoryPath}`);
+			}
+		} catch (error) {
+			console.error(`無法創建目錄: ${directoryPath}`, error);
+			// 可以選擇拋出錯誤或返回失敗狀態
+			throw new ApiError(500, `無法創建目錄 ${directoryPath}: ${error.message}`);
 		}
 	}
 
@@ -168,15 +192,10 @@ class FileUpload {
 	 */
 	generateUniqueFileName(originalName, prefix = "") {
 		const timestamp = Date.now().toString().slice(-6);
-		const baseName = path.basename(originalName);
-		const ext = path.extname(baseName);
-		const name = path.basename(baseName, ext);
-
-		// 清理檔案名
-		const cleanName = this.sanitizeFileName(name);
-
-		// 組合唯一檔案名
-		return `${prefix ? prefix + "_" : ""}${cleanName}_${timestamp}${ext}`;
+		const ext = path.extname(originalName);
+		const baseNameWithoutExt = path.basename(originalName, ext);
+		const cleanBaseName = this.sanitizeFileName(baseNameWithoutExt);
+		return `${prefix ? prefix + "_" : ""}${cleanBaseName}_${timestamp}${ext}`;
 	}
 
 	/**
@@ -241,8 +260,8 @@ class FileUpload {
 			}
 
 			// 安全檢查 - 確保不會刪除根目錄或系統重要目錄
-			if (dirPath === this.FILES_ROOT || !dirPath.startsWith(this.FILES_ROOT)) {
-				console.error(`安全限制: 不允許刪除根目錄或非儲存目錄: ${dirPath}`);
+			if (dirPath === this.FILES_ROOT || !dirPath.startsWith(this.FILES_ROOT) || path.normalize(dirPath) === path.normalize(this.FILES_ROOT)) {
+				console.error(`安全限制: 不允許刪除此目錄: ${dirPath}`);
 				return false;
 			}
 
@@ -263,8 +282,8 @@ class FileUpload {
 			}
 
 			// 刪除空目錄
-			fs.rmdirSync(dirPath);
-			console.log(`已刪除目錄: ${dirPath}`);
+			fs.rmSync(dirPath, { recursive: true, force: true }); // Use fs.rmSync for modern Node.js
+			console.log(`已(嘗試)遞歸刪除目錄: ${dirPath}`);
 			return true;
 		} catch (error) {
 			console.error(`刪除目錄失敗: ${dirPath}`, error);
@@ -342,12 +361,12 @@ class FileUpload {
 		}
 
 		// 移除前導 /storage/ 部分
-		const relativePath = webPath.replace(/^\/storage\//, "");
+		const relativePath = webPath.substring("/storage".length);
 
 		// 在 Windows 環境中轉換路徑分隔符
-		let normalizedPath = relativePath;
-		if (this.isWindows) {
-			normalizedPath = relativePath.replace(/\//g, "\\");
+		let normalizedPath = this.isWindows ? relativePath.replace(/\//g, "\\") : relativePath;
+		if (normalizedPath.startsWith("/") || normalizedPath.startsWith("\\")) {
+			normalizedPath = normalizedPath.substring(1);
 		}
 
 		// 合併根路徑和相對路徑
@@ -447,6 +466,160 @@ class FileUpload {
 				throw error;
 			}
 			throw new ApiError(500, `儲存檔案時發生錯誤: ${error.message}`);
+		}
+	}
+
+	// --- 新聞圖片統一處理 ---
+	/**
+	 * 產生新聞圖片檔案儲存路徑 (通用於封面和內容圖片)
+	 * @param {String} newsId - 新聞的 ID
+	 * @param {String} newsTitleTw - 新聞的繁體中文標題 (用於路徑)
+	 * @param {String} originalFileName - 原始檔案名
+	 * @returns {Object} 包含虛擬路徑和實體路徑的物件
+	 */
+	generateNewsImageFilePath(newsId, newsTitleTw, originalFileName) {
+		try {
+			if (!newsId || !originalFileName) {
+				throw new ApiError(400, "產生新聞圖片路徑缺少 newsId 或 originalFileName");
+			}
+			const safeNewsId = this.sanitizeFileName(newsId.toString()); // Ensure newsId is filename-safe
+			const safeTitlePart = newsTitleTw ? this.sanitizeFileName(newsTitleTw) : "untitled";
+			// 組合父目錄名
+			const parentDirName = `${safeNewsId}_${safeTitlePart}`.substring(0, 100); // Limit length
+			// 使用原始檔名，加上時間戳確保唯一性
+			const uniqueFileName = this.generateUniqueFileName(originalFileName, "img"); // Generic prefix "img"
+
+			const baseDirectory = "news"; // Base directory for all news related images
+			const imageSubDirectory = "images"; // Subdirectory for actual image files
+
+			const newsItemSpecificDir = path.join(this.FILES_ROOT, baseDirectory, parentDirName, imageSubDirectory);
+			this.ensureDirectory(newsItemSpecificDir); // 確保 /storage/news/{newsId_safeTitle}/images/ 目錄存在
+
+			const virtualPath = `/storage/${baseDirectory}/${parentDirName}/${imageSubDirectory}/${uniqueFileName}`;
+			const physicalPath = this.webToPhysicalPath(virtualPath);
+
+			return {
+				virtualPath,
+				physicalPath
+			};
+		} catch (error) {
+			console.error("產生新聞圖片檔案路徑失敗:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * 儲存新聞圖片檔案 (通用於封面和內容圖片)
+	 * @param {Buffer} fileBuffer
+	 * @param {String} newsId
+	 * @param {String} newsTitleTw
+	 * @param {String} originalFileName
+	 * @returns {String} 檔案的虛擬路徑
+	 */
+	saveNewsImage(fileBuffer, newsId, newsTitleTw, originalFileName) {
+		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, "無效的檔案內容 (新聞圖片)");
+		if (!newsId || !originalFileName) throw new ApiError(400, "儲存新聞圖片缺少 newsId 或 originalFileName");
+
+		try {
+			const { virtualPath, physicalPath } = this.generateNewsImageFilePath(newsId, newsTitleTw, originalFileName);
+			const saveResult = this.saveBufferToFile(fileBuffer, physicalPath);
+			if (!saveResult) throw new ApiError(500, "儲存新聞圖片檔案本身失敗");
+			return virtualPath;
+		} catch (error) {
+			console.error("儲存新聞圖片檔案過程失敗:", error);
+			if (error instanceof ApiError) throw error;
+			throw new ApiError(500, `儲存新聞圖片檔案時發生錯誤: ${error.message}`);
+		}
+	}
+
+	// New middleware for news images (cover + content)
+	getNewsUploadMiddleware() {
+		return this.upload.fields([
+			{ name: "coverImage", maxCount: 1 },
+			{ name: "contentImages", maxCount: MAX_NEWS_CONTENT_IMAGES }
+		]);
+	}
+
+	// --- News Specific File Handling --- (NEW)
+
+	_generateNewsItemBaseDir(newsId, newsTitleTw) {
+		const safeNewsId = this.sanitizeFileName(newsId.toString());
+		const safeTitlePart = newsTitleTw ? this.sanitizeFileName(newsTitleTw) : "untitled";
+		const parentDirName = `${safeNewsId}_${safeTitlePart}`.substring(0, 100);
+		return path.join("news", parentDirName); // Relative to /storage/
+	}
+
+	generateNewsCoverPath(newsId, newsTitleTw, originalFileName) {
+		try {
+			if (!newsId || !originalFileName) throw new ApiError(400, "缺少 newsId 或 originalFileName 生成封面路徑");
+			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
+			const coverDir = "covers";
+			const uniqueFileName = this.generateUniqueFileName(originalFileName, "cover");
+
+			const fullDirectoryPath = path.join(this.FILES_ROOT, baseDirRelative, coverDir);
+			this.ensureDirectory(fullDirectoryPath);
+
+			const virtualPath = `/storage/${baseDirRelative}/${coverDir}/${uniqueFileName}`;
+			const physicalPath = path.join(fullDirectoryPath, uniqueFileName); // More direct construction
+			return { virtualPath, physicalPath };
+		} catch (e) {
+			console.error("生成新聞封面路徑失敗:", e);
+			throw e;
+		}
+	}
+
+	saveNewsCoverImage(fileBuffer, newsId, newsTitleTw, originalFileName) {
+		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, "無效的封面圖片內容");
+		try {
+			const { virtualPath, physicalPath } = this.generateNewsCoverPath(newsId, newsTitleTw, originalFileName);
+			if (!this.saveBufferToFile(fileBuffer, physicalPath)) throw new ApiError(500, "儲存新聞封面圖片失敗");
+			return virtualPath;
+		} catch (e) {
+			console.error("儲存新聞封面圖片過程失敗:", e);
+			throw e;
+		}
+	}
+
+	generateNewsContentImagePath(newsId, newsTitleTw, originalFileName) {
+		try {
+			if (!newsId || !originalFileName) throw new ApiError(400, "缺少 newsId 或 originalFileName 生成內容圖片路徑");
+			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
+			const contentImageDir = "images";
+			const uniqueFileName = this.generateUniqueFileName(originalFileName, "content"); // Prefix for content images
+
+			const fullDirectoryPath = path.join(this.FILES_ROOT, baseDirRelative, contentImageDir);
+			this.ensureDirectory(fullDirectoryPath);
+
+			const virtualPath = `/storage/${baseDirRelative}/${contentImageDir}/${uniqueFileName}`;
+			const physicalPath = path.join(fullDirectoryPath, uniqueFileName);
+			return { virtualPath, physicalPath };
+		} catch (e) {
+			console.error("生成新聞內容圖片路徑失敗:", e);
+			throw e;
+		}
+	}
+
+	saveNewsContentImage(fileBuffer, newsId, newsTitleTw, originalFileName) {
+		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, "無效的內容圖片內容");
+		try {
+			const { virtualPath, physicalPath } = this.generateNewsContentImagePath(newsId, newsTitleTw, originalFileName);
+			if (!this.saveBufferToFile(fileBuffer, physicalPath)) throw new ApiError(500, "儲存新聞內容圖片失敗");
+			return virtualPath;
+		} catch (e) {
+			console.error("儲存新聞內容圖片過程失敗:", e);
+			throw e;
+		}
+	}
+
+	// Method to delete the entire directory for a news item
+	deleteNewsItemDirectory(newsId, newsTitleTw) {
+		try {
+			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
+			const fullPath = path.join(this.FILES_ROOT, baseDirRelative);
+			return this.deleteDirectory(fullPath);
+		} catch (error) {
+			console.error(`刪除新聞項目目錄失敗 (${newsId}):`, error);
+			return false;
 		}
 	}
 }

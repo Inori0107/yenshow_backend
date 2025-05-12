@@ -156,33 +156,33 @@
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <label class="block">產品特點</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  featureLanguage === 'TW' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
-                @click="featureLanguage = 'TW'"
-              >
-                繁體中文
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  featureLanguage === 'EN' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
-                @click="featureLanguage = 'EN'"
-              >
-                English
-              </button>
-            </div>
+            <language-switcher v-model="featureLanguage" />
           </div>
+
+          <!-- 新增的批次輸入區塊 -->
+          <div class="mb-3 text-right">
+            <textarea
+              v-model="batchFeaturesText"
+              :class="[
+                inputClass,
+                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
+              ]"
+              rows="3"
+              :placeholder="`在此輸入多個產品特點`"
+            ></textarea>
+            <button
+              type="button"
+              @click="processBatchFeatures"
+              class="mt-2 px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors duration-150"
+            >
+              批次新增
+            </button>
+          </div>
+          <!-- /新增的批次輸入區塊 -->
+
           <div
             v-for="(feature, index) in form.features"
-            :key="index"
+            :key="feature.featureId"
             class="flex items-center mb-3"
           >
             <input
@@ -192,7 +192,7 @@
                 inputClass,
                 'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
               ]"
-              :placeholder="`請輸入產品特點 (${featureLanguage === 'TW' ? '繁體中文' : '英文'})`"
+              :placeholder="`請輸入產品特點 (${featureLanguage === 'TW' ? 'TW' : '英文'})`"
             />
             <div class="flex ml-2">
               <button
@@ -233,33 +233,7 @@
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <label class="block">產品描述</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  descriptionLanguage === 'TW'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                "
-                @click="descriptionLanguage = 'TW'"
-              >
-                繁體中文
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  descriptionLanguage === 'EN'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                "
-                @click="descriptionLanguage = 'EN'"
-              >
-                English
-              </button>
-            </div>
+            <language-switcher v-model="descriptionLanguage" />
           </div>
           <div class="mb-3">
             <textarea
@@ -269,7 +243,7 @@
                 'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
               ]"
               rows="5"
-              :placeholder="`請輸入產品描述 (${descriptionLanguage === 'TW' ? '繁體中文' : '英文'})`"
+              :placeholder="`請輸入產品描述 (${descriptionLanguage === 'TW' ? 'TW' : '英文'})`"
             ></textarea>
           </div>
         </div>
@@ -404,19 +378,19 @@
 
         <!-- 上架選項 -->
         <div class="mb-6 flex items-center">
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" v-model="form.isActive" class="sr-only peer" />
-            <div
-              :class="[
-                'w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:left-[2px] after:border after:rounded-full after:h-5 after:w-5 after:transition-all',
-                conditionalClass(
-                  'bg-gray-700 peer-checked:bg-white after:bg-black after:border-gray-300',
-                  'bg-slate-300 peer-checked:bg-blue-600 after:bg-white after:border-slate-300',
-                ),
-              ]"
-            ></div>
-            <span class="ml-3 text-sm font-medium theme-text">上架商品</span>
-          </label>
+          <input
+            id="productIsActive"
+            type="checkbox"
+            v-model="form.isActive"
+            class="h-4 w-4 rounded mr-2"
+            :class="
+              conditionalClass(
+                'border-gray-600 text-blue-500 bg-gray-700 focus:ring-blue-600',
+                'border-gray-300 text-blue-600 bg-blue-100 focus:ring-blue-500 focus:border-blue-500',
+              )
+            "
+          />
+          <label for="productIsActive" class="theme-text font-medium">上架商品</label>
         </div>
 
         <!-- 提交按鈕 -->
@@ -455,6 +429,7 @@ import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
 import { useThemeClass } from '@/composables/useThemeClass'
+import LanguageSwitcher from '@/components/languageSwitcher.vue'
 
 const props = defineProps({
   visible: {
@@ -515,6 +490,9 @@ const specifications = ref([])
 // 語言切換狀態
 const featureLanguage = ref('TW')
 const descriptionLanguage = ref('TW')
+
+// 批次新增產品特點
+const batchFeaturesText = ref('')
 
 // ===== 計算屬性 (用於獲取子分類) =====
 const subCategories = computed(() => {
@@ -697,6 +675,53 @@ const processFeatures = (features) => {
 // ===== 表單處理方法 =====
 
 /**
+ * 處理批次新增產品特點
+ */
+const processBatchFeatures = () => {
+  if (!batchFeaturesText.value.trim()) {
+    return // 如果 textarea 是空的或只有空白，不做任何事
+  }
+
+  const lines = batchFeaturesText.value.trim().split('\n')
+  const newFeaturesFromBatch = []
+
+  lines.forEach((line) => {
+    if (line.trim()) {
+      // 只處理非空行
+      const newFeature = { TW: '', EN: '' } // featureId 會在後面統一處理
+      if (featureLanguage.value === 'TW') {
+        newFeature.TW = line.trim()
+      } else {
+        newFeature.EN = line.trim()
+      }
+      newFeaturesFromBatch.push(newFeature)
+    }
+  })
+
+  if (newFeaturesFromBatch.length === 0) {
+    batchFeaturesText.value = '' // 清空輸入框
+    return
+  }
+
+  // 檢查 form.value.features 是否只有一個且是空的
+  const isInitialEmptyFeature =
+    form.value.features.length === 1 && !form.value.features[0].TW && !form.value.features[0].EN
+
+  if (isInitialEmptyFeature) {
+    form.value.features = newFeaturesFromBatch
+  } else {
+    form.value.features.push(...newFeaturesFromBatch)
+  }
+
+  // 統一更新所有 featureId
+  form.value.features.forEach((feature, index) => {
+    feature.featureId = `feature_${index + 1}`
+  })
+
+  batchFeaturesText.value = '' // 清空輸入框
+}
+
+/**
  * 子分類變更處理 (Refactored)
  */
 const handleSubCategoriesChange = () => {
@@ -790,8 +815,8 @@ const generateCode = () => {
   // 轉換英文名稱為代碼
   let code = form.value.name_EN
     .trim()
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9_]/g, '')
+    .replace(/\s+/g, '-') // 將空格替換為連字號
+    .replace(/[^a-zA-Z0-9-]/g, '') // 保留字母、數字和連字號
     .toUpperCase()
 
   // 確保代碼不為空
@@ -1042,6 +1067,9 @@ const resetForm = () => {
   // Reset language selection
   featureLanguage.value = 'TW'
   descriptionLanguage.value = 'TW'
+
+  // Reset batch features text
+  batchFeaturesText.value = ''
 }
 
 // ===== 輔助方法 =====
@@ -1073,6 +1101,7 @@ watch(
       uploadStatus.value = ''
       uploadProgress.value = 0
       formError.value = ''
+      batchFeaturesText.value = '' // 清空批次輸入框
       await loadProductData()
     } else {
       // Optionally reset form when modal closes
@@ -1087,6 +1116,13 @@ watch(
   () => form.value.name_EN,
   () => generateCode(),
 )
+
+// Watch featureLanguage to update textarea placeholder (optional, but good UX)
+watch(featureLanguage, () => {
+  // This is to ensure the placeholder updates if the user types, then changes lang, then wants to batch add.
+  // The textarea itself will have its :placeholder re-evaluated, but this is an explicit trigger if needed.
+  // For simple placeholder binding, direct re-evaluation by Vue is usually sufficient.
+})
 
 // 初始化 - Handled by watch on visible
 // onMounted(() => { ... })
