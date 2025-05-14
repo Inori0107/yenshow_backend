@@ -18,18 +18,13 @@ router.use(requireAuth);
 const uploadNewsImages = fileUpload.getNewsUploadMiddleware();
 
 // 創建新聞 - 加入 uploadNewsImages 中間件
-router.post(
-	"/",
-	checkRole([Permissions.ADMIN, Permissions.STAFF]),
-	uploadNewsImages, // 處理名為 'newsImages' 的檔案陣列
-	NewsController.createItem
-);
+router.post("/", checkRole([Permissions.ADMIN, Permissions.STAFF]), uploadNewsImages, NewsController.createItem);
 
 // 更新新聞 - 加入 uploadNewsImages 中間件
 router.put(
 	"/:id",
 	checkRole([Permissions.ADMIN, Permissions.STAFF]),
-	uploadNewsImages, // 同樣處理 'newsImages' 的檔案陣列
+	uploadNewsImages, // 同樣處理 'coverImage' 和 'contentImages'
 	NewsController.updateItem
 );
 

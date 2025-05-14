@@ -1,3 +1,3 @@
 <template>
-  <div></div>
+  <div class="h-screen w-full"></div>
 </template>

@@ -95,7 +95,7 @@
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
               <th class="text-left py-3 px-4 theme-text">帳號</th>
-              <th class="text-left py-3 px-4 theme-text">角色</th>
+              <th class="text-left py-3 px-4 theme-text">身分</th>
               <th class="text-left py-3 px-4 theme-text">信箱</th>
               <th class="text-left py-3 px-4 theme-text">狀態</th>
               <th class="text-left py-3 px-4 theme-text">操作</th>
@@ -287,10 +287,9 @@
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
               <th class="text-left py-3 px-4 theme-text">帳號</th>
+              <th class="text-left py-3 px-4 theme-text">身分</th>
               <th class="text-left py-3 px-4 theme-text">部門</th>
               <th class="text-left py-3 px-4 theme-text">職位</th>
-              <th class="text-left py-3 px-4 theme-text">員工編號</th>
-              <th class="text-left py-3 px-4 theme-text">狀態</th>
               <th class="text-left py-3 px-4 theme-text">操作</th>
             </tr>
           </thead>
@@ -302,21 +301,32 @@
             >
               <td class="py-3 px-4 theme-text">
                 {{ user.account }}
+              </td>
+              <td class="py-3 px-4">
                 <span
-                  v-if="user.role === 'admin'"
                   :class="
-                    conditionalClass(
-                      'ml-2 px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full text-xs',
-                      'ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs',
-                    )
+                    user.role === 'admin'
+                      ? conditionalClass(
+                          'bg-purple-700/30 text-purple-200',
+                          'bg-purple-200 text-purple-800',
+                        )
+                      : user.role === 'staff'
+                        ? conditionalClass(
+                            'bg-yellow-700/30 text-yellow-200',
+                            'bg-yellow-200 text-yellow-800',
+                          )
+                        : conditionalClass(
+                            'bg-green-500/20 text-green-300',
+                            'bg-green-100 text-green-700',
+                          )
                   "
+                  class="px-2 py-1 rounded-full text-sm"
                 >
-                  管理員
+                  {{ user.role === 'admin' ? '管理員' : user.role === 'staff' ? '員工' : '客戶' }}
                 </span>
               </td>
               <td class="py-3 px-4 theme-text">{{ user.staffInfo?.department || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ user.staffInfo?.position || '-' }}</td>
-              <td class="py-3 px-4 theme-text">{{ user.staffInfo?.employeeId || '-' }}</td>
               <td class="py-3 px-4">
                 <span
                   :class="

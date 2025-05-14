@@ -20,28 +20,83 @@ const faqSchema = new Schema(
 		},
 		isActive: {
 			type: Boolean,
-			default: true
+			default: false
 		},
 		author: {
-			// 作者 (可選)
-			type: Schema.Types.ObjectId,
-			ref: "users"
+			type: String,
+			required: [true, "作者為必填"]
 		},
-		metaTitle: {
-			// SEO 標題
-			TW: { type: String },
-			EN: { type: String }
+		publishDate: {
+			type: Date,
+			default: Date.now
 		},
-		metaDescription: {
-			// SEO 描述
-			TW: { type: String },
-			EN: { type: String }
-		}
+		productModel: {
+			type: String,
+			trim: true
+		},
+		videoUrl: {
+			type: String,
+			trim: true
+		},
+		imageUrl: [{ type: String }]
 	},
 	{
-		timestamps: true
+		timestamps: true,
+		toObject: { virtuals: true }, // 確保 virtuals 被包含在 toObject 結果中
+		toJSON: { virtuals: true } // 確保 virtuals 被包含在 toJSON 結果中
 	}
 );
+
+// --- VIRTUALS ---
+faqSchema.virtual("metaTitle").get(function () {
+	const siteNameTW = "遠岫科技";
+	const siteNameEN = "Yenshow";
+	const pageTypeTW = "常見問題";
+	const pageTypeEN = "FAQ";
+	let baseTitleTW = "";
+	let baseTitleEN = "";
+
+	if (this.category && this.category.trim() !== "") {
+		let categoryStr = this.category.trim();
+		// 限制 category 長度
+		if (categoryStr.length > 20) {
+			categoryStr = categoryStr.substring(0, 20) + "...";
+		}
+		baseTitleTW = `${categoryStr} | ${pageTypeTW}`;
+		baseTitleEN = `${categoryStr} | ${pageTypeEN}`; // 假設 category 對 TW 和 EN 是一樣的
+	} else {
+		baseTitleTW = pageTypeTW;
+		baseTitleEN = pageTypeEN;
+	}
+
+	return {
+		TW: `${baseTitleTW} | ${siteNameTW}`,
+		EN: `${baseTitleEN} | ${siteNameEN}`
+	};
+});
+
+faqSchema.virtual("metaDescription").get(function () {
+	const maxLength = 155;
+	if (this.question) {
+		let descTW = this.question.TW || "";
+		let descEN = this.question.EN || "";
+
+		// TW
+		if (descTW.length > maxLength) {
+			descTW = descTW.substring(0, maxLength - 3) + "...";
+		}
+
+		// EN
+		if (descEN.length > maxLength) {
+			descEN = descEN.substring(0, maxLength - 3) + "...";
+		}
+		return {
+			TW: descTW,
+			EN: descEN
+		};
+	}
+	return { TW: "", EN: "" }; // 如果沒有 question，返回空字串
+});
 
 // --- 添加轉換配置 ---
 const transformOptions = {

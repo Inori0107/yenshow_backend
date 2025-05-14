@@ -75,14 +75,15 @@
 
       <!-- 最新消息列表 -->
       <div v-if="activeTab === 'news'" class="overflow-x-auto">
-        <table class="w-full">
+        <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
-              <th class="text-left py-3 px-4 theme-text">標題 (TW)</th>
-              <th class="text-left py-3 px-4 theme-text">分類</th>
-              <th class="text-left py-3 px-4 theme-text">發布日期</th>
-              <th class="text-left py-3 px-4 theme-text">狀態</th>
-              <th class="text-left py-3 px-4 theme-text">操作</th>
+              <th class="py-3 px-4 theme-text opacity-50">標題 (TW)</th>
+              <th class="py-3 px-4 theme-text opacity-50">分類</th>
+              <th class="py-3 px-4 theme-text opacity-50">作者</th>
+              <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
+              <th class="py-3 px-4 theme-text opacity-50">狀態</th>
+              <th class="py-3 px-4 theme-text opacity-50">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -93,31 +94,23 @@
             >
               <td class="py-3 px-4 theme-text">{{ item.title?.TW || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
+              <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ formatDate(item.publishDate) }}</td>
               <td class="py-3 px-4">
-                <span :class="statusClass(item.isActive)" class="px-2 py-1 rounded-full text-sm">
-                  {{ item.isActive ? '啟用' : '停用' }}
+                <span
+                  :class="statusDisplayClass(item.status, item.isActive, 'news')"
+                  class="px-2 py-1 rounded-full text-sm"
+                >
+                  {{ getStatusLabel(item.status, item.isActive, 'news') }}
                 </span>
               </td>
               <td class="py-3 px-4">
-                <div class="flex gap-2">
+                <div class="flex gap-2 justify-center">
                   <button
                     @click="handleEditItem(item)"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer"
                   >
                     編輯
-                  </button>
-                  <button
-                    @click="handleStatusToggle(item)"
-                    :class="statusButtonClass(item.isActive)"
-                    :disabled="statusLoading === item._id"
-                    class="px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span
-                      v-if="statusLoading === item._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    {{ item.isActive ? '停用' : '啟用' }}
                   </button>
                   <button
                     @click="handleDeleteItem(item)"
@@ -135,7 +128,7 @@
             </tr>
             <tr v-if="!newsStore.items || newsStore.items.length === 0">
               <td
-                colspan="5"
+                colspan="6"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -148,13 +141,16 @@
 
       <!-- 常見問題列表 -->
       <div v-else-if="activeTab === 'faq'" class="overflow-x-auto">
-        <table class="w-full">
+        <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
-              <th class="text-left py-3 px-4 theme-text">問題 (TW)</th>
-              <th class="text-left py-3 px-4 theme-text">分類</th>
-              <th class="text-left py-3 px-4 theme-text">狀態</th>
-              <th class="text-left py-3 px-4 theme-text">操作</th>
+              <th class="py-3 px-4 theme-text opacity-50">問題 (TW)</th>
+              <th class="py-3 px-4 theme-text opacity-50">分類</th>
+              <th class="py-3 px-4 theme-text opacity-50">作者</th>
+              <th class="py-3 px-4 theme-text opacity-50">產品型號</th>
+              <th class="py-3 px-4 theme-text opacity-50">影片</th>
+              <th class="py-3 px-4 theme-text opacity-50">狀態</th>
+              <th class="py-3 px-4 theme-text opacity-50">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -165,30 +161,30 @@
             >
               <td class="py-3 px-4 theme-text">{{ item.question?.TW || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
+              <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
+              <td class="py-3 px-4 theme-text">{{ item.productModel || '-' }}</td>
+              <td
+                class="py-3 px-4"
+                :title="'影片: ' + (item.videoUrl ? '✓' : '✗')"
+                :class="item.videoUrl ? 'text-green-500' : 'text-red-500'"
+              >
+                {{ item.videoUrl ? '✓' : '✗' }}
+              </td>
               <td class="py-3 px-4">
-                <span :class="statusClass(item.isActive)" class="px-2 py-1 rounded-full text-sm">
-                  {{ item.isActive ? '啟用' : '停用' }}
+                <span
+                  :class="statusDisplayClass(null, item.isActive, 'faq')"
+                  class="px-2 py-1 rounded-full text-sm"
+                >
+                  {{ getStatusLabel(null, item.isActive, 'faq') }}
                 </span>
               </td>
               <td class="py-3 px-4">
-                <div class="flex gap-2">
+                <div class="flex gap-2 justify-center">
                   <button
                     @click="handleEditItem(item)"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer"
                   >
                     編輯
-                  </button>
-                  <button
-                    @click="handleStatusToggle(item)"
-                    :class="statusButtonClass(item.isActive)"
-                    :disabled="statusLoading === item._id"
-                    class="px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span
-                      v-if="statusLoading === item._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    {{ item.isActive ? '停用' : '啟用' }}
                   </button>
                   <button
                     @click="handleDeleteItem(item)"
@@ -206,7 +202,7 @@
             </tr>
             <tr v-if="!faqStore.items || faqStore.items.length === 0">
               <td
-                colspan="5"
+                colspan="7"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -256,7 +252,6 @@ const showModal = ref(false)
 const editingItem = ref(null) // 正在編輯的項目 (News 或 Faq)
 
 // 操作狀態追蹤
-const statusLoading = ref(null) // 正在變更狀態的項目 ID
 const deletingItem = ref(null) // 正在刪除的項目 ID
 
 // 根據 activeTab 獲取對應的 store
@@ -305,9 +300,47 @@ const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleDateString() // 使用本地化日期格式
     // 或者使用更詳細的格式: return date.toLocaleString();
-  } catch /*(e)*/ {
-    // 移除未使用的變數 e
+  } catch {
     return dateString // 如果轉換失敗，返回原始字串
+  }
+}
+
+// Helper function to get status label
+const getStatusLabel = (statusKey, isActive, type) => {
+  if (type === 'faq') {
+    return isActive ? '已發布' : '待審查'
+  }
+  if (type === 'news') {
+    return isActive ? '已發布' : '待審查' // News 也根據 isActive 顯示
+  }
+  // Fallback or other types (if any)
+  const statusMap = {
+    pendingReview: '待審核',
+    published: '已發布',
+    rejected: '已拒絕',
+  }
+  return statusMap[statusKey] || statusKey
+}
+
+// Helper function for status display class
+const statusDisplayClass = (status, isActive, type) => {
+  if (type === 'faq' || type === 'news') {
+    // News 也根據 isActive 決定樣式
+    if (isActive) {
+      return conditionalClass('bg-green-500/30 text-green-300', 'bg-green-100 text-green-700') // Published
+    } else {
+      return conditionalClass('bg-yellow-500/30 text-yellow-300', 'bg-yellow-100 text-yellow-700') // Pending Review
+    }
+  }
+  switch (status) {
+    case 'published':
+      return conditionalClass('bg-green-500/30 text-green-300', 'bg-green-100 text-green-700')
+    case 'pendingReview':
+      return conditionalClass('bg-yellow-500/30 text-yellow-300', 'bg-yellow-100 text-yellow-700')
+    case 'rejected':
+      return conditionalClass('bg-red-500/30 text-red-300', 'bg-red-100 text-red-700')
+    default:
+      return conditionalClass('bg-gray-600/30 text-gray-400', 'bg-gray-200 text-gray-500')
   }
 }
 
@@ -321,27 +354,6 @@ const handleAddItem = () => {
 const handleEditItem = (item) => {
   editingItem.value = { ...item } // 傳遞副本
   showModal.value = true
-}
-
-// 處理狀態切換
-const handleStatusToggle = async (item) => {
-  const store = currentStore()
-  const entityName = activeTab.value === 'news' ? '消息' : '問題'
-  const action = item.isActive ? '停用' : '啟用'
-  if (!confirm(`確定要${action}這個${entityName}嗎？`)) return
-
-  statusLoading.value = item._id
-  try {
-    const updateData = { isActive: !item.isActive }
-    await store.update(item._id, updateData)
-    notify.notifySuccess(`${action}${entityName}成功`)
-    await refreshList(false) // 更新列表但不顯示載入動畫
-  } catch (err) {
-    const message = err.message || `操作失敗，請稍後再試`
-    notify.notifyError(message)
-  } finally {
-    statusLoading.value = null
-  }
 }
 
 // 處理刪除項目
@@ -377,7 +389,7 @@ const refreshList = async (showLoadingIndicator = true) => {
   const entityName = activeTab.value === 'news' ? '最新消息' : '常見問題'
 
   try {
-    await store.fetchAll() // 或 store.search() 如果有分頁/搜索
+    await store.fetchAll()
     console.log(`${entityName}列表已更新`)
     // 如果只是靜默更新，可以考慮不彈出成功提示，避免干擾
     // if (!showLoadingIndicator) { notify.notifySuccess(`${entityName}列表已更新`); }
@@ -396,19 +408,6 @@ const refreshList = async (showLoadingIndicator = true) => {
     // 確保 Modal 在保存後關閉
     showModal.value = false
   }
-}
-
-// --- Helper functions for styling ---
-const statusClass = (isActive) => {
-  return isActive
-    ? conditionalClass('bg-green-500/20 text-green-300', 'bg-green-100 text-green-700')
-    : conditionalClass('bg-red-500/20 text-red-300', 'bg-red-100 text-red-700')
-}
-
-const statusButtonClass = (isActive) => {
-  return isActive
-    ? 'bg-red-500 hover:bg-red-600 text-white'
-    : 'bg-green-500 hover:bg-green-600 text-white'
 }
 </script>
 

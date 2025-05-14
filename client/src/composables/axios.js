@@ -14,6 +14,7 @@ const apiAuth = axios.create({
 apiAuth.interceptors.request.use((config) => {
   const user = useUserStore()
   config.headers.Authorization = 'Bearer ' + user.token
+  config.headers['X-App-Context'] = 'admin'
   return config
 })
 

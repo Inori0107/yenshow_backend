@@ -361,6 +361,53 @@
           </div>
         </div>
 
+        <!-- 影片上傳 -->
+        <div class="mb-6">
+          <label class="block mb-3">影片</label>
+          <div
+            class="border-2 border-dashed rounded p-4 text-center cursor-pointer hover:border-[#3490dc]"
+            :class="[
+              conditionalClass('border-gray-600', 'border-slate-300'),
+              videoFile ? conditionalClass('border-green-500', 'border-green-600') : '',
+            ]"
+            @click="$refs.videoInput.click()"
+          >
+            <input
+              ref="videoInput"
+              type="file"
+              accept="video/*"
+              class="hidden"
+              @change="handleVideoUpload"
+            />
+            <div v-if="!videoFileName">
+              <svg
+                class="mx-auto w-12 h-12"
+                :class="conditionalClass('text-gray-500', 'text-slate-400')"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                ></path>
+              </svg>
+              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
+                點擊或拖曳上傳影片
+              </p>
+              <p
+                v-if="videoFile"
+                class="mt-1 text-sm"
+                :class="conditionalClass('text-green-500', 'text-green-600')"
+              >
+                檔案已選擇: {{ videoFileName }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- 上傳進度顯示 -->
         <div v-if="uploadStatus" class="mb-6">
           <div class="text-sm font-medium mb-1">{{ uploadStatus }}</div>
@@ -483,6 +530,8 @@ const imageFile = ref(null)
 const imagePreview = ref(null)
 const pdfFile = ref(null)
 const pdfFileName = ref(null)
+const videoFile = ref(null)
+const videoFileName = ref(null)
 const uploadProgress = ref(0)
 const uploadStatus = ref('')
 const specifications = ref([])
@@ -604,6 +653,10 @@ const loadProductData = async () => {
     pdfFileName.value =
       productData.documents && productData.documents.length > 0
         ? productData.documents[0].split('/').pop()
+        : null
+    videoFileName.value =
+      productData.videos && productData.videos.length > 0
+        ? productData.videos[0].split('/').pop()
         : null
 
     // Step 5: Populate specifications dropdown based on the FOUND subCategoriesId
@@ -804,6 +857,17 @@ const handlePdfUpload = (event) => {
 }
 
 /**
+ * 處理影片上傳 (新增)
+ */
+const handleVideoUpload = (event) => {
+  const file = event.target.files[0]
+  if (!file || !file.type.startsWith('video/')) return
+
+  videoFile.value = file
+  videoFileName.value = file.name
+}
+
+/**
  * 生成產品代碼
  */
 const generateCode = () => {
@@ -954,6 +1018,11 @@ const submitForm = async () => {
       formData.append('documents', pdfFile.value, pdfFile.value.name)
     }
 
+    // 添加影片檔案 (新增)
+    if (videoFile.value) {
+      formData.append('videos', videoFile.value, videoFile.value.name)
+    }
+
     // 其他選項
     formData.append('isActive', form.value.isActive ? 'true' : 'false')
 
@@ -1054,6 +1123,8 @@ const resetForm = () => {
   imagePreview.value = null
   pdfFile.value = null
   pdfFileName.value = null
+  videoFile.value = null
+  videoFileName.value = null
 
   // Reset upload status
   uploadStatus.value = ''

@@ -2,6 +2,7 @@ import express from "express";
 import FaqController from "../controllers/FaqController.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
+import fileUpload from "../utils/fileUpload.js";
 
 const router = express.Router();
 
@@ -13,9 +14,12 @@ router.get("/:id", checkRole([Permissions.PUBLIC]), FaqController.getItemById); 
 // 需要身份驗證的路由
 router.use(requireAuth); // 應用 JWT 驗證
 
+// 獲取處理 FAQ 圖片上傳的 multer 中間件
+const uploadFaqImage = fileUpload.getFaqUploadMiddleware();
+
 // 需要事務處理和權限的路由
-router.post("/", checkRole([Permissions.ADMIN, Permissions.STAFF]), FaqController.createItem); // 創建
-router.put("/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), FaqController.updateItem); // 更新
+router.post("/", checkRole([Permissions.ADMIN, Permissions.STAFF]), uploadFaqImage, FaqController.createItem); // 創建
+router.put("/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), uploadFaqImage, FaqController.updateItem); // 更新
 router.delete("/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), FaqController.deleteItem); // 刪除
 router.post("/batch", checkRole([Permissions.ADMIN, Permissions.STAFF]), FaqController.batchProcess); // 批量處理
 

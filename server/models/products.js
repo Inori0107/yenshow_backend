@@ -37,7 +37,8 @@ const productSchema = new Schema(
 		],
 		images: [{ type: String }],
 		documents: [{ type: String }],
-		isActive: { type: Boolean, default: true }
+		videos: [{ type: String }],
+		isActive: { type: Boolean, default: false, index: true }
 	},
 	{
 		timestamps: true,

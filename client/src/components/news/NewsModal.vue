@@ -8,7 +8,7 @@
     <div
       :class="[
         cardClass,
-        'w-full max-w-4xl rounded-[10px] shadow-lg p-[24px] h-[90vh] flex flex-col',
+        'w-full max-w-3xl rounded-[10px] shadow-lg p-[24px] max-h-[90vh] overflow-y-auto relative',
       ]"
     >
       <div class="flex justify-between items-center mb-[12px] lg:mb-[24px]">
@@ -124,6 +124,55 @@
               </p>
             </div>
 
+            <!-- 作者 -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="mb-6">
+                <label class="block theme-text mb-3">作者 *</label>
+                <input
+                  v-model="form.author"
+                  type="text"
+                  placeholder="請輸入作者姓名"
+                  :class="[inputClass, validationErrors.author ? 'border-red-500' : '']"
+                  required
+                />
+                <p v-if="validationErrors.author" class="text-red-500 text-sm mt-1">
+                  {{ validationErrors.author }}
+                </p>
+              </div>
+
+              <!-- isActive (取代 Status) - 根據角色顯示 -->
+              <div v-if="isAdmin" class="mb-6">
+                <label for="newsIsActiveSelect" class="block theme-text mb-3">發布狀態</label>
+                <select id="newsIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
+                  <option :value="false" class="text-black/70">待審查</option>
+                  <option :value="true" class="text-black/70">已發布</option>
+                </select>
+              </div>
+              <div v-else-if="isEditing" class="mb-6">
+                <label class="block theme-text mb-1">目前狀態</label>
+                <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
+                  {{ form.isActive ? '已發布' : '待審查' }}
+                </p>
+                <p
+                  v-if="!form.isActive"
+                  class="text-sm mt-1"
+                  :class="conditionalClass('text-yellow-400', 'text-yellow-600')"
+                >
+                  您的提交將由管理員審核。
+                </p>
+              </div>
+              <div v-else-if="!isEditing && !isAdmin" class="mb-6">
+                <label class="block theme-text mb-1">狀態</label>
+                <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">待審查</p>
+                <p
+                  class="text-sm mt-1"
+                  :class="conditionalClass('text-yellow-400', 'text-yellow-600')"
+                >
+                  提交後，內容將進入審核流程。
+                </p>
+              </div>
+            </div>
+
             <!-- 分類 -->
             <div class="grid grid-cols-2 gap-4 mb-6">
               <div>
@@ -134,10 +183,10 @@
                   :class="[inputClass, validationErrors.category ? 'border-red-500' : '']"
                   required
                 >
-                  <option disabled value="">請選擇分類</option>
-                  <option value="新聞稿">新聞稿</option>
-                  <option value="小知識">小知識</option>
-                  <option value="其他">其他</option>
+                  <option disabled value="" class="text-black/70">請選擇分類</option>
+                  <option value="新聞稿" class="text-black/70">新聞稿</option>
+                  <option value="小知識" class="text-black/70">小知識</option>
+                  <option value="其他" class="text-black/70">其他</option>
                 </select>
                 <p v-if="validationErrors.category" class="text-red-500 text-sm mt-1">
                   {{ validationErrors.category }}
@@ -248,23 +297,6 @@
                   @change="handleImageUpload"
                 />
               </div>
-            </div>
-
-            <!-- 是否啟用 -->
-            <div class="flex items-center">
-              <input
-                id="isActive"
-                type="checkbox"
-                v-model="form.isActive"
-                class="h-4 w-4 rounded mr-2"
-                :class="
-                  conditionalClass(
-                    'border-gray-600 text-blue-500 bg-gray-700 focus:ring-blue-600',
-                    'border-gray-300 text-blue-600 focus:ring-blue-500',
-                  )
-                "
-              />
-              <label for="isActive" class="theme-text font-medium">公告於官網</label>
             </div>
           </div>
 
@@ -512,6 +544,7 @@ import { useThemeClass } from '@/composables/useThemeClass'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { v4 as uuidv4 } from 'uuid'
 import LanguageSwitcher from '@/components/languageSwitcher.vue'
+import { useUserStore } from '@/stores/userStore'
 
 // Dynamically import block editor components
 const RichTextBlockEditor = defineAsyncComponent(
@@ -532,6 +565,7 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'saved'])
 
 const newsStore = useNewsStore()
+const userStore = useUserStore()
 const notify = useNotifications()
 const { cardClass, inputClass: themeInputClass, conditionalClass } = useThemeClass()
 const {
@@ -539,6 +573,8 @@ const {
   clearErrors: clearValidationErrors,
   setError: setValidationError,
 } = useFormValidation()
+
+const isAdmin = computed(() => userStore.isAdmin)
 
 const inputClass = computed(() => [
   themeInputClass.value,
@@ -575,10 +611,11 @@ const initialFormState = () => ({
   title: { TW: '', EN: '' },
   summary: { TW: '', EN: '' },
   contentBlocks: [],
+  author: '',
   category: '',
   coverImageUrl: null,
   publishDate: formatDateForInput(new Date()),
-  isActive: true,
+  isActive: false,
 })
 const form = ref(initialFormState())
 
@@ -678,6 +715,10 @@ const validateForm = () => {
     setValidationError('title_TW', 'TW標題為必填')
     isValid = false
   }
+  if (!form.value.author?.trim()) {
+    setValidationError('author', '作者為必填')
+    isValid = false
+  }
   if (!form.value.category) {
     setValidationError('category', '分類為必填')
     isValid = false
@@ -710,9 +751,15 @@ const validateForm = () => {
     const firstErrorKey = Object.keys(validationErrors.value)[0]
     if (firstErrorKey) {
       if (
-        ['title_TW', 'category', 'publishDate', 'isActive', 'summary_TW', 'coverImageUrl'].includes(
-          firstErrorKey,
-        )
+        [
+          'title_TW',
+          'author',
+          'category',
+          'publishDate',
+          'isActive',
+          'summary_TW',
+          'coverImageUrl',
+        ].includes(firstErrorKey)
       )
         currentTab.value = 'general'
       else if (firstErrorKey.startsWith('content')) currentTab.value = 'content'
@@ -759,111 +806,6 @@ const removeImage = () => {
 }
 
 // --- Form Submission ---
-
-// Helper function to convert Tiptap JSON to backend schema (flat array)
-function convertTiptapJsonToBackendSchema(tiptapDoc) {
-  if (!tiptapDoc || !tiptapDoc.content || !Array.isArray(tiptapDoc.content)) {
-    return []
-  }
-
-  const backendBlocks = []
-
-  function getTextAndStyleRecursive(nodes) {
-    let text = ''
-    let color = null
-
-    if (Array.isArray(nodes)) {
-      for (const node of nodes) {
-        if (node.type === 'text') {
-          text += node.text
-          if (!color && node.marks) {
-            const colorMark = node.marks.find((m) => m.type === 'textStyle' && m.attrs?.color)
-            if (colorMark) {
-              color = colorMark.attrs.color
-            }
-          }
-        } else if (node.content) {
-          const nestedResult = getTextAndStyleRecursive(node.content)
-          text += nestedResult.text
-          if (!color && nestedResult.color) {
-            color = nestedResult.color
-          }
-        }
-      }
-    }
-    return { text, color }
-  }
-
-  tiptapDoc.content.forEach((node) => {
-    const { text, color } = getTextAndStyleRecursive(
-      node.content || (node.type === 'text' ? [node] : []),
-    )
-    const blockStyle = color ? { color } : {}
-    const trimmedText = text.trim()
-
-    if (!trimmedText) return
-
-    if (node.type === 'heading' && node.attrs?.level === 2) {
-      backendBlocks.push({
-        type: 'heading',
-        purpose: 'title',
-        level: 2,
-        text: trimmedText,
-        style: blockStyle,
-      })
-    } else if (node.type === 'paragraph') {
-      backendBlocks.push({
-        type: 'paragraph',
-        purpose: 'body',
-        text: trimmedText,
-        style: blockStyle,
-      })
-    } else if (node.type === 'blockquote') {
-      backendBlocks.push({
-        type: 'paragraph',
-        purpose: 'remark',
-        text: trimmedText,
-        style: blockStyle,
-      })
-    }
-  })
-
-  return backendBlocks
-}
-
-// Helper function to convert backend schema (flat array) to Tiptap JSON document
-function convertBackendSchemaToTiptapJson(backendBlocksArray) {
-  if (!Array.isArray(backendBlocksArray) || backendBlocksArray.length === 0) {
-    return { type: 'doc', content: [{ type: 'paragraph' }] } // Default empty Tiptap doc
-  }
-
-  const tiptapNodes = backendBlocksArray
-    .map((block) => {
-      const textNode = { type: 'text', text: block.text || '' }
-      if (block.style && block.style.color) {
-        textNode.marks = [{ type: 'textStyle', attrs: { color: block.style.color } }]
-      }
-
-      let content = [textNode]
-
-      if (block.type === 'heading' && block.level) {
-        return { type: 'heading', attrs: { level: block.level }, content }
-      } else if (block.type === 'paragraph' && block.purpose === 'remark') {
-        return { type: 'blockquote', content: [{ type: 'paragraph', content }] }
-      } else if (block.type === 'paragraph') {
-        return { type: 'paragraph', content }
-      }
-      return null
-    })
-    .filter((node) => node !== null)
-
-  if (tiptapNodes.length === 0) {
-    return { type: 'doc', content: [{ type: 'paragraph' }] }
-  }
-
-  return { type: 'doc', content: tiptapNodes }
-}
-
 const submitForm = async () => {
   formError.value = ''
   if (!validateForm()) return
@@ -871,6 +813,16 @@ const submitForm = async () => {
   isProcessing.value = true
 
   const contentImageFiles = []
+  form.value.contentBlocks.forEach((block) => {
+    if (
+      block.itemType === 'image' &&
+      block._newFile &&
+      block.imageUrl === '__NEW_CONTENT_IMAGE__'
+    ) {
+      contentImageFiles.push(block._newFile)
+    }
+  })
+
   const finalContentBlocks = form.value.contentBlocks.map((block) => {
     const cleanBlock = { ...block }
 
@@ -883,8 +835,8 @@ const submitForm = async () => {
 
     if (block.itemType === 'richText') {
       cleanBlock.richTextData = {
-        TW: convertTiptapJsonToBackendSchema(block.richTextData?.TW),
-        EN: convertTiptapJsonToBackendSchema(block.richTextData?.EN),
+        TW: block.richTextData?.TW || { type: 'doc', content: [] },
+        EN: block.richTextData?.EN || { type: 'doc', content: [] },
       }
       // Remove fields not relevant to richText
       delete cleanBlock.imageUrl
@@ -894,17 +846,15 @@ const submitForm = async () => {
       delete cleanBlock.videoCaption
     } else if (block.itemType === 'image') {
       if (block._newFile && block.imageUrl === '__NEW_CONTENT_IMAGE__') {
-        // contentImageFiles.push(block._newFile); // This logic is already outside and correct
+        contentImageFiles.push(block._newFile)
       } else if (!block._newFile && block.imageUrl === '__NEW_CONTENT_IMAGE__') {
-        // If marked for new but no file, set imageUrl to null (or original if editing)
-        cleanBlock.imageUrl = null // Or handle based on edit state if needed
+        cleanBlock.imageUrl = null
       }
       // Remove fields not relevant to image
       delete cleanBlock.richTextData
       delete cleanBlock.videoEmbedUrl
       delete cleanBlock.videoCaption
     } else if (block.itemType === 'videoEmbed') {
-      // Remove fields not relevant to videoEmbed
       delete cleanBlock.richTextData
       delete cleanBlock.imageUrl
       delete cleanBlock.imageAltText
@@ -920,6 +870,7 @@ const submitForm = async () => {
     title: form.value.title,
     summary: form.value.summary,
     content: finalContentBlocks,
+    author: form.value.author,
     category: form.value.category,
     coverImageUrl: form.value.coverImageUrl,
     publishDate: form.value.publishDate ? new Date(form.value.publishDate).toISOString() : null,
@@ -1018,10 +969,11 @@ const resetAndInitializeForm = async () => {
     form.value._id = item._id
     form.value.title = { TW: item.title?.TW || '', EN: item.title?.EN || '' }
     form.value.summary = { TW: item.summary?.TW || '', EN: item.summary?.EN || '' }
+    form.value.author = item.author || ''
     form.value.category = item.category || ''
     form.value.coverImageUrl = item.coverImageUrl || null
     form.value.publishDate = formatDateForInput(item.publishDate)
-    form.value.isActive = item.isActive !== undefined ? item.isActive : true
+    form.value.isActive = item.isActive || false
 
     if (form.value.coverImageUrl) {
       imagePreview.value = form.value.coverImageUrl
@@ -1046,8 +998,8 @@ const resetAndInitializeForm = async () => {
           newClientBlock._fileInputRef = null
         } else if (block.itemType === 'richText') {
           newClientBlock.richTextData = {
-            TW: convertBackendSchemaToTiptapJson(block.richTextData?.TW),
-            EN: convertBackendSchemaToTiptapJson(block.richTextData?.EN),
+            TW: block.richTextData?.TW || { type: 'doc', content: [{ type: 'paragraph' }] },
+            EN: block.richTextData?.EN || { type: 'doc', content: [{ type: 'paragraph' }] },
           }
         }
         return newClientBlock

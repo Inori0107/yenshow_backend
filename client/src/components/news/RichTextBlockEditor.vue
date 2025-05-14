@@ -104,6 +104,7 @@ import LanguageSwitcher from '@/components/languageSwitcher.vue'
 
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 
@@ -111,7 +112,10 @@ const props = defineProps({
   modelValue: {
     type: Object,
     required: true,
-    default: () => ({ TW: {}, EN: {} }),
+    default: () => ({
+      TW: { type: 'doc', content: [{ type: 'paragraph' }] },
+      EN: { type: 'doc', content: [{ type: 'paragraph' }] },
+    }),
   },
   initialLanguage: {
     type: String,
@@ -127,8 +131,29 @@ const currentEditingLanguage = ref(props.initialLanguage || 'TW')
 
 const defaultEmptyContent = () => ({ type: 'doc', content: [{ type: 'paragraph' }] })
 
+// --- 幫助函數，用於確保傳入的內容是有效的 Tiptap 文檔物件 ---
+const getValidTiptapContent = (contentInput) => {
+  if (
+    contentInput &&
+    typeof contentInput === 'object' &&
+    contentInput.type === 'doc' &&
+    Array.isArray(contentInput.content)
+  ) {
+    // 如果 contentInput.content 為空陣列，ProseMirror 可能仍會報錯，
+    // Tiptap 通常期望至少有一個 paragraph。
+    if (contentInput.content.length === 0) {
+      // console.warn("Tiptap content was empty, ensuring default paragraph.");
+      return { ...contentInput, content: [{ type: 'paragraph' }] }
+    }
+    return contentInput // 看起來是個有效的 Tiptap JSON 文檔
+  }
+  // console.warn("Invalid Tiptap content detected, falling back to default empty content.", contentInput);
+  return defaultEmptyContent() // 否則返回預設的空文檔
+}
+// --- 結束幫助函數 ---
+
 const editor = useEditor({
-  content: props.modelValue[currentEditingLanguage.value] || defaultEmptyContent(),
+  content: getValidTiptapContent(props.modelValue[currentEditingLanguage.value]),
   extensions: [
     StarterKit.configure({
       heading: {
@@ -140,6 +165,11 @@ const editor = useEditor({
       codeBlock: false,
       hardBreak: false,
       horizontalRule: false,
+    }),
+    Link.configure({
+      openOnClick: false,
+      autolink: true,
+      HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
     }),
     TextStyle,
     Color,
@@ -179,17 +209,7 @@ const defaultButtonClass = computed(() => {
 
 watch(currentEditingLanguage, (newLang, oldLang) => {
   if (editor.value && newLang !== oldLang) {
-    let newContent = props.modelValue[newLang]
-    if (
-      !newContent ||
-      !newContent.type ||
-      newContent.type !== 'doc' ||
-      !newContent.content ||
-      newContent.content.length === 0
-    ) {
-      newContent = defaultEmptyContent()
-    }
-    editor.value.commands.setContent(newContent, false)
+    editor.value.commands.setContent(getValidTiptapContent(props.modelValue[newLang]), false)
   }
 })
 
@@ -197,19 +217,13 @@ watch(
   () => props.modelValue,
   (newVal) => {
     if (editor.value) {
-      const editorContent = editor.value.getJSON()
-      let newContentForLang = newVal[currentEditingLanguage.value]
-      if (
-        !newContentForLang ||
-        !newContentForLang.type ||
-        newContentForLang.type !== 'doc' ||
-        !newContentForLang.content ||
-        newContentForLang.content.length === 0
-      ) {
-        newContentForLang = defaultEmptyContent()
-      }
-      if (JSON.stringify(editorContent) !== JSON.stringify(newContentForLang)) {
-        editor.value.commands.setContent(newContentForLang, false)
+      const editorContentJson = JSON.stringify(editor.value.getJSON())
+      const newContentForLangJson = JSON.stringify(
+        getValidTiptapContent(newVal[currentEditingLanguage.value]),
+      )
+
+      if (editorContentJson !== newContentForLangJson) {
+        editor.value.commands.setContent(JSON.parse(newContentForLangJson), false)
       }
     }
   },
@@ -227,16 +241,7 @@ watch(
 
 onMounted(() => {
   if (editor.value) {
-    let initialContent = props.modelValue[currentEditingLanguage.value]
-    if (
-      !initialContent ||
-      !initialContent.type ||
-      initialContent.type !== 'doc' ||
-      !initialContent.content ||
-      initialContent.content.length === 0
-    ) {
-      initialContent = defaultEmptyContent()
-    }
+    const initialContent = getValidTiptapContent(props.modelValue[currentEditingLanguage.value])
     if (JSON.stringify(editor.value.getJSON()) !== JSON.stringify(initialContent)) {
       editor.value.commands.setContent(initialContent, false)
     }

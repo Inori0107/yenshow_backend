@@ -1,24 +1,4 @@
 import { Schema, model } from "mongoose";
-import slugify from "slugify"; // 引入 slugify
-
-// richTextData
-const richTextBlockSchema = new Schema(
-	{
-		type: { type: String, required: true, enum: ["paragraph", "heading"] },
-		purpose: {
-			type: String,
-			enum: ["title", "body", "remark"], // "title" 此處指內文中的小標題
-			default: "body"
-		},
-		text: { type: String, required: true },
-		style: {
-			color: { type: String },
-			fontSize: { type: String }
-		},
-		level: { type: Number, min: 1, max: 6 }
-	},
-	{ _id: false }
-);
 
 // 新聞內容項目 Schema
 const newsContentItemSchema = new Schema(
@@ -30,9 +10,8 @@ const newsContentItemSchema = new Schema(
 		},
 		// --- richText 類型數據 ---
 		richTextData: {
-			// 只用於 richText 類型
-			TW: { type: [richTextBlockSchema], default: [] },
-			EN: { type: [richTextBlockSchema], default: [] }
+			TW: { type: Schema.Types.Mixed, default: () => ({ type: "doc", content: [{ type: "paragraph" }] }) }, // 預設為空的 Tiptap doc
+			EN: { type: Schema.Types.Mixed, default: () => ({ type: "doc", content: [{ type: "paragraph" }] }) } // 預設為空的 Tiptap doc
 		},
 		// --- image 類型數據 ---
 		imageUrl: { type: String }, // 對於 image itemType
@@ -64,11 +43,6 @@ const newsSchema = new Schema(
 			TW: { type: String, required: [true, "繁體中文標題為必填"] },
 			EN: { type: String }
 		},
-		slug: {
-			type: String,
-			lowercase: true,
-			trim: true
-		},
 		summary: {
 			TW: { type: String },
 			EN: { type: String }
@@ -88,15 +62,14 @@ const newsSchema = new Schema(
 		coverImageUrl: { type: String }, // 封面圖片 URL
 		publishDate: {
 			type: Date,
-			default: Date.now
+			default: Date.now // 設定預設為當前日期
 		},
 		isActive: {
 			type: Boolean,
-			default: true
+			default: false // isActive 預設為 false
 		},
 		author: {
-			type: Schema.Types.ObjectId,
-			ref: "users",
+			type: String,
 			required: [true, "作者為必填"]
 		}
 	},

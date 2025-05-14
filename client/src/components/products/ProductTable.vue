@@ -82,7 +82,7 @@
           </div>
         </div>
       </div>
-      <div class="px-4 lg:px-6">描述</div>
+      <div class="px-4 lg:px-6">資料狀態</div>
       <div class="px-4 lg:px-6 flex justify-center gap-[8px] lg:gap-[12px]">上架</div>
       <div class="px-4 lg:px-6 flex justify-center gap-[8px] lg:gap-[12px]">更新時間</div>
     </div>
@@ -150,11 +150,48 @@
           {{ getLocalizedField(product, 'name', '未命名產品', 'TW') }}
         </div>
 
-        <!-- 描述欄 -->
-        <div
-          class="w-full overflow-hidden text-ellipsis whitespace-nowrap theme-text-secondary px-4 lg:px-6 text-left"
-        >
-          {{ getLocalizedField(product, 'description', '無描述', 'TW') }}
+        <!-- 資料狀態欄 -->
+        <div class="w-full px-4 lg:px-6 flex justify-between theme-text-secondary">
+          <span
+            :title="
+              '描述: ' +
+              (product.description && (product.description.TW || product.description.EN)
+                ? '✓'
+                : '✗')
+            "
+            :class="
+              product.description && (product.description.TW || product.description.EN)
+                ? 'text-green-500'
+                : 'text-red-500'
+            "
+          >
+            描述{{
+              product.description && (product.description.TW || product.description.EN) ? '✓' : '✗'
+            }}
+          </span>
+          <span
+            :title="'特點: ' + (product.features && product.features.length > 0 ? '✓' : '✗')"
+            :class="
+              product.features && product.features.length > 0 ? 'text-green-500' : 'text-red-500'
+            "
+          >
+            特點{{ product.features && product.features.length > 0 ? '✓' : '✗' }}
+          </span>
+          <span
+            :title="'文件: ' + (product.documents && product.documents.length > 0 ? '✓' : '✗')"
+            :class="
+              product.documents && product.documents.length > 0 ? 'text-green-500' : 'text-red-500'
+            "
+          >
+            型錄{{ product.documents && product.documents.length > 0 ? '✓' : '✗' }}
+            <!-- L for Legacy 'documents' -->
+          </span>
+          <span
+            :title="'影片: ' + (product.videos && product.videos.length > 0 ? '✓' : '✗')"
+            :class="product.videos && product.videos.length > 0 ? 'text-green-500' : 'text-red-500'"
+          >
+            影片{{ product.videos && product.videos.length > 0 ? '✓' : '✗' }}
+          </span>
         </div>
 
         <!-- 上架狀態 -->

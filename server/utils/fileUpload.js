@@ -44,18 +44,41 @@ class FileUpload {
 					return cb(new ApiError(400, "新聞相關圖片只允許上傳圖片檔案"), false);
 				}
 			}
+			// Specific handling for FAQ image uploads
+			else if (file.fieldname === "faqImages") {
+				if (!file.mimetype.startsWith("image/")) {
+					return cb(new ApiError(400, "FAQ 圖片只允許上傳圖片檔案"), false);
+				}
+			}
+			// Specific handling for FAQ video upload (NEW)
+			else if (file.fieldname === "faqVideoFile") {
+				if (!file.mimetype.startsWith("video/")) {
+					return cb(new ApiError(400, "FAQ 影片只允許上傳影片檔案"), false);
+				}
+			}
+			// Specific handling for News content video uploads (NEW)
+			else if (file.fieldname === "contentVideoFiles") {
+				if (!file.mimetype.startsWith("video/")) {
+					return cb(new ApiError(400, "新聞內容影片只允許上傳影片檔案"), false);
+				}
+			}
 			// Handling for product uploads
-			else if (file.fieldname === "images" || file.fieldname === "documents") {
+			else if (file.fieldname === "images" || file.fieldname === "documents" || file.fieldname === "videos") {
 				if (file.fieldname === "images" && !file.mimetype.startsWith("image/")) {
 					return cb(new ApiError(400, "產品示圖只允許上傳圖片檔案"), false);
 				}
 				if (file.fieldname === "documents" && file.mimetype !== "application/pdf") {
 					return cb(new ApiError(400, "產品文檔僅允許 PDF 格式"), false);
 				}
+				if (file.fieldname === "videos" && !file.mimetype.startsWith("video/")) {
+					// Ensure product videos are checked
+					return cb(new ApiError(400, "產品影片只允許上傳影片檔案"), false);
+				}
 			}
 			// Generic file type check for other potential uploads
 			else {
-				if (!this.isAllowedMimeType(file.mimetype)) {
+				// Check if it's an image or video for generic types as well
+				if (!this.isAllowedMimeType(file.mimetype) && !file.mimetype.startsWith("image/") && !file.mimetype.startsWith("video/")) {
 					return cb(new ApiError(400, "不支援的檔案類型"), false);
 				}
 			}
@@ -126,7 +149,14 @@ class FileUpload {
 			"application/vnd.ms-powerpoint",
 			"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 			// 文本
-			"text/plain"
+			"text/plain",
+			// 影片 (NEW)
+			"video/mp4",
+			"video/mpeg",
+			"video/ogg",
+			"video/webm",
+			"video/quicktime",
+			"video/x-msvideo" // AVI
 		];
 
 		return allowedTypes.includes(mimeType);
@@ -139,7 +169,8 @@ class FileUpload {
 	getProductUploadMiddleware() {
 		return this.upload.fields([
 			{ name: "images", maxCount: 10 },
-			{ name: "documents", maxCount: 5 }
+			{ name: "documents", maxCount: 5 },
+			{ name: "videos", maxCount: 5 }
 		]);
 	}
 
@@ -536,91 +567,197 @@ class FileUpload {
 	getNewsUploadMiddleware() {
 		return this.upload.fields([
 			{ name: "coverImage", maxCount: 1 },
-			{ name: "contentImages", maxCount: MAX_NEWS_CONTENT_IMAGES }
+			{ name: "contentImages", maxCount: MAX_NEWS_CONTENT_IMAGES },
+			{ name: "contentVideoFiles", maxCount: MAX_NEWS_CONTENT_IMAGES } // Assuming similar limit for videos in content
 		]);
 	}
 
-	// --- News Specific File Handling --- (NEW)
+	// --- Generic Entity Asset Handling --- (NEW)
+	/**
+	 * 產生實體資源的基礎相對目錄路徑 (相對於 FILES_ROOT)
+	 * @param {String} entityTypePlural - 實體類型複數 (e.g., 'news', 'faqs')
+	 * @param {String} entityId - 實體 ID
+	 * @param {String} entityNameHint - 實體名稱提示 (用於路徑)
+	 * @returns {String} 基礎相對目錄路徑
+	 */
+	_generateEntityAssetBaseDir(entityTypePlural, entityId, entityNameHint) {
+		const safeEntityId = this.sanitizeFileName(entityId.toString());
+		const safeNameHintPart = entityNameHint ? this.sanitizeFileName(entityNameHint) : `untitled_${entityTypePlural.slice(0, -1)}`;
+		const dirNamePart = `${safeEntityId}_${safeNameHintPart}`.substring(0, 100); // Limit length
+		return path.join(entityTypePlural, dirNamePart);
+	}
+
+	/**
+	 * 產生特定實體資源的路徑
+	 * @param {String} entityTypePlural - e.g., 'news', 'faqs'
+	 * @param {String} entityId
+	 * @param {String} entityNameHint - e.g., news title, faq question
+	 * @param {String} assetPurpose - e.g., 'news_cover', 'news_content_image', 'faq_item_video'
+	 * @param {String} originalFileName
+	 * @returns {Object} { virtualPath, physicalPath }
+	 */
+	generateEntityAssetPath(entityTypePlural, entityId, entityNameHint, assetPurpose, originalFileName) {
+		if (!entityTypePlural || !entityId || !assetPurpose || !originalFileName) {
+			throw new ApiError(400, "產生實體資源路徑缺少必要參數");
+		}
+
+		let subDir = "";
+		let filePrefix = "";
+
+		switch (assetPurpose) {
+			case "news_cover":
+				subDir = "covers";
+				filePrefix = "cover";
+				break;
+			case "news_content_image":
+				subDir = "images";
+				filePrefix = "content_img";
+				break;
+			case "news_content_video":
+				subDir = "videos";
+				filePrefix = "content_vid";
+				break;
+			case "faq_item_image":
+				subDir = "images";
+				filePrefix = "faq_img";
+				break;
+			case "faq_item_video":
+				subDir = "videos"; // Changed from 'video' to 'videos' for consistency
+				filePrefix = "faq_vid";
+				break;
+			default:
+				throw new ApiError(400, `不支援的 assetPurpose: ${assetPurpose}`);
+		}
+
+		try {
+			const baseDirRelative = this._generateEntityAssetBaseDir(entityTypePlural, entityId, entityNameHint);
+			const uniqueFileName = this.generateUniqueFileName(originalFileName, filePrefix);
+
+			const fullDirectoryPath = path.join(this.FILES_ROOT, baseDirRelative, subDir);
+			this.ensureDirectory(fullDirectoryPath); // Ensure the specific subdirectory (e.g., /covers, /images) exists
+
+			const virtualPath = `/storage/${baseDirRelative}/${subDir}/${uniqueFileName}`;
+			// Physical path is now more directly constructed
+			const physicalPath = path.join(fullDirectoryPath, uniqueFileName);
+
+			return { virtualPath, physicalPath };
+		} catch (e) {
+			console.error(`為 ${assetPurpose} 產生路徑失敗:`, e);
+			throw e;
+		}
+	}
+
+	/**
+	 * 儲存實體資源檔案
+	 * @param {Buffer} fileBuffer
+	 * @param {String} entityTypePlural
+	 * @param {String} entityId
+	 * @param {String} entityNameHint
+	 * @param {String} assetPurpose
+	 * @param {String} originalFileName
+	 * @returns {String} 檔案的虛擬路徑
+	 */
+	saveEntityAsset(fileBuffer, entityTypePlural, entityId, entityNameHint, assetPurpose, originalFileName) {
+		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, `無效的檔案內容 (${assetPurpose})`);
+		try {
+			const { virtualPath, physicalPath } = this.generateEntityAssetPath(entityTypePlural, entityId, entityNameHint, assetPurpose, originalFileName);
+			if (!this.saveBufferToFile(fileBuffer, physicalPath)) throw new ApiError(500, `儲存實體資源檔案 (${assetPurpose}) 失敗`);
+			return virtualPath;
+		} catch (e) {
+			console.error(`儲存實體資源檔案 (${assetPurpose}) 過程失敗:`, e);
+			if (e instanceof ApiError) throw e;
+			throw new ApiError(500, `儲存實體資源檔案 (${assetPurpose}) 時發生錯誤: ${e.message}`);
+		}
+	}
+
+	/**
+	 * 刪除指定實體的所有相關資源目錄
+	 * @param {String} entityTypePlural
+	 * @param {String} entityId
+	 * @param {String} entityNameHint
+	 * @returns {Boolean} 是否成功刪除
+	 */
+	deleteEntityAssetDirectory(entityTypePlural, entityId, entityNameHint) {
+		try {
+			const baseDirRelative = this._generateEntityAssetBaseDir(entityTypePlural, entityId, entityNameHint);
+			const fullPath = path.join(this.FILES_ROOT, baseDirRelative);
+			return this.deleteDirectory(fullPath);
+		} catch (error) {
+			console.error(`刪除實體資源目錄失敗 (${entityTypePlural}/${entityId}):`, error);
+			return false;
+		}
+	}
+
+	// --- News Specific File Handling --- (REFACTORED)
 
 	_generateNewsItemBaseDir(newsId, newsTitleTw) {
-		const safeNewsId = this.sanitizeFileName(newsId.toString());
-		const safeTitlePart = newsTitleTw ? this.sanitizeFileName(newsTitleTw) : "untitled";
-		const parentDirName = `${safeNewsId}_${safeTitlePart}`.substring(0, 100);
-		return path.join("news", parentDirName); // Relative to /storage/
+		return this._generateEntityAssetBaseDir("news", newsId, newsTitleTw);
 	}
 
 	generateNewsCoverPath(newsId, newsTitleTw, originalFileName) {
-		try {
-			if (!newsId || !originalFileName) throw new ApiError(400, "缺少 newsId 或 originalFileName 生成封面路徑");
-			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
-			const coverDir = "covers";
-			const uniqueFileName = this.generateUniqueFileName(originalFileName, "cover");
-
-			const fullDirectoryPath = path.join(this.FILES_ROOT, baseDirRelative, coverDir);
-			this.ensureDirectory(fullDirectoryPath);
-
-			const virtualPath = `/storage/${baseDirRelative}/${coverDir}/${uniqueFileName}`;
-			const physicalPath = path.join(fullDirectoryPath, uniqueFileName); // More direct construction
-			return { virtualPath, physicalPath };
-		} catch (e) {
-			console.error("生成新聞封面路徑失敗:", e);
-			throw e;
-		}
+		return this.generateEntityAssetPath("news", newsId, newsTitleTw, "news_cover", originalFileName);
 	}
 
 	saveNewsCoverImage(fileBuffer, newsId, newsTitleTw, originalFileName) {
-		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, "無效的封面圖片內容");
-		try {
-			const { virtualPath, physicalPath } = this.generateNewsCoverPath(newsId, newsTitleTw, originalFileName);
-			if (!this.saveBufferToFile(fileBuffer, physicalPath)) throw new ApiError(500, "儲存新聞封面圖片失敗");
-			return virtualPath;
-		} catch (e) {
-			console.error("儲存新聞封面圖片過程失敗:", e);
-			throw e;
-		}
+		return this.saveEntityAsset(fileBuffer, "news", newsId, newsTitleTw, "news_cover", originalFileName);
 	}
 
 	generateNewsContentImagePath(newsId, newsTitleTw, originalFileName) {
-		try {
-			if (!newsId || !originalFileName) throw new ApiError(400, "缺少 newsId 或 originalFileName 生成內容圖片路徑");
-			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
-			const contentImageDir = "images";
-			const uniqueFileName = this.generateUniqueFileName(originalFileName, "content"); // Prefix for content images
-
-			const fullDirectoryPath = path.join(this.FILES_ROOT, baseDirRelative, contentImageDir);
-			this.ensureDirectory(fullDirectoryPath);
-
-			const virtualPath = `/storage/${baseDirRelative}/${contentImageDir}/${uniqueFileName}`;
-			const physicalPath = path.join(fullDirectoryPath, uniqueFileName);
-			return { virtualPath, physicalPath };
-		} catch (e) {
-			console.error("生成新聞內容圖片路徑失敗:", e);
-			throw e;
-		}
+		return this.generateEntityAssetPath("news", newsId, newsTitleTw, "news_content_image", originalFileName);
 	}
 
 	saveNewsContentImage(fileBuffer, newsId, newsTitleTw, originalFileName) {
-		if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) throw new ApiError(400, "無效的內容圖片內容");
-		try {
-			const { virtualPath, physicalPath } = this.generateNewsContentImagePath(newsId, newsTitleTw, originalFileName);
-			if (!this.saveBufferToFile(fileBuffer, physicalPath)) throw new ApiError(500, "儲存新聞內容圖片失敗");
-			return virtualPath;
-		} catch (e) {
-			console.error("儲存新聞內容圖片過程失敗:", e);
-			throw e;
-		}
+		return this.saveEntityAsset(fileBuffer, "news", newsId, newsTitleTw, "news_content_image", originalFileName);
 	}
 
 	// Method to delete the entire directory for a news item
 	deleteNewsItemDirectory(newsId, newsTitleTw) {
-		try {
-			const baseDirRelative = this._generateNewsItemBaseDir(newsId, newsTitleTw);
-			const fullPath = path.join(this.FILES_ROOT, baseDirRelative);
-			return this.deleteDirectory(fullPath);
-		} catch (error) {
-			console.error(`刪除新聞項目目錄失敗 (${newsId}):`, error);
-			return false;
-		}
+		return this.deleteEntityAssetDirectory("news", newsId, newsTitleTw);
+	}
+
+	// --- FAQ Specific File Handling --- (REFACTORED)
+
+	/**
+	 * Middleware for FAQ images (multiple images named 'faqImages')
+	 */
+	getFaqUploadMiddleware() {
+		return this.upload.fields([
+			{ name: "faqImages", maxCount: 10 }, // Allow up to 10 images for an FAQ item
+			{ name: "faqVideoFile", maxCount: 1 } // Allow 1 video for an FAQ item
+		]);
+	}
+
+	_generateFaqItemBaseDir(faqId, faqQuestionTw) {
+		return this._generateEntityAssetBaseDir("faqs", faqId, faqQuestionTw);
+	}
+
+	generateFaqImagePath(faqId, faqQuestionTw, originalFileName) {
+		return this.generateEntityAssetPath("faqs", faqId, faqQuestionTw, "faq_item_image", originalFileName);
+	}
+
+	saveFaqImage(fileBuffer, faqId, faqQuestionTw, originalFileName) {
+		return this.saveEntityAsset(fileBuffer, "faqs", faqId, faqQuestionTw, "faq_item_image", originalFileName);
+	}
+
+	deleteFaqItemDirectory(faqId, faqQuestionTw) {
+		return this.deleteEntityAssetDirectory("faqs", faqId, faqQuestionTw);
+	}
+
+	generateFaqVideoPath(faqId, faqQuestionTw, originalFileName) {
+		return this.generateEntityAssetPath("faqs", faqId, faqQuestionTw, "faq_item_video", originalFileName);
+	}
+
+	saveFaqVideo(fileBuffer, faqId, faqQuestionTw, originalFileName) {
+		return this.saveEntityAsset(fileBuffer, "faqs", faqId, faqQuestionTw, "faq_item_video", originalFileName);
+	}
+
+	// News Content Video Methods (REFACTORED)
+	generateNewsContentVideoPath(newsId, newsTitleTw, originalFileName) {
+		return this.generateEntityAssetPath("news", newsId, newsTitleTw, "news_content_video", originalFileName);
+	}
+
+	saveNewsContentVideo(fileBuffer, newsId, newsTitleTw, originalFileName) {
+		return this.saveEntityAsset(fileBuffer, "news", newsId, newsTitleTw, "news_content_video", originalFileName);
 	}
 }
 

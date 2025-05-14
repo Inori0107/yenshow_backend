@@ -2,6 +2,7 @@ import { ApiError, successResponse } from "../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
 import HierarchyService from "../services/HierarchyService.js"; // 引入新的服務
 import { transformHierarchicalDataImagePaths } from "../utils/urlTransformer.js";
+import { getAccessOptions } from "../utils/accessUtils.js"; // <--- 導入 getAccessOptions
 
 /**
  * 階層管理器 - Controller 層
@@ -41,11 +42,12 @@ class HierarchyManager {
 	async getFullHierarchy(req, res, next) {
 		try {
 			const { lang } = req.query;
+			const accessOptions = getAccessOptions(req); // <--- 獲取 accessOptions
 			// maxDepth 可以從 query 獲取，如果需要的話
 			const maxDepth = req.query.maxDepth ? parseInt(req.query.maxDepth) : 5;
 
 			// 調用 Service 處理業務邏輯
-			const hierarchyData = await this.hierarchyService.getFullHierarchyData({ language: lang, maxDepth });
+			const hierarchyData = await this.hierarchyService.getFullHierarchyData({ language: lang, maxDepth, accessOptions }); // <--- 傳遞 accessOptions
 
 			// 應用遞迴轉換
 			const baseUrl = process.env.PUBLIC_BASE_URL;
@@ -69,9 +71,10 @@ class HierarchyManager {
 		try {
 			const { parentType, parentId } = req.params;
 			const { lang } = req.query;
+			const accessOptions = getAccessOptions(req); // <--- 獲取 accessOptions
 
 			// 調用 Service 處理業務邏輯
-			const result = await this.hierarchyService.getChildrenByParentIdData(parentType, parentId, { language: lang });
+			const result = await this.hierarchyService.getChildrenByParentIdData(parentType, parentId, { language: lang, accessOptions }); // <--- 傳遞 accessOptions
 
 			// 從 service 返回的結果構建響應
 			const childService = await this.hierarchyService.getEntityService(result.childType);
@@ -97,9 +100,10 @@ class HierarchyManager {
 		try {
 			const { itemType, itemId } = req.params;
 			const { lang } = req.query;
+			const accessOptions = getAccessOptions(req); // <--- 獲取 accessOptions
 
 			// 調用 Service 處理業務邏輯
-			const hierarchy = await this.hierarchyService.getParentHierarchyData(itemType, itemId, { language: lang });
+			const hierarchy = await this.hierarchyService.getParentHierarchyData(itemType, itemId, { language: lang, accessOptions }); // <--- 傳遞 accessOptions
 
 			return successResponse(res, StatusCodes.OK, "獲取父層階層資料成功", {
 				result: { hierarchy } // 直接返回 service 計算好的層級列表
@@ -119,9 +123,10 @@ class HierarchyManager {
 		try {
 			const { itemType, itemId } = req.params;
 			const { lang } = req.query;
+			const accessOptions = getAccessOptions(req); // <--- 獲取 accessOptions
 
 			// 調用 Service 處理業務邏輯
-			const subHierarchyData = await this.hierarchyService.getSubHierarchyData(itemType, itemId, { language: lang });
+			const subHierarchyData = await this.hierarchyService.getSubHierarchyData(itemType, itemId, { language: lang, accessOptions }); // <--- 傳遞 accessOptions
 
 			// 應用遞迴轉換
 			const baseUrl = process.env.PUBLIC_BASE_URL;
