@@ -251,161 +251,43 @@
         <!-- 產品圖片上傳 -->
         <div class="mb-6">
           <label class="block mb-3"> 產品示圖 </label>
-          <div
-            class="border-2 border-dashed rounded-[10px] p-4 text-center cursor-pointer hover:border-[#3490dc]"
-            :class="[
-              conditionalClass('border-gray-600', 'border-slate-300'),
-              imageFile && !imagePreview
-                ? conditionalClass('border-green-500', 'border-green-600')
-                : '',
-            ]"
-            @click="$refs.imageInput.click()"
-          >
-            <input
-              ref="imageInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleImageUpload"
-            />
-            <div v-if="!imagePreview">
-              <svg
-                class="mx-auto w-12 h-12"
-                :class="conditionalClass('text-gray-500', 'text-slate-400')"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                ></path>
-              </svg>
-              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
-                點擊或拖曳上傳圖片
-              </p>
-              <p
-                v-if="imageFile"
-                class="mt-1 text-sm"
-                :class="conditionalClass('text-green-500', 'text-green-600')"
-              >
-                檔案已選擇: {{ imageFile.name }}
-              </p>
-            </div>
-            <img v-else :src="imagePreview" alt="預覽圖片" class="mx-auto max-h-40 rounded" />
-          </div>
+          <MultiAttachmentUploader
+            :manager="imageManager"
+            attachmentType="image"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
+          />
+          <p v-if="validationErrors.images" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.images }}
+          </p>
         </div>
 
         <!-- PDF文件上傳 -->
         <div class="mb-6">
-          <label class="block mb-3">PDF檔案</label>
-          <div
-            class="border-2 border-dashed rounded p-4 text-center cursor-pointer hover:border-[#3490dc]"
-            :class="[
-              conditionalClass('border-gray-600', 'border-slate-300'),
-              pdfFile ? conditionalClass('border-green-500', 'border-green-600') : '',
-            ]"
-            @click="$refs.pdfInput.click()"
-          >
-            <input
-              ref="pdfInput"
-              type="file"
-              accept="application/pdf"
-              class="hidden"
-              @change="handlePdfUpload"
-            />
-            <div v-if="!pdfFileName">
-              <svg
-                class="mx-auto w-12 h-12"
-                :class="conditionalClass('text-gray-500', 'text-slate-400')"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                ></path>
-              </svg>
-              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
-                點擊或拖曳上傳PDF檔案
-              </p>
-              <p
-                v-if="pdfFile"
-                class="mt-1 text-sm"
-                :class="conditionalClass('text-green-500', 'text-green-600')"
-              >
-                檔案已選擇: {{ pdfFile.name }}
-              </p>
-            </div>
-            <div v-else class="flex items-center justify-center">
-              <svg
-                class="w-8 h-8 text-red-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                ></path>
-              </svg>
-              <p class="ml-2">{{ pdfFileName }}</p>
-            </div>
-          </div>
+          <label class="block mb-3"> 相關文件 (PDF) </label>
+          <MultiAttachmentUploader
+            :manager="documentManager"
+            attachmentType="document"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
+          />
+          <p v-if="validationErrors.documents" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.documents }}
+          </p>
         </div>
 
-        <!-- 影片上傳 -->
+        <!-- Video Upload Section -->
         <div class="mb-6">
-          <label class="block mb-3">影片</label>
-          <div
-            class="border-2 border-dashed rounded p-4 text-center cursor-pointer hover:border-[#3490dc]"
-            :class="[
-              conditionalClass('border-gray-600', 'border-slate-300'),
-              videoFile ? conditionalClass('border-green-500', 'border-green-600') : '',
-            ]"
-            @click="$refs.videoInput.click()"
-          >
-            <input
-              ref="videoInput"
-              type="file"
-              accept="video/*"
-              class="hidden"
-              @change="handleVideoUpload"
-            />
-            <div v-if="!videoFileName">
-              <svg
-                class="mx-auto w-12 h-12"
-                :class="conditionalClass('text-gray-500', 'text-slate-400')"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                ></path>
-              </svg>
-              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
-                點擊或拖曳上傳影片
-              </p>
-              <p
-                v-if="videoFile"
-                class="mt-1 text-sm"
-                :class="conditionalClass('text-green-500', 'text-green-600')"
-              >
-                檔案已選擇: {{ videoFileName }}
-              </p>
-            </div>
-          </div>
+          <label class="block mb-3">相關影片 (可上傳多部)</label>
+          <MultiAttachmentUploader
+            :manager="videoManager"
+            attachmentType="video"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
+          />
+          <p v-if="validationErrors.videos" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.videos }}
+          </p>
         </div>
 
         <!-- 上傳進度顯示 -->
@@ -476,7 +358,9 @@ import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
 import { useThemeClass } from '@/composables/useThemeClass'
-import LanguageSwitcher from '@/components/languageSwitcher.vue'
+import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
+import { useMultiAttachmentManager } from '@/composables/useMultiAttachmentManager'
+import MultiAttachmentUploader from '@/components/common/MultiAttachmentUploader.vue'
 
 const props = defineProps({
   visible: {
@@ -523,15 +407,31 @@ const form = ref({
   description_TW: '',
   description_EN: '',
   isActive: true,
+  images: [],
+  documents: [],
+  videos: [],
+})
+
+// 初始化附件管理器
+const imageManager = useMultiAttachmentManager({
+  formFieldName: 'images',
+  markerPrefix: '__PRODUCT_IMAGE_MARKER_',
+  accept: 'image/*',
+})
+
+const documentManager = useMultiAttachmentManager({
+  formFieldName: 'documents',
+  markerPrefix: '__PRODUCT_DOCUMENT_MARKER_',
+  accept: 'application/pdf',
+})
+
+const videoManager = useMultiAttachmentManager({
+  formFieldName: 'videos',
+  markerPrefix: '__PRODUCT_VIDEO_MARKER_',
+  accept: 'video/*',
 })
 
 // 相關數據
-const imageFile = ref(null)
-const imagePreview = ref(null)
-const pdfFile = ref(null)
-const pdfFileName = ref(null)
-const videoFile = ref(null)
-const videoFileName = ref(null)
 const uploadProgress = ref(0)
 const uploadStatus = ref('')
 const specifications = ref([])
@@ -546,233 +446,10 @@ const batchFeaturesText = ref('')
 // ===== 計算屬性 (用於獲取子分類) =====
 const subCategories = computed(() => {
   const extractedSubCats = props.categoryData?.subCategories || []
-  console.log('[ProductFormModal] Extracted subCategories from prop:', extractedSubCats)
   return extractedSubCats
 })
 
 // ===== 資料載入方法 =====
-
-/**
- * 載入產品數據 (Refactored to use props and search within categoryData for parent IDs)
- */
-const loadProductData = async () => {
-  resetForm() // Reset form before loading/setting new data
-
-  // Pre-populate subCategories from props immediately
-  // No need to call loadSubCategories()
-
-  if (!isEditing.value) {
-    // New Product logic remains the same...
-    if (subCategories.value.length > 0 && !form.value.subCategoriesId) {
-      form.value.subCategoriesId = subCategories.value[0]._id
-      const defaultSubCat = subCategories.value[0]
-      specifications.value = defaultSubCat?.specifications || []
-      form.value.specifications = ''
-    }
-    return
-  }
-
-  // --- Editing Product ---
-  loading.value = true
-  formError.value = ''
-  uploadStatus.value = ''
-  uploadProgress.value = 0
-
-  try {
-    // Step 1: Fetch basic product details (name, desc, images, isActive etc.)
-    // We will IGNORE subCategoriesId and specifications returned from here.
-    const productData = await productsStore.fetchProductById(props.productId)
-    if (!productData) throw new Error('無法載入產品數據')
-
-    // Step 2: Search within props.categoryData to find the product and its true parent IDs
-    let foundSubCatId = ''
-    let foundSpecId = ''
-
-    console.log(
-      `[ProductFormModal] Searching for product ${props.productId} within props.categoryData:`,
-      props.categoryData,
-    )
-    if (props.categoryData?.subCategories) {
-      for (const subCat of props.categoryData.subCategories) {
-        if (subCat.specifications) {
-          for (const spec of subCat.specifications) {
-            if (spec.products && spec.products.some((p) => p._id === props.productId)) {
-              foundSubCatId = subCat._id
-              foundSpecId = spec._id
-              console.log(
-                `[ProductFormModal] Found product ${props.productId} under SubCategory ${foundSubCatId} and Specification ${foundSpecId}`,
-              )
-              break // Found product in spec
-            }
-          }
-        }
-        if (foundSubCatId) break // Found product in subCat
-      }
-    }
-
-    if (!foundSubCatId || !foundSpecId) {
-      console.error(
-        `[ProductFormModal] CRITICAL: Product ID ${props.productId} not found within the provided props.categoryData structure! Cannot determine parent IDs.`,
-      )
-      // Decide how to handle this error - show message, block form? Reset IDs?
-      // For now, let's try using the potentially incorrect ones from productData as a fallback, but log a warning.
-      foundSubCatId = productData.subCategoriesId || ''
-      foundSpecId = productData.specifications || ''
-      if (!foundSubCatId || !foundSpecId) {
-        throw new Error(
-          `無法在提供的分類數據中定位產品 ${props.productId}，且產品自身數據也缺少父級ID。`,
-        )
-      }
-      formError.value = `警告：無法在分類結構中定位產品，預選可能不準確。`
-      console.warn(
-        `[ProductFormModal] Fallback: Using subCategoriesId (${foundSubCatId}) and specifications (${foundSpecId}) from fetched productData because product was not found in props.categoryData.`,
-      )
-    }
-
-    // Step 3: Populate form fields using basic info from productData and FOUND parent IDs
-    form.value = {
-      _id: productData._id,
-      name_TW: productData.name?.TW || '',
-      name_EN: productData.name?.EN || '',
-      code: productData.code || '',
-      subCategoriesId: foundSubCatId, // Use the ID found by searching props.categoryData
-      specifications: foundSpecId, // Use the ID found by searching props.categoryData
-      description_TW: productData.description?.TW || '',
-      description_EN: productData.description?.EN || '',
-      features: processFeatures(productData.features),
-      isActive: productData.isActive !== undefined ? productData.isActive : true,
-    }
-    console.log(
-      '[ProductFormModal] Form value after population (using found IDs):',
-      JSON.parse(JSON.stringify(form.value)),
-    )
-
-    // Step 4: Set files previews (from productData)
-    imagePreview.value =
-      productData.images && productData.images.length > 0 ? productData.images[0] : null
-    pdfFileName.value =
-      productData.documents && productData.documents.length > 0
-        ? productData.documents[0].split('/').pop()
-        : null
-    videoFileName.value =
-      productData.videos && productData.videos.length > 0
-        ? productData.videos[0].split('/').pop()
-        : null
-
-    // Step 5: Populate specifications dropdown based on the FOUND subCategoriesId
-    if (form.value.subCategoriesId) {
-      const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
-      // console.log('[ProductFormModal] loadProductData - Found subCategory for dropdown population:', selectedSubCat)
-      specifications.value = selectedSubCat?.specifications || []
-      console.log(
-        '[ProductFormModal] loadProductData - Set specifications dropdown options based on found subCatId:',
-        specifications.value,
-      )
-
-      // Validation check remains useful: ensure the *selected* spec ID is actually in the list for that subCat
-      if (
-        form.value.specifications &&
-        !specifications.value.some((s) => s._id === form.value.specifications)
-      ) {
-        console.warn(
-          `[ProductFormModal] Consistency Check Failed: The determined specification ID ${form.value.specifications} is not found in the specifications list of the determined subCategory ${form.value.subCategoriesId}. Resetting selection.`,
-        )
-        form.value.specifications = '' // Reset if inconsistent
-      }
-    } else {
-      // This case should be less likely now if the search worked, but keep as safety net
-      specifications.value = []
-      form.value.specifications = ''
-      console.log(
-        '[ProductFormModal] loadProductData - Could not determine subCategoryId, specifications dropdown cleared.',
-      )
-    }
-  } catch (error) {
-    console.error('載入產品錯誤:', error)
-    formError.value = '載入產品數據失敗: ' + (error.message || '未知錯誤')
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 處理產品特點資料 - 確保格式統一
- */
-const processFeatures = (features) => {
-  if (!features || features.length === 0) {
-    return [{ TW: '', EN: '', featureId: 'feature_1' }]
-  }
-
-  // 處理陣列格式的特點
-  if (Array.isArray(features)) {
-    return features.map((f, index) => ({
-      TW: f.TW || '',
-      EN: f.EN || '',
-      featureId: f.featureId || `feature_${index + 1}`,
-    }))
-  }
-
-  // 如果是物件格式，轉換為陣列
-  if (typeof features === 'object' && !Array.isArray(features)) {
-    return Object.entries(features).map(([key, value], index) => ({
-      TW: value.TW || '',
-      EN: value.EN || '',
-      featureId: key || `feature_${index + 1}`,
-    }))
-  }
-
-  // 預設返回一個空特點
-  return [{ TW: '', EN: '', featureId: 'feature_1' }]
-}
-
-// ===== 表單處理方法 =====
-
-/**
- * 處理批次新增產品特點
- */
-const processBatchFeatures = () => {
-  if (!batchFeaturesText.value.trim()) {
-    return // 如果 textarea 是空的或只有空白，不做任何事
-  }
-
-  const lines = batchFeaturesText.value.trim().split('\n')
-  const newFeaturesFromBatch = []
-
-  lines.forEach((line) => {
-    if (line.trim()) {
-      // 只處理非空行
-      const newFeature = { TW: '', EN: '' } // featureId 會在後面統一處理
-      if (featureLanguage.value === 'TW') {
-        newFeature.TW = line.trim()
-      } else {
-        newFeature.EN = line.trim()
-      }
-      newFeaturesFromBatch.push(newFeature)
-    }
-  })
-
-  if (newFeaturesFromBatch.length === 0) {
-    batchFeaturesText.value = '' // 清空輸入框
-    return
-  }
-
-  // 檢查 form.value.features 是否只有一個且是空的
-  const isInitialEmptyFeature =
-    form.value.features.length === 1 && !form.value.features[0].TW && !form.value.features[0].EN
-
-  if (isInitialEmptyFeature) {
-    form.value.features = newFeaturesFromBatch
-  } else {
-    form.value.features.push(...newFeaturesFromBatch)
-  }
-
-  // 統一更新所有 featureId
-  form.value.features.forEach((feature, index) => {
-    feature.featureId = `feature_${index + 1}`
-  })
-
-  batchFeaturesText.value = '' // 清空輸入框
-}
 
 /**
  * 子分類變更處理 (Refactored)
@@ -828,43 +505,6 @@ const removeFeature = (index) => {
   } else {
     form.value.features = [{ TW: '', EN: '', featureId: 'feature_1' }]
   }
-}
-
-/**
- * 處理圖片上傳
- */
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file || !file.type.startsWith('image/')) return
-
-  imageFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imagePreview.value = e.target.result
-  }
-  reader.readAsDataURL(file)
-}
-
-/**
- * 處理PDF上傳
- */
-const handlePdfUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file || file.type !== 'application/pdf') return
-
-  pdfFile.value = file
-  pdfFileName.value = file.name
-}
-
-/**
- * 處理影片上傳 (新增)
- */
-const handleVideoUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file || !file.type.startsWith('video/')) return
-
-  videoFile.value = file
-  videoFileName.value = file.name
 }
 
 /**
@@ -999,28 +639,23 @@ const submitForm = async () => {
       }
     }
 
-    // 添加檔案 - 關鍵部分：確保檔案正確添加到 FormData 中
-    if (imageFile.value) {
-      formData.append('images', imageFile.value, imageFile.value.name)
-    } else if (imagePreview.value && imagePreview.value.startsWith('data:')) {
-      // 如果是 data URL，轉換為 Blob 並添加
-      try {
-        const response = await fetch(imagePreview.value)
-        const blob = await response.blob()
-        const file = new File([blob], 'image.jpg', { type: 'image/jpeg' })
-        formData.append('images', file)
-      } catch (error) {
-        console.error('轉換圖片預覽失敗:', error)
-      }
+    // --- 處理多圖片上傳 ---
+    const hasNewImages = imageManager.prepareFormData(formData, form.value, 'images')
+    if (hasNewImages) {
+      // 後端期望 'images' 欄位包含 File 對象， manager 已經處理
+      // form.value.images 現在是 URL/marker 陣列，後端應能解析
     }
 
-    if (pdfFile.value) {
-      formData.append('documents', pdfFile.value, pdfFile.value.name)
+    // --- 處理多文件上傳 ---
+    const hasNewDocuments = documentManager.prepareFormData(formData, form.value, 'documents')
+    if (hasNewDocuments) {
+      // 類似圖片處理
     }
 
-    // 添加影片檔案 (新增)
-    if (videoFile.value) {
-      formData.append('videos', videoFile.value, videoFile.value.name)
+    // --- 處理多影片上傳 ---
+    const hasNewVideos = videoManager.prepareFormData(formData, form.value, 'videos')
+    if (hasNewVideos) {
+      // 類似圖片處理
     }
 
     // 其他選項
@@ -1032,10 +667,51 @@ const submitForm = async () => {
 
     if (isEditing.value) {
       // 更新產品
-      result = await productsStore.updateProduct(form.value._id, formData)
+      console.log('[ProductFormModal] Updating product with ID:', form.value._id)
+      console.log('[ProductFormModal] FormData to be sent for update:', formData)
+      // Log each formData entry
+      for (let [key, value] of formData.entries()) {
+        console.log(
+          `[ProductFormModal] FormData Update - ${key}: ${value instanceof File ? value.name : value}`,
+        )
+      }
+
+      const productPayload = {
+        name: { TW: form.value.name_TW, EN: form.value.name_EN }, // 確保後端 _processMultilingualFormData 能處理
+        code: form.value.code,
+        specifications: form.value.specifications,
+        features: form.value.features,
+        description: { TW: form.value.description_TW, EN: form.value.description_EN },
+        isActive: form.value.isActive,
+        images: form.value.images, // <--- 包含現有 URL 和新標記的陣列
+        documents: form.value.documents, // <--- 包含現有 URL 和新標記的陣列
+        videos: form.value.videos, // <--- 包含現有 URL 和新標記的陣列
+        // ... 其他需要提交的 form.value 中的字段
+      }
+
+      // 如果是更新，且 _id 存在，也加入 payload
+      if (isEditing.value && form.value._id) {
+        // productPayload._id = form.value._id; // _id 通常在 URL 中，不在 payload
+      }
+
+      // 將 payload 序列化並添加到 FormData
+      formData.append('productDataPayload', JSON.stringify(productPayload))
+      result = await productsStore.updateProduct(form.value._id, formData, (event) => {
+        uploadProgress.value = Math.round((100 * event.loaded) / event.total)
+      })
     } else {
       // 創建產品
-      result = await productsStore.createProduct(formData)
+      console.log('[ProductFormModal] Creating new product.')
+      console.log('[ProductFormModal] FormData to be sent for create:', formData)
+      // Log each formData entry
+      for (let [key, value] of formData.entries()) {
+        console.log(
+          `[ProductFormModal] FormData Create - ${key}: ${value instanceof File ? value.name : value}`,
+        )
+      }
+      result = await productsStore.createProduct(formData, (event) => {
+        uploadProgress.value = Math.round((100 * event.loaded) / event.total)
+      })
     }
 
     if (!result) {
@@ -1096,35 +772,12 @@ const closeModal = () => {
  * 重置表單 (Updated)
  */
 const resetForm = () => {
-  // 重置基本表單數據
-  form.value = {
-    _id: '',
-    name_TW: '',
-    name_EN: '',
-    code: '',
-    subCategoriesId: '',
-    specifications: '',
-    description_TW: '',
-    description_EN: '',
-    features: [{ TW: '', EN: '', featureId: 'feature_1' }],
-    isActive: true,
-  }
+  form.value = getInitialFormState()
 
-  // Reset specifications list based on potentially available subcategories
-  specifications.value = []
-  if (subCategories.value.length > 0) {
-    // Optionally pre-select first subcategory and its specs?
-    // Or just leave subCat selection blank until user selects.
-    // Let's leave it blank for now.
-  }
-
-  // Reset files and previews
-  imageFile.value = null
-  imagePreview.value = null
-  pdfFile.value = null
-  pdfFileName.value = null
-  videoFile.value = null
-  videoFileName.value = null
+  // Reset managers
+  imageManager.reset()
+  documentManager.reset()
+  videoManager.reset()
 
   // Reset upload status
   uploadStatus.value = ''
@@ -1141,6 +794,14 @@ const resetForm = () => {
 
   // Reset batch features text
   batchFeaturesText.value = ''
+
+  // Reset specifications list (will be repopulated on subCat change or load)
+  specifications.value = []
+
+  // 清除 MultiAttachmentUploader 的 input 元素的值，以確保 @change 事件能再次觸發
+  if (imageManager.inputRef.value) imageManager.inputRef.value.value = ''
+  if (documentManager.inputRef.value) documentManager.inputRef.value.value = ''
+  if (videoManager.inputRef.value) videoManager.inputRef.value.value = ''
 }
 
 // ===== 輔助方法 =====
@@ -1173,7 +834,14 @@ watch(
       uploadProgress.value = 0
       formError.value = ''
       batchFeaturesText.value = '' // 清空批次輸入框
-      await loadProductData()
+
+      // Ensure form arrays are initialized
+      form.value.images = []
+      form.value.documents = []
+      form.value.videos = [] // Initialize for video as well
+
+      await loadProductData() // This will now populate imagePreviews and documentPreviews
+      // and set initial videoFileName if an existing video exists.
     } else {
       // Optionally reset form when modal closes
       // resetForm(); // uncomment if needed
@@ -1195,6 +863,156 @@ watch(featureLanguage, () => {
   // For simple placeholder binding, direct re-evaluation by Vue is usually sufficient.
 })
 
+// Re-add uploadStatus definition (was removed by linter fix but is in template)
+watch(uploadProgress, (newVal) => {
+  if (newVal > 0 && newVal < 100) {
+    uploadStatus.value = `正在上傳資料 (${newVal}%)...`
+  } else if (newVal === 100) {
+    uploadStatus.value = '上傳完成，正在處理...'
+  }
+})
+
 // 初始化 - Handled by watch on visible
 // onMounted(() => { ... })
+
+const productDataForEdit = ref(null) // Store fetched product data for comparison
+
+// Helper to get initial form state
+const getInitialFormState = () => ({
+  _id: '',
+  name_TW: '',
+  name_EN: '',
+  code: '',
+  subCategoriesId: '',
+  specifications: '',
+  features: [{ TW: '', EN: '', featureId: 'feature_1' }],
+  description_TW: '',
+  description_EN: '',
+  isActive: true,
+  images: [],
+  documents: [],
+  videos: [],
+})
+
+async function loadProductData() {
+  // Reset form first using the refined initial state logic
+  resetForm() // This will now also clear newImageFiles implicitly by not repopulating it
+
+  if (!isEditing.value || !props.productId) {
+    productDataForEdit.value = null // Clear stored data
+    // If creating a new product, pre-select first subcategory and its specs if available
+    if (subCategories.value.length > 0 && !form.value.subCategoriesId) {
+      form.value.subCategoriesId = subCategories.value[0]._id
+      const defaultSubCat = subCategories.value[0]
+      specifications.value = defaultSubCat?.specifications || []
+      form.value.specifications = '' // Ensure spec is reset or set to a default
+    }
+    return
+  }
+
+  loading.value = true
+  formError.value = ''
+  // uploadStatus.value = ''; // uploadStatus is managed by its own watch
+  // uploadProgress.value = 0;
+
+  try {
+    const fetchedProductData = await productsStore.fetchProductById(props.productId)
+    if (!fetchedProductData) throw new Error('無法載入產品數據')
+
+    productDataForEdit.value = JSON.parse(JSON.stringify(fetchedProductData)) // Store a copy
+
+    let foundSubCatId = ''
+    let foundSpecId = ''
+
+    if (props.categoryData?.subCategories) {
+      for (const subCat of props.categoryData.subCategories) {
+        if (subCat.specifications) {
+          for (const spec of subCat.specifications) {
+            if (spec.products && spec.products.some((p) => p._id === props.productId)) {
+              foundSubCatId = subCat._id
+              foundSpecId = spec._id
+              console.log(
+                `[ProductFormModal] Found product ${props.productId} under SubCategory ${foundSubCatId} and Specification ${foundSpecId}`,
+              )
+              break
+            }
+          }
+        }
+        if (foundSubCatId) break
+      }
+    }
+
+    if (!foundSubCatId || !foundSpecId) {
+      console.warn(
+        `[ProductFormModal] Product ID ${props.productId} not found within props.categoryData. Using data from fetched product itself for parent IDs. This might be inaccurate if hierarchy changed.`,
+      )
+      foundSubCatId = fetchedProductData.subCategoriesId || ''
+      foundSpecId = fetchedProductData.specifications || ''
+      if (!foundSubCatId || !foundSpecId) {
+        // If still not found, it's a more critical issue or data inconsistency.
+        console.error(
+          `Critical: Parent IDs for product ${props.productId} could not be determined either from hierarchy or product data.`,
+        )
+        // Set to empty to prevent potential errors with dropdowns, user must select.
+        // formError.value = `警告：無法確定產品的分類層級，請手動選擇。`;
+      }
+    }
+    // END of finding parent IDs logic
+
+    // Populate form with a combination of initial state, fetched data, and determined hierarchy IDs
+    form.value = {
+      ...getInitialFormState(), // Start with defaults
+      _id: fetchedProductData._id,
+      name_TW: fetchedProductData.name?.TW || '',
+      name_EN: fetchedProductData.name?.EN || '',
+      code: fetchedProductData.code || '',
+      subCategoriesId: foundSubCatId, // Use determined subCategory ID
+      specifications: foundSpecId, // Use determined specification ID
+      description_TW: fetchedProductData.description?.TW || '',
+      description_EN: fetchedProductData.description?.EN || '',
+      features:
+        fetchedProductData.features && fetchedProductData.features.length > 0
+          ? fetchedProductData.features.map((f, index) => ({
+              TW: f.TW || '',
+              EN: f.EN || '',
+              featureId: f.featureId || `feature_${index + 1}`,
+            }))
+          : [{ TW: '', EN: '', featureId: 'feature_1' }], // Default if no features
+      isActive: fetchedProductData.isActive !== undefined ? fetchedProductData.isActive : true,
+      images: [...(fetchedProductData.images || [])],
+      documents: [...(fetchedProductData.documents || [])],
+      videos: [...(fetchedProductData.videos || [])],
+    }
+
+    // Populate previews using managers
+    imageManager.populatePreviews(fetchedProductData.images || [])
+    documentManager.populatePreviews(fetchedProductData.documents || [])
+    videoManager.populatePreviews(fetchedProductData.videos || [])
+
+    // Populate specifications dropdown based on the determined subCategoriesId
+    if (form.value.subCategoriesId) {
+      const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
+      specifications.value = selectedSubCat?.specifications || []
+      // Ensure the form.value.specifications (which is foundSpecId) is valid within this list
+      if (
+        form.value.specifications &&
+        !specifications.value.some((s) => s._id === form.value.specifications)
+      ) {
+        console.warn(
+          `Product's saved specification ID ${form.value.specifications} not found in the list for subCategory ${form.value.subCategoriesId}. Resetting.`,
+        )
+        form.value.specifications = '' // Reset if inconsistent
+      }
+    } else {
+      specifications.value = []
+      form.value.specifications = '' // No subCat, so no spec
+    }
+  } catch (error) {
+    console.error('載入產品錯誤:', error)
+    formError.value = '載入產品數據失敗: ' + (error.message || '未知錯誤')
+    productDataForEdit.value = null // Clear on error too
+  } finally {
+    loading.value = false
+  }
+}
 </script>

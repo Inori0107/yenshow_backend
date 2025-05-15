@@ -543,7 +543,7 @@ import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { v4 as uuidv4 } from 'uuid'
-import LanguageSwitcher from '@/components/languageSwitcher.vue'
+import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
 import { useUserStore } from '@/stores/userStore'
 
 // Dynamically import block editor components
@@ -642,12 +642,10 @@ const handleBlockRichTextUpdate = (index, newRichTextData) => {
 
 const handleBlockDataUpdate = (index, newBlockData) => {
   if (form.value.contentBlocks[index]) {
-    // Preserve frontend-specific properties like _tempId, _currentLang, _newFile, _previewUrl, _fileInputRef
-    // as the child component might not manage all of them or might send a cleaner version.
     const oldBlock = form.value.contentBlocks[index]
     form.value.contentBlocks[index] = {
-      ...oldBlock, // Keep existing temp/UI state fields
-      ...newBlockData, // Apply updates from child
+      ...oldBlock,
+      ...newBlockData,
     }
   }
 }
@@ -666,19 +664,21 @@ const addBlock = (itemType) => {
       newBlock.richTextData = {
         TW: { type: 'doc', content: [{ type: 'paragraph' }] },
         EN: { type: 'doc', content: [{ type: 'paragraph' }] },
-      } // Initialize for the RichTextBlockEditor prop
+      }
       break
     case 'image':
-      newBlock.imageUrl = '' // For existing image URL, or __NEW_CONTENT_IMAGE__ marker
+      newBlock.imageUrl = ''
       newBlock.imageAltText = { TW: '', EN: '' }
       newBlock.imageCaption = { TW: '', EN: '' }
-      newBlock._newFile = null // File object for new upload
-      newBlock._previewUrl = null // Blob URL for preview
-      newBlock._fileInputRef = null // Ref for the hidden file input
+      newBlock._newFile = null
+      newBlock._previewUrl = null
+      newBlock._fileInputRef = null
       break
     case 'videoEmbed':
       newBlock.videoEmbedUrl = ''
       newBlock.videoCaption = { TW: '', EN: '' }
+      newBlock._newVideoFile = null
+      newBlock._previewVideoUrl = null
       break
   }
 
@@ -691,6 +691,13 @@ const deleteBlock = (index) => {
     const block = form.value.contentBlocks[index]
     if (block.itemType === 'image' && block._previewUrl && block._previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(block._previewUrl)
+    }
+    if (
+      block.itemType === 'videoEmbed' &&
+      block._previewVideoUrl &&
+      block._previewVideoUrl.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(block._previewVideoUrl)
     }
     form.value.contentBlocks.splice(index, 1)
     form.value.contentBlocks.forEach((b, i) => (b.sortOrder = i))
@@ -732,17 +739,22 @@ const validateForm = () => {
       if (block.itemType === 'image') {
         if (block.imageUrl === '__NEW_CONTENT_IMAGE__' && !block._newFile) {
           console.warn(`Block ${index} marked for new image but no file attached.`)
-          // This case might be an error, or user cancelled selection.
-          // Form submission logic should handle it by not sending __NEW_CONTENT_IMAGE__ if no file.
         } else if (!block.imageUrl && !block._newFile && !block._id) {
-          // If it is a new block (no _id yet)
           setValidationError(`content_${index}_image`, '圖片為必填')
           isValid = false
         }
       }
-      if (block.itemType === 'videoEmbed' && !block.videoEmbedUrl?.trim()) {
-        setValidationError(`content_${index}_video`, '影片嵌入URL為必填')
-        isValid = false
+      if (block.itemType === 'videoEmbed') {
+        if (block.videoEmbedUrl === '__NEW_CONTENT_VIDEO__' && !block._newVideoFile) {
+          console.warn(`Block ${index} marked for new video but no file attached.`)
+          // Potentially set an error if a new video was expected but no file is present
+          // setValidationError(`content_${index}_video_file`, '影片檔案為必填');
+          // isValid = false;
+        } else if (!block.videoEmbedUrl && !block._newVideoFile && !block._id) {
+          // If it's a new block (no _id) and neither URL nor file is provided
+          setValidationError(`content_${index}_video_source`, '影片來源 (URL或檔案) 為必填')
+          isValid = false
+        }
       }
     })
   }
@@ -813,6 +825,8 @@ const submitForm = async () => {
   isProcessing.value = true
 
   const contentImageFiles = []
+  const contentVideoFiles = []
+
   form.value.contentBlocks.forEach((block) => {
     if (
       block.itemType === 'image' &&
@@ -820,41 +834,51 @@ const submitForm = async () => {
       block.imageUrl === '__NEW_CONTENT_IMAGE__'
     ) {
       contentImageFiles.push(block._newFile)
+    } else if (
+      block.itemType === 'videoEmbed' &&
+      block._newVideoFile &&
+      block.videoEmbedUrl === '__NEW_CONTENT_VIDEO__'
+    ) {
+      contentVideoFiles.push(block._newVideoFile)
     }
   })
 
   const finalContentBlocks = form.value.contentBlocks.map((block) => {
     const cleanBlock = { ...block }
 
-    // Delete frontend-specific temporary keys
     delete cleanBlock._tempId
     delete cleanBlock._currentLang
     delete cleanBlock._previewUrl
     delete cleanBlock._fileInputRef
-    delete cleanBlock._newFile // Also ensure _newFile is removed after processing
+    delete cleanBlock._newFile
+    delete cleanBlock._newVideoFile
+    delete cleanBlock._previewVideoUrl
 
     if (block.itemType === 'richText') {
       cleanBlock.richTextData = {
         TW: block.richTextData?.TW || { type: 'doc', content: [] },
         EN: block.richTextData?.EN || { type: 'doc', content: [] },
       }
-      // Remove fields not relevant to richText
       delete cleanBlock.imageUrl
       delete cleanBlock.imageAltText
       delete cleanBlock.imageCaption
       delete cleanBlock.videoEmbedUrl
       delete cleanBlock.videoCaption
     } else if (block.itemType === 'image') {
-      if (block._newFile && block.imageUrl === '__NEW_CONTENT_IMAGE__') {
-        contentImageFiles.push(block._newFile)
-      } else if (!block._newFile && block.imageUrl === '__NEW_CONTENT_IMAGE__') {
-        cleanBlock.imageUrl = null
+      // No need to push to contentImageFiles here, already done.
+      // If it was marked for new image but no file, _newFile would be null, imageUrl remains __NEW_CONTENT_IMAGE__
+      // Server side should handle this by not creating an image if no file is actually sent for that marker.
+      // Or, if imageUrl became null because user removed it, that's fine.
+      if (block.imageUrl === '__NEW_CONTENT_IMAGE__' && !block._newFile) {
+        cleanBlock.imageUrl = null // Explicitly nullify if marked new but no file.
       }
-      // Remove fields not relevant to image
       delete cleanBlock.richTextData
       delete cleanBlock.videoEmbedUrl
       delete cleanBlock.videoCaption
     } else if (block.itemType === 'videoEmbed') {
+      if (block.videoEmbedUrl === '__NEW_CONTENT_VIDEO__' && !block._newVideoFile) {
+        cleanBlock.videoEmbedUrl = null
+      }
       delete cleanBlock.richTextData
       delete cleanBlock.imageUrl
       delete cleanBlock.imageAltText
@@ -863,7 +887,8 @@ const submitForm = async () => {
     return cleanBlock
   })
 
-  const useFormData = !!imageFile.value || contentImageFiles.length > 0
+  const useFormData =
+    !!imageFile.value || contentImageFiles.length > 0 || contentVideoFiles.length > 0
   let submissionPayload
 
   const newsDataPayload = {
@@ -891,6 +916,11 @@ const submitForm = async () => {
     if (contentImageFiles.length > 0) {
       contentImageFiles.forEach((file) => {
         submissionPayload.append('contentImages', file)
+      })
+    }
+    if (contentVideoFiles.length > 0) {
+      contentVideoFiles.forEach((file) => {
+        submissionPayload.append('contentVideos', file)
       })
     }
   } else {
@@ -936,6 +966,14 @@ const closeModal = () => {
     if (block.itemType === 'image' && block._previewUrl && block._previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(block._previewUrl)
     }
+    if (
+      block.itemType === 'videoEmbed' &&
+      block._previewVideoUrl &&
+      block._previewVideoUrl.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(block._previewVideoUrl)
+      block._previewVideoUrl = null
+    }
   })
   emit('update:show', false)
 }
@@ -952,6 +990,13 @@ const resetAndInitializeForm = async () => {
   form.value.contentBlocks.forEach((block) => {
     if (block.itemType === 'image' && block._previewUrl && block._previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(block._previewUrl)
+    }
+    if (
+      block.itemType === 'videoEmbed' &&
+      block._previewVideoUrl &&
+      block._previewVideoUrl.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(block._previewVideoUrl)
     }
   })
 
@@ -1001,6 +1046,13 @@ const resetAndInitializeForm = async () => {
             TW: block.richTextData?.TW || { type: 'doc', content: [{ type: 'paragraph' }] },
             EN: block.richTextData?.EN || { type: 'doc', content: [{ type: 'paragraph' }] },
           }
+        } else if (block.itemType === 'videoEmbed') {
+          newClientBlock._newVideoFile = null
+          newClientBlock._previewVideoUrl =
+            block.videoEmbedUrl &&
+            (block.videoEmbedUrl.startsWith('blob:') || block.videoEmbedUrl.startsWith('/storage'))
+              ? block.videoEmbedUrl
+              : null
         }
         return newClientBlock
       })
@@ -1047,6 +1099,14 @@ watch(
             URL.revokeObjectURL(block._previewUrl)
             block._previewUrl = null
           }
+          if (
+            block.itemType === 'videoEmbed' &&
+            block._previewVideoUrl &&
+            block._previewVideoUrl.startsWith('blob:')
+          ) {
+            URL.revokeObjectURL(block._previewVideoUrl)
+            block._previewVideoUrl = null
+          }
         })
       }
     }
@@ -1061,6 +1121,13 @@ onBeforeUnmount(() => {
   form.value.contentBlocks.forEach((block) => {
     if (block.itemType === 'image' && block._previewUrl && block._previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(block._previewUrl)
+    }
+    if (
+      block.itemType === 'videoEmbed' &&
+      block._previewVideoUrl &&
+      block._previewVideoUrl.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(block._previewVideoUrl)
     }
   })
 })

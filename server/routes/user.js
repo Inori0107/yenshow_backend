@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { login, logout, getProfile, changePassword, extendToken } from "../controllers/authController.js";
-import { getUsers, createUser, updateUser, resetPassword, deactivateUser, activateUser, deleteUser } from "../controllers/admin/admin.js";
+import { login, logout, getProfile, changePassword, extendToken } from "../controllers/user/authController.js";
+import { getUsers, createUser, updateUser, resetPassword, deactivateUser, activateUser, deleteUser } from "../controllers/user/admin.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
 import { login as loginMiddleware } from "../middlewares/auth.js";

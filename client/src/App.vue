@@ -251,7 +251,7 @@ import { storeToRefs } from 'pinia'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useThemeClass } from '@/composables/useThemeClass'
-import GlobalSearch from '@/components/GlobalSearch.vue'
+import GlobalSearch from '@/components/common/GlobalSearch.vue'
 
 const route = useRoute()
 const router = useRouter()

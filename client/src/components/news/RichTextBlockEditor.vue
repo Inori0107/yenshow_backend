@@ -100,7 +100,7 @@
 import { ref, watch, onUnmounted, onMounted, computed } from 'vue'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useDark } from '@vueuse/core'
-import LanguageSwitcher from '@/components/languageSwitcher.vue'
+import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
 
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'

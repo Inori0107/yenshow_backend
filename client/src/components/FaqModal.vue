@@ -1,421 +1,316 @@
 <template>
   <div
     v-if="show"
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="background-color: rgba(0, 0, 0, 0.7)"
-    @mousedown.self="closeModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70"
+    @click.self="closeModal"
   >
     <div
       :class="[
         cardClass,
-        'w-full max-w-3xl rounded-[10px] shadow-lg p-[24px] max-h-[90vh] overflow-y-auto relative',
+        'w-full max-w-2xl rounded-lg shadow-xl p-6 max-h-[90vh] overflow-y-auto relative',
       ]"
     >
       <button
         @click="closeModal"
-        class="absolute top-4 right-4 p-1 rounded-full hover:bg-opacity-20"
-        :class="conditionalClass('hover:bg-gray-500', 'hover:bg-gray-300')"
+        class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         title="關閉"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="w-6 h-6 theme-text"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
+
       <h2
         class="text-[16px] lg:text-[24px] font-bold text-center mb-[12px] lg:mb-[24px] theme-text"
       >
-        {{ isEditing ? '編輯問題' : '新增問題' }}
+        {{ isEditing ? '編輯常見問題' : '新增常見問題' }}
       </h2>
 
-      <!-- 加載指示器 -->
       <div v-if="loading" class="text-center py-8">
         <div
           class="inline-block animate-spin rounded-full h-8 w-8 border-b-2"
           :class="conditionalClass('border-white', 'border-blue-600')"
         ></div>
-        <p class="mt-2" :class="conditionalClass('text-gray-400', 'text-slate-500')">正在處理...</p>
+        <p class="mt-2" :class="conditionalClass('text-gray-400', 'text-slate-500')">
+          正在載入資料...
+        </p>
       </div>
 
-      <!-- 錯誤提示 -->
-      <div
-        v-else-if="formError"
-        class="bg-red-500/20 border border-red-500 text-red-100 px-4 py-3 rounded mb-4"
-      >
-        {{ formError }}
-      </div>
-
-      <!-- 表單內容 -->
       <form v-else @submit.prevent="submitForm" class="space-y-[12px] lg:space-y-[24px]">
+        <div
+          v-if="formError"
+          class="bg-red-500/20 border border-red-500 text-red-100 px-4 py-3 rounded-md mb-4"
+        >
+          {{ formError }}
+        </div>
+
         <!-- Author & IsActive -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label for="faqAuthor" class="block mb-3">作者 *</label>
+            <label for="faqAuthor" class="block mb-3 theme-text">作者 *</label>
             <input
               id="faqAuthor"
               v-model="form.author"
               type="text"
-              :class="[
-                inputClass,
-                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors['author'] ? 'border-red-500' : '',
-              ]"
+              :class="[inputClass, validationErrors.author ? 'border-red-500' : '']"
               placeholder="請輸入作者名稱"
-              required
             />
-            <div v-if="validationErrors['author']" class="text-red-500 text-sm mt-1">
-              {{ validationErrors['author'] }}
-            </div>
+            <p v-if="validationErrors.author" class="text-red-500 text-xs mt-1">
+              {{ validationErrors.author }}
+            </p>
           </div>
           <div>
-            <label for="faqIsActiveSelect" class="block mb-3">發布狀態</label>
+            <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態</label>
             <div v-if="isAdmin">
-              <select
-                id="faqIsActiveSelect"
-                v-model="form.isActive"
-                :class="[
-                  inputClass,
-                  'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                ]"
-              >
-                <option :value="false" class="text-black/70">待審查</option>
-                <option :value="true" class="text-black/70">已發布</option>
+              <select id="faqIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
+                <option :value="false" class="text-black/70 dark:text-white/70">待審查</option>
+                <option :value="true" class="text-black/70 dark:text-white/70">已發布</option>
               </select>
             </div>
             <div v-else-if="isEditing && !isAdmin">
-              <p
-                :class="[
-                  inputClass,
-                  'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                  'bg-opacity-50 cursor-not-allowed',
-                ]"
-              >
+              <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
                 {{ form.isActive ? '已發布' : '待審查' }}
               </p>
             </div>
             <div v-else>
-              <p
-                :class="[
-                  inputClass,
-                  'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                  'bg-opacity-50 cursor-not-allowed',
-                ]"
-              >
-                待審查 (提交後自動設為待審查)
+              <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
+                待審查 (提交後將由管理員審核)
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Category & Publish Date -->
+        <!-- Category & Product Model -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block mb-3">分類 *</label>
+            <label for="faqCategory" class="block mb-3 theme-text">分類 *</label>
             <input
+              id="faqCategory"
               v-model="form.category"
               type="text"
-              :class="[
-                inputClass,
-                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors['category'] ? 'border-red-500' : '',
-              ]"
+              :class="[inputClass, validationErrors.category ? 'border-red-500' : '']"
               placeholder="請輸入分類"
-              required
             />
-            <div v-if="validationErrors['category']" class="text-red-500 text-sm mt-1">
-              {{ validationErrors['category'] }}
-            </div>
+            <p v-if="validationErrors.category" class="text-red-500 text-xs mt-1">
+              {{ validationErrors.category }}
+            </p>
           </div>
           <div>
-            <label for="publishDate" class="block mb-3">發布日期</label>
+            <label for="faqProductModel" class="block mb-3 theme-text">產品型號 (選填)</label>
             <input
-              type="date"
-              id="publishDate"
-              v-model="form.publishDate"
-              class="pe-3"
-              :class="[
-                inputClass,
-                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors['publishDate'] ? 'border-red-500' : '',
-              ]"
+              id="faqProductModel"
+              v-model="form.productModel"
+              type="text"
+              :class="[inputClass]"
+              placeholder="例如: XYZ-123"
             />
-            <div v-if="validationErrors['publishDate']" class="text-red-500 text-sm mt-1">
-              {{ validationErrors['publishDate'] }}
-            </div>
           </div>
         </div>
 
+        <!-- Publish Date -->
+        <div>
+          <label for="publishDate" class="block mb-3 theme-text">發布日期 *</label>
+          <input
+            type="date"
+            id="publishDate"
+            v-model="form.publishDate"
+            :class="[inputClass, 'pe-3', validationErrors.publishDate ? 'border-red-500' : '']"
+          />
+          <p v-if="validationErrors.publishDate" class="text-red-500 text-xs mt-1">
+            {{ validationErrors.publishDate }}
+          </p>
+        </div>
+
         <!-- 問題 -->
-        <div class="mb-6">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block">問題 *</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium theme-text">問題 *</label>
+            <div class="flex items-center space-x-1">
               <button
                 type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  questionLanguage === 'TW' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
                 @click="questionLanguage = 'TW'"
+                :class="[
+                  questionLanguage === 'TW'
+                    ? 'bg-blue-500 text-white'
+                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
+                  'px-2 py-1 text-xs rounded-md',
+                ]"
               >
                 TW
               </button>
               <button
                 type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  questionLanguage === 'EN' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
                 @click="questionLanguage = 'EN'"
+                :class="[
+                  questionLanguage === 'EN'
+                    ? 'bg-blue-500 text-white'
+                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
+                  'px-2 py-1 text-xs rounded-md',
+                ]"
               >
                 EN
               </button>
             </div>
           </div>
-          <div class="mb-3">
+          <div v-show="questionLanguage === 'TW'">
             <input
-              v-model="form.question[questionLanguage]"
+              v-model="form.question.TW"
               type="text"
-              :class="[
-                inputClass,
-                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors[`question.${questionLanguage}`] ? 'border-red-500' : '',
-              ]"
-              :placeholder="`請輸入問題 (${questionLanguage})`"
+              :class="[inputClass, validationErrors['question.TW'] ? 'border-red-500' : '']"
+              placeholder="請輸入問題 (繁體中文)"
             />
-            <div
-              v-if="validationErrors[`question.TW`] && questionLanguage === 'TW'"
-              class="text-red-500 text-sm mt-1"
-            >
-              {{ validationErrors[`question.TW`] }}
-            </div>
-            <div
-              v-if="validationErrors[`question.EN`] && questionLanguage === 'EN'"
-              class="text-red-500 text-sm mt-1"
-            >
-              {{ validationErrors[`question.EN`] }}
-            </div>
+            <p v-if="validationErrors['question.TW']" class="text-red-500 text-xs mt-1">
+              {{ validationErrors['question.TW'] }}
+            </p>
+          </div>
+          <div v-show="questionLanguage === 'EN'">
+            <input
+              v-model="form.question.EN"
+              type="text"
+              :class="[inputClass]"
+              placeholder="請輸入問題 (English)"
+            />
           </div>
         </div>
 
         <!-- 答案 -->
-        <div class="mb-6">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block">答案 *</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium theme-text">答案 *</label>
+            <div class="flex items-center space-x-1">
               <button
                 type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  answerLanguage === 'TW' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
                 @click="answerLanguage = 'TW'"
+                :class="[
+                  answerLanguage === 'TW'
+                    ? 'bg-blue-500 text-white'
+                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
+                  'px-2 py-1 text-xs rounded-md',
+                ]"
               >
                 TW
               </button>
               <button
                 type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  answerLanguage === 'EN' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
                 @click="answerLanguage = 'EN'"
+                :class="[
+                  answerLanguage === 'EN'
+                    ? 'bg-blue-500 text-white'
+                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
+                  'px-2 py-1 text-xs rounded-md',
+                ]"
               >
                 EN
               </button>
             </div>
           </div>
-          <div class="mb-3">
+          <div v-show="answerLanguage === 'TW'">
             <textarea
-              v-model="form.answer[answerLanguage]"
-              :class="[
-                inputClass,
-                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-                validationErrors[`answer.${answerLanguage}`] ? 'border-red-500' : '',
-              ]"
-              rows="5"
-              :placeholder="`請輸入答案 (${answerLanguage})`"
+              v-model="form.answer.TW"
+              rows="4"
+              :class="[inputClass, validationErrors['answer.TW'] ? 'border-red-500' : '']"
+              placeholder="請輸入答案 (繁體中文)"
             ></textarea>
-            <div
-              v-if="validationErrors[`answer.TW`] && answerLanguage === 'TW'"
-              class="text-red-500 text-sm mt-1"
-            >
-              {{ validationErrors[`answer.TW`] }}
-            </div>
-            <div
-              v-if="validationErrors[`answer.EN`] && answerLanguage === 'EN'"
-              class="text-red-500 text-sm mt-1"
-            >
-              {{ validationErrors[`answer.EN`] }}
-            </div>
+            <p v-if="validationErrors['answer.TW']" class="text-red-500 text-xs mt-1">
+              {{ validationErrors['answer.TW'] }}
+            </p>
+          </div>
+          <div v-show="answerLanguage === 'EN'">
+            <textarea
+              v-model="form.answer.EN"
+              rows="4"
+              :class="[inputClass]"
+              placeholder="請輸入答案 (English)"
+            ></textarea>
           </div>
         </div>
 
-        <!-- Image URLs -->
+        <!-- 圖片上傳 -->
         <div class="mb-6">
-          <label class="block mb-3 theme-text">相關圖片 (可上傳多張)</label>
-
-          <!-- Display existing and newly selected image previews -->
-          <div
-            v-if="imagePreviews.length > 0"
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4"
-          >
-            <div v-for="preview in imagePreviews" :key="preview.tempId" class="relative group">
-              <img :src="preview.url" alt="圖片預覽" class="w-full h-32 object-cover rounded-md" />
-              <button
-                type="button"
-                @click.stop="removeImagePreview(preview)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
-                title="移除圖片"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="2"
-                  stroke="currentColor"
-                  class="w-4 h-4"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- File Uploader Input Area -->
-          <div
-            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
-            :class="conditionalClass('border-gray-600', 'border-gray-300')"
-            @click="triggerImageInput"
-          >
-            <div class="space-y-1 text-center">
-              <svg
-                class="mx-auto h-12 w-12"
-                :class="conditionalClass('text-gray-500', 'text-gray-400')"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 48 48"
-                aria-hidden="true"
-              >
-                <path
-                  d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
-                <p class="pl-1">點擊或拖曳以上傳圖片 (可選多張)</p>
-              </div>
-              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
-                PNG, JPG, GIF, WEBP
-              </p>
-            </div>
-            <input
-              ref="imageInputRef"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleImageUpload"
-            />
-          </div>
-          <div v-if="validationErrors['imageUrl']" class="text-red-500 text-sm mt-1">
-            {{ validationErrors['imageUrl'] }}
-          </div>
-        </div>
-
-        <!-- 影片 URL -->
-        <div class="relative">
-          <label for="videoUrl" class="block mb-3">相關影片 URL</label>
-          <input
-            id="videoUrl"
-            v-model="form.videoUrl"
-            type="url"
-            :class="[
-              inputClass,
-              'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-              validationErrors['videoUrl'] ? 'border-red-500' : '',
-            ]"
-            placeholder="請輸入影片 URL (選填, 例如 YouTube)"
+          <label class="block mb-3 theme-text">圖片 (可上傳多張)</label>
+          <MultiAttachmentUploader
+            :manager="imageManager"
+            attachmentType="image"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
           />
-          <div v-if="validationErrors['videoUrl']" class="text-red-500 text-sm mt-1">
-            {{ validationErrors['videoUrl'] }}
-          </div>
         </div>
 
-        <!-- 排序 -->
-        <div class="relative">
-          <label for="faqOrder" class="block mb-3">排序 (數字越小越前面)</label>
-          <input
-            id="faqOrder"
-            v-model.number="form.order"
-            type="number"
-            :class="[
-              inputClass,
-              'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-              validationErrors['order'] ? 'border-red-500' : '',
-            ]"
-            placeholder="請輸入排序數字 (預設 0)"
+        <!-- 文件上傳 -->
+        <div class="mb-6">
+          <label class="block mb-3 theme-text">文件 (可上傳多個)</label>
+          <MultiAttachmentUploader
+            :manager="documentManager"
+            attachmentType="document"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
           />
-          <div v-if="validationErrors['order']" class="text-red-500 text-sm mt-1">
-            {{ validationErrors['order'] }}
-          </div>
         </div>
 
-        <!-- 產品型號 -->
-        <div class="relative">
-          <label for="productModel" class="block mb-3">產品型號</label>
-          <input
-            id="productModel"
-            v-model="form.productModel"
-            type="text"
-            :class="[
-              inputClass,
-              'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
-              validationErrors['productModel'] ? 'border-red-500' : '',
-            ]"
-            placeholder="請輸入產品型號 (選填)"
+        <!-- 影片上傳 -->
+        <div class="mb-6">
+          <label class="block mb-3 theme-text">影片 (可上傳多部)</label>
+          <MultiAttachmentUploader
+            :manager="videoManager"
+            attachmentType="video"
+            :themeConditionalClass="conditionalClass"
+            :inputBaseClass="inputClass"
           />
-          <div v-if="validationErrors['productModel']" class="text-red-500 text-sm mt-1">
-            {{ validationErrors['productModel'] }}
-          </div>
         </div>
 
-        <!-- 提交按鈕 -->
+        <!-- 按鈕 -->
         <div
-          class="flex justify-end gap-4 pt-4 border-t"
-          :class="conditionalClass('border-gray-700', 'border-gray-300')"
+          class="flex justify-end space-x-3 pt-4 border-t"
+          :class="conditionalClass('border-gray-700', 'border-gray-200')"
         >
           <button
             type="button"
-            class="px-4 py-2 rounded-[10px] cursor-pointer"
-            :class="
-              conditionalClass(
-                'bg-gray-600 hover:bg-gray-700',
-                'bg-slate-300 hover:bg-slate-400 text-slate-700',
-              )
-            "
             @click="closeModal"
             :disabled="isProcessing"
+            class="px-4 py-2 text-sm font-medium rounded-md transition-colors"
+            :class="
+              conditionalClass(
+                'bg-gray-600 hover:bg-gray-500 text-gray-200',
+                'bg-slate-200 hover:bg-slate-300 text-slate-700',
+              )
+            "
           >
             取消
           </button>
           <button
             type="submit"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-[10px] cursor-pointer text-white"
-            :disabled="isProcessing"
+            :disabled="isProcessing || loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
           >
-            <span v-if="isProcessing">處理中...</span>
-            <span v-else>{{ isEditing ? '更新問題' : '新增問題' }}</span>
+            <span v-if="isProcessing">
+              <svg
+                class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              處理中...
+            </span>
+            <span v-else>{{ isEditing ? '更新 FAQ' : '新增 FAQ' }}</span>
           </button>
         </div>
       </form>
@@ -424,12 +319,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useFaqStore } from '@/stores/faqStore'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useUserStore } from '@/stores/userStore'
+import { useMultiAttachmentManager } from '@/composables/useMultiAttachmentManager'
+import MultiAttachmentUploader from '@/components/common/MultiAttachmentUploader.vue'
 
 const props = defineProps({
   show: {
@@ -450,11 +347,9 @@ const { cardClass, inputClass: themeInputClass, conditionalClass } = useThemeCla
 const { errors: validationErrors, clearErrors, setError } = useFormValidation()
 const userStore = useUserStore()
 
-const imageInputRef = ref(null) // Define imageInputRef
-
 const inputClass = computed(() => [
   themeInputClass.value,
-  'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px] text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+  'w-full rounded-[10px] py-[8px] lg:py-[12px] text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
 ])
 
 const loading = ref(false)
@@ -466,9 +361,30 @@ const isAdmin = computed(() => userStore.isAdmin)
 const questionLanguage = ref('TW')
 const answerLanguage = ref('TW')
 
-// Image handling for MULTIPLE images
-const imageFiles = ref([])
-const imagePreviews = ref([])
+const imageManager = useMultiAttachmentManager({
+  formFieldName: 'faqImages',
+  markerPrefix: '__NEW_FAQ_IMAGE_MARKER_',
+  accept: 'image/*',
+})
+
+const videoManager = useMultiAttachmentManager({
+  formFieldName: 'faqVideos',
+  markerPrefix: '__NEW_FAQ_VIDEO_MARKER_',
+  accept: 'video/*',
+})
+
+const documentManager = useMultiAttachmentManager({
+  formFieldName: 'faqDocuments',
+  markerPrefix: '__NEW_FAQ_DOCUMENT_MARKER__',
+  accept:
+    '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain',
+})
+
+onMounted(() => {
+  console.log('Image input ref in modal onMount:', imageManager.inputRef.value)
+  console.log('Video input ref in modal onMount:', videoManager.inputRef.value)
+  console.log('Document input ref in modal onMount:', documentManager.inputRef.value)
+})
 
 const formatDateForInput = (dateStringOrDate) => {
   if (!dateStringOrDate) return ''
@@ -484,95 +400,117 @@ const formatDateForInput = (dateStringOrDate) => {
 }
 
 const initialFormState = () => ({
-  _id: '',
+  _id: null,
   question: { TW: '', EN: '' },
   answer: { TW: '', EN: '' },
   category: '',
   author: '',
   publishDate: formatDateForInput(new Date()),
-  order: 0,
-  isActive: false,
   productModel: '',
-  videoUrl: '',
+  isActive: false,
   imageUrl: [],
+  videoUrl: [],
+  documentUrl: [],
 })
 const form = ref(initialFormState())
 
-const triggerImageInput = () => {
-  imageInputRef.value?.click()
+const resetForm = () => {
+  form.value = initialFormState()
+  imageManager.reset()
+  videoManager.reset()
+  documentManager.reset()
+  clearErrors()
+  formError.value = ''
+  isProcessing.value = false
+  questionLanguage.value = 'TW'
+  answerLanguage.value = 'TW'
 }
 
-const handleImageUpload = (event) => {
-  const files = Array.from(event.target.files)
-  files.forEach((file) => {
-    if (file.type.startsWith('image/')) {
-      const newFileIndex = imageFiles.value.filter((f) => f !== null).length // Count actual files to be uploaded for unique marker
-      imageFiles.value.push(file)
-      const previewUrl = URL.createObjectURL(file)
-      imagePreviews.value.push({
-        url: previewUrl,
-        isNew: true,
-        fileMarker: `__NEW_IMAGE_MARKER_${newFileIndex}__`, // Store marker for payload
-        tempId: `new_${Date.now()}_${Math.random()}_${newFileIndex}`,
-      })
+watch(
+  () => props.show,
+  async (newVal) => {
+    if (newVal) {
+      resetForm()
+      if (isEditing.value && props.faqItem?._id) {
+        loading.value = true
+        try {
+          const faqData = props.faqItem
+          form.value = {
+            _id: faqData._id,
+            question: {
+              TW: faqData.question?.TW || '',
+              EN: faqData.question?.EN || '',
+            },
+            answer: {
+              TW: faqData.answer?.TW || '',
+              EN: faqData.answer?.EN || '',
+            },
+            category: faqData.category || '',
+            author: faqData.author || '',
+            publishDate: formatDateForInput(faqData.publishDate),
+            productModel: faqData.productModel || '',
+            isActive: faqData.isActive,
+            imageUrl: [],
+            videoUrl: [],
+            documentUrl: [],
+          }
+
+          imageManager.populatePreviews(faqData.imageUrl || [])
+          videoManager.populatePreviews(faqData.videoUrl || [])
+          documentManager.populatePreviews(faqData.documentUrl || [])
+
+          questionLanguage.value = form.value.question.TW ? 'TW' : 'EN'
+          answerLanguage.value = form.value.answer.TW ? 'TW' : 'EN'
+        } catch (error) {
+          console.error('Failed to load FAQ data for editing:', error)
+          formError.value = `載入 FAQ 失敗: ${error.message}`
+          notify.notifyError(formError.value)
+        } finally {
+          loading.value = false
+        }
+      } else {
+        if (userStore.currentUser && !isAdmin.value) {
+          form.value.author = userStore.currentUser.username || userStore.currentUser.name || ''
+        }
+      }
     }
-  })
-  if (event.target) event.target.value = ''
-}
-
-const removeImagePreview = (previewToRemove) => {
-  if (previewToRemove.isNew && previewToRemove.url.startsWith('blob:')) {
-    URL.revokeObjectURL(previewToRemove.url)
-  }
-  imagePreviews.value = imagePreviews.value.filter((p) => p.tempId !== previewToRemove.tempId)
-
-  if (previewToRemove.isNew) {
-    // Find the corresponding file by marker or a more robust link if needed, and nullify it
-    // For simplicity, if we remove a new preview, we assume it won't be in `actualFilesToUpload` if not re-added.
-    // This relies on `actualFilesToUpload` being built from `imageFiles` where nulls are filtered.
-    // To be more robust, we'd need to find the exact file in `imageFiles` and remove or nullify it.
-    // A simpler approach is to rebuild `imageFiles` from `imagePreviews` that are `isNew` before submit if many removals happen.
-    // For now, rely on filtering `imageFiles` for `null` values before appending to FormData.
-  }
-  // If it was an existing image, ensure its URL is removed from the list that will be sent to backend
-  if (!previewToRemove.isNew) {
-    form.value.imageUrl = form.value.imageUrl.filter((url) => url !== previewToRemove.url)
-  }
-}
+  },
+  { immediate: true },
+)
 
 const validateForm = () => {
   clearErrors()
-  formError.value = ''
   let isValid = true
-
-  if (!form.value.author || form.value.author.trim() === '') {
+  if (!form.value.author?.trim()) {
     setError('author', '作者為必填項')
     isValid = false
   }
-  if (!form.value.category || form.value.category.trim() === '') {
+  if (!form.value.category?.trim()) {
     setError('category', '分類為必填項')
     isValid = false
   }
-  if (!form.value.question.TW || form.value.question.TW.trim() === '') {
-    setError('question.TW', 'TW 問題為必填項')
+  if (!form.value.question.TW?.trim() && !form.value.question.EN?.trim()) {
+    setError('question.TW', '至少需要一種語言的問題')
     isValid = false
   }
-  if (!form.value.answer.TW || form.value.answer.TW.trim() === '') {
-    setError('answer.TW', 'TW 答案為必填項')
+  if (!form.value.answer.TW?.trim() && !form.value.answer.EN?.trim()) {
+    setError('answer.TW', '至少需要一種語言的答案')
     isValid = false
   }
-  if (typeof form.value.order !== 'number') {
-    setError('order', '排序必須是數字')
+  if (!form.value.publishDate) {
+    setError('publishDate', '發布日期為必填項')
     isValid = false
-  }
-  if (form.value.publishDate && isNaN(new Date(form.value.publishDate).getTime())) {
-    setError('publishDate', '發布日期格式無效')
-    isValid = false
+  } else {
+    const date = new Date(form.value.publishDate)
+    if (isNaN(date.getTime())) {
+      setError('publishDate', '發布日期格式無效')
+      isValid = false
+    }
   }
 
   if (!isValid && !formError.value) {
     const firstErrorKey = Object.keys(validationErrors.value)[0]
-    formError.value = validationErrors.value[firstErrorKey]?.message || '表單驗證失敗'
+    formError.value = validationErrors.value[firstErrorKey]?.message || '表單包含錯誤，請檢查。'
   }
   return isValid
 }
@@ -583,76 +521,42 @@ const submitForm = async () => {
   isProcessing.value = true
   formError.value = ''
 
-  const finalImageUrlsForPayload = []
-  const actualFilesToUpload = []
+  const formData = new FormData()
+  let hasNewFiles = false
 
-  imagePreviews.value.forEach((preview) => {
-    if (preview.isNew) {
-      finalImageUrlsForPayload.push(preview.fileMarker || `__NEW_IMAGE_UNLINKED__`)
-    } else {
-      finalImageUrlsForPayload.push(preview.url)
-    }
-  })
+  if (imageManager.prepareFormData(formData, form.value, 'imageUrl')) hasNewFiles = true
+  if (videoManager.prepareFormData(formData, form.value, 'videoUrl')) hasNewFiles = true
+  if (documentManager.prepareFormData(formData, form.value, 'documentUrl')) hasNewFiles = true
 
-  // Rebuild actualFilesToUpload based on previews that are new and still exist
-  imagePreviews.value.forEach((preview) => {
-    if (preview.isNew) {
-      const fileFromArray = imageFiles.value.find(
-        (f) => f && URL.createObjectURL(f) === preview.url,
-      )
-      if (fileFromArray) {
-        actualFilesToUpload.push(fileFromArray)
-      } else {
-        console.warn('Could not find matching file for new preview:', preview)
-      }
-    }
-  })
-
-  const faqData = {
-    question: {
-      TW: form.value.question.TW || '',
-      EN: form.value.question.EN || '',
-    },
-    answer: {
-      TW: form.value.answer.TW || '',
-      EN: form.value.answer.EN || '',
-    },
+  const faqDataPayload = {
+    question: form.value.question,
+    answer: form.value.answer,
     category: form.value.category,
     author: form.value.author,
     publishDate: form.value.publishDate ? new Date(form.value.publishDate).toISOString() : null,
-    order: form.value.order === '' || form.value.order === null ? 0 : Number(form.value.order),
     isActive: form.value.isActive,
     productModel: form.value.productModel || null,
-    videoUrl: form.value.videoUrl || null,
-    imageUrl: finalImageUrlsForPayload,
+    imageUrl: form.value.imageUrl,
+    videoUrl: form.value.videoUrl,
+    documentUrl: form.value.documentUrl,
   }
+  if (!faqDataPayload.question.EN) delete faqDataPayload.question.EN
+  if (!faqDataPayload.answer.EN) delete faqDataPayload.answer.EN
 
-  if (isEditing.value && form.value._id) {
-    faqData._id = form.value._id
-  }
-
-  if (faqData.question.EN === '') delete faqData.question.EN
-  if (faqData.answer.EN === '') delete faqData.answer.EN
-
-  const useFormData = actualFilesToUpload.length > 0
   let submissionPayload
-
-  if (useFormData) {
-    submissionPayload = new FormData()
-    submissionPayload.append('faqDataPayload', JSON.stringify(faqData))
-    actualFilesToUpload.forEach((file) => {
-      submissionPayload.append('faqImages', file)
-    })
+  if (hasNewFiles) {
+    formData.append('faqDataPayload', JSON.stringify(faqDataPayload))
+    submissionPayload = formData
   } else {
-    submissionPayload = faqData
+    submissionPayload = faqDataPayload
   }
 
   try {
     let result
     if (isEditing.value) {
-      result = await faqStore.update(form.value._id, submissionPayload, useFormData)
+      result = await faqStore.update(form.value._id, submissionPayload, hasNewFiles)
     } else {
-      result = await faqStore.create(submissionPayload, useFormData)
+      result = await faqStore.create(submissionPayload, hasNewFiles)
     }
 
     if (faqStore.error) {
@@ -666,17 +570,13 @@ const submitForm = async () => {
     notify.notifySuccess(`問題 ${isEditing.value ? '更新' : '創建'} 成功！`)
     notify.triggerRefresh('faq')
     emit('saved', {
-      faq: result || {
-        _id: form.value._id || 'tempId',
-        ...faqData,
-        imageUrl: result?.imageUrl || faqData.imageUrl,
-      },
+      faq: result || { _id: form.value._id || 'tempId', ...faqDataPayload },
       isNew: !isEditing.value,
     })
     closeModal()
   } catch (error) {
-    console.error('FAQ 操作失敗:', error)
-    formError.value = error.message || '操作失敗，請稍後再試'
+    console.error('FAQ submission failed:', error)
+    formError.value = error.message || '操作失敗，請稍後再試。'
   } finally {
     isProcessing.value = false
   }
@@ -684,78 +584,6 @@ const submitForm = async () => {
 
 const closeModal = () => {
   if (isProcessing.value) return
-  // Cleanup for all previews, new or old, is handled in resetForm or onBeforeUnmount
   emit('update:show', false)
 }
-
-const resetForm = () => {
-  form.value = initialFormState()
-  formError.value = ''
-  isProcessing.value = false
-  loading.value = false
-  questionLanguage.value = 'TW'
-  answerLanguage.value = 'TW'
-
-  // Revoke blob URLs for previews of new files
-  imagePreviews.value.forEach((preview) => {
-    if (preview.isNew && preview.url.startsWith('blob:')) {
-      URL.revokeObjectURL(preview.url)
-    }
-  })
-  imagePreviews.value = []
-  imageFiles.value = []
-
-  clearErrors()
-}
-
-watch(
-  () => props.show,
-  (newValue) => {
-    if (newValue) {
-      resetForm()
-      if (props.faqItem?._id) {
-        loading.value = true
-        form.value = {
-          ...initialFormState(),
-          _id: props.faqItem._id,
-          question: {
-            TW: props.faqItem.question?.TW || '',
-            EN: props.faqItem.question?.EN || '',
-          },
-          answer: {
-            TW: props.faqItem.answer?.TW || '',
-            EN: props.faqItem.answer?.EN || '',
-          },
-          category: props.faqItem.category || '',
-          author: props.faqItem.author || '',
-          publishDate: formatDateForInput(props.faqItem.publishDate),
-          order: props.faqItem.order !== undefined ? Number(props.faqItem.order) : 0,
-          isActive: props.faqItem.isActive || false,
-          productModel: props.faqItem.productModel || '',
-          videoUrl: props.faqItem.videoUrl || '',
-          imageUrl: [...(props.faqItem.imageUrl || [])],
-        }
-        // Populate imagePreviews from form.value.imageUrl (which are existing URLs)
-        imagePreviews.value = form.value.imageUrl.map((url, index) => ({
-          url: url,
-          isNew: false,
-          tempId: `existing_${index}_${Date.now()}`,
-        }))
-        questionLanguage.value = form.value.question.TW ? 'TW' : 'EN'
-        answerLanguage.value = form.value.answer.TW ? 'TW' : 'EN'
-        loading.value = false
-      }
-    }
-  },
-  { immediate: true }, // Added immediate to ensure resetForm runs on initial show if true
-)
-
-onBeforeUnmount(() => {
-  // Revoke any outstanding new image blob URLs
-  imagePreviews.value.forEach((preview) => {
-    if (preview.isNew && preview.url.startsWith('blob:')) {
-      URL.revokeObjectURL(preview.url)
-    }
-  })
-})
 </script>

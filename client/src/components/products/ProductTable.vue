@@ -128,7 +128,6 @@
         v-for="(product, index) in displayedProducts"
         :key="product._id || index"
         class="grid grid-cols-5 justify-items-center items-center py-3 group"
-        :data-debug="logProductValue(product)"
       >
         <!-- 產品欄 -->
         <div class="flex items-center w-full px-4 lg:px-6 justify-start">
@@ -353,8 +352,6 @@ const props = defineProps({
     default: () => ({ _id: '', name: '', subCategories: [] }),
   },
 })
-
-console.log('ProductTable props:', props)
 
 const emit = defineEmits(['refresh', 'editProduct'])
 
@@ -635,14 +632,6 @@ const formatDate = (dateString) => {
     .getDate()
     .toString()
     .padStart(2, '0')}`
-}
-
-// =====================================================
-// Helper function for debugging
-// =====================================================
-const logProductValue = (product) => {
-  console.log('[ProductTable] Product Value:', product)
-  return undefined
 }
 
 // =====================================================

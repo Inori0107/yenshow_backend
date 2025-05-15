@@ -1,11 +1,9 @@
-import News from "../models/News.js";
-import { EntityController } from "./EntityController.js";
-import { ApiError } from "../utils/responseHandler.js";
+import News from "../../models/News.js";
+import { EntityController } from "../EntityController.js";
+import { ApiError } from "../../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
-import fileUpload from "../utils/fileUpload.js"; // 引入統一的檔案處理工具
-import path from "path"; // 引入 path 模塊
-import fs from "fs"; // 引入 fs 模塊
-import { Permissions } from "../middlewares/permission.js"; // 導入 Permissions
+import fileUpload from "../../utils/fileUpload.js"; // 引入統一的檔案處理工具
+import { Permissions } from "../../middlewares/permission.js"; // 導入 Permissions
 
 // --- Helper function to validate content items (can be moved to a service/validator) ---
 function validateContentItems(content) {

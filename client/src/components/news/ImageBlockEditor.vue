@@ -123,7 +123,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useThemeClass } from '@/composables/useThemeClass'
-import LanguageSwitcher from '@/components/languageSwitcher.vue'
+import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
 
 const props = defineProps({
   blockData: {

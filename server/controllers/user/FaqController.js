@@ -1,9 +1,9 @@
-import Faq from "../models/Faq.js";
-import { EntityController } from "./EntityController.js";
-import { ApiError } from "../utils/responseHandler.js";
+import Faq from "../../models/Faq.js";
+import { EntityController } from "../EntityController.js";
+import { ApiError } from "../../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
-import { Permissions } from "../middlewares/permission.js";
-import fileUpload from "../utils/fileUpload.js";
+import { Permissions } from "../../middlewares/permission.js";
+import fileUpload from "../../utils/fileUpload.js";
 
 class FaqController extends EntityController {
 	constructor() {
@@ -84,44 +84,25 @@ class FaqController extends EntityController {
 		}
 
 		// Handle file URL arrays and deletions
-		const manageFileArray = (clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) => {
-			// 1. 從 clientUrls 中過濾掉特定前綴的 marker 和 blob URL
-			const cleanedClientUrls = Array.isArray(clientUrls)
-				? clientUrls.filter(
-						(url) =>
-							typeof url === "string" &&
-							clientMarkerPrefix &&
-							!url.startsWith(clientMarkerPrefix) && // 過濾 clientMarkerPrefix
-							!url.startsWith("blob:") // 同時過濾 blob: URLs
-					)
-				: [];
-
-			const finalUrls = [...cleanedClientUrls];
-
-			// 3. 處理刪除：如果 isUpdate，比較資料庫中的 existingUrls 和清理後的 finalUrls
-			if (isUpdate && Array.isArray(existingUrls)) {
+		const manageFileArray = (clientUrls, existingUrls, pendingFiles, pathsToDelete) => {
+			const finalUrls = Array.isArray(clientUrls) ? [...clientUrls] : [];
+			if (isUpdate && existingUrls) {
 				existingUrls.forEach((oldUrl) => {
-					if (typeof oldUrl === "string" && oldUrl.startsWith("/storage/") && !finalUrls.includes(oldUrl)) {
+					if (oldUrl.startsWith("/storage/") && !finalUrls.includes(oldUrl)) {
 						pathsToDelete.push(oldUrl);
 					}
 				});
 			}
-
-			// 4. 為 multer 收到的新檔案（pendingFiles）添加後端佔位符
+			// Placeholder for new files, actual upload happens in controller action
 			pendingFiles.forEach((_, index) => {
 				finalUrls.push(`__PENDING_FILE_PLACEHOLDER_${index}__`);
 			});
 			return finalUrls;
 		};
 
-		// 確保這些前綴與前端 useMultiAttachmentManager 中定義的 markerPrefix 一致
-		const imageMarkerPrefix = "__NEW_FAQ_IMAGE_MARKER_";
-		const videoMarkerPrefix = "__NEW_FAQ_VIDEO_MARKER_";
-		const documentMarkerPrefix = "__NEW_FAQ_DOCUMENT_MARKER_";
-
-		data.imageUrl = manageFileArray(data.imageUrl, existingFaq?.imageUrl, data._pendingImages, imagePathsToDelete, imageMarkerPrefix);
-		data.videoUrl = manageFileArray(data.videoUrl, existingFaq?.videoUrl, data._pendingVideos, videoPathsToDelete, videoMarkerPrefix);
-		data.documentUrl = manageFileArray(data.documentUrl, existingFaq?.documentUrl, data._pendingDocuments, documentPathsToDelete, documentMarkerPrefix);
+		data.imageUrl = manageFileArray(data.imageUrl, existingFaq?.imageUrl, data._pendingImages, imagePathsToDelete);
+		data.videoUrl = manageFileArray(data.videoUrl, existingFaq?.videoUrl, data._pendingVideos, videoPathsToDelete);
+		data.documentUrl = manageFileArray(data.documentUrl, existingFaq?.documentUrl, data._pendingDocuments, documentPathsToDelete);
 
 		return {
 			processedData: data,

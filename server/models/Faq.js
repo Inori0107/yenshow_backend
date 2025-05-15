@@ -14,10 +14,6 @@ const faqSchema = new Schema(
 			type: String,
 			trim: true
 		},
-		order: {
-			type: Number,
-			default: 0
-		},
 		isActive: {
 			type: Boolean,
 			default: false
@@ -34,11 +30,9 @@ const faqSchema = new Schema(
 			type: String,
 			trim: true
 		},
-		videoUrl: {
-			type: String,
-			trim: true
-		},
-		imageUrl: [{ type: String }]
+		videoUrl: [{ type: String }],
+		imageUrl: [{ type: String }],
+		documentUrl: [{ type: String }]
 	},
 	{
 		timestamps: true,

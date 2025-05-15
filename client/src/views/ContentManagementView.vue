@@ -82,6 +82,9 @@
               <th class="py-3 px-4 theme-text opacity-50">分類</th>
               <th class="py-3 px-4 theme-text opacity-50">作者</th>
               <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
+              <th class="py-3 px-4 theme-text opacity-50">封面圖</th>
+              <th class="py-3 px-4 theme-text opacity-50">內容圖片</th>
+              <th class="py-3 px-4 theme-text opacity-50">內容影片</th>
               <th class="py-3 px-4 theme-text opacity-50">狀態</th>
               <th class="py-3 px-4 theme-text opacity-50">操作</th>
             </tr>
@@ -96,6 +99,27 @@
               <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ formatDate(item.publishDate) }}</td>
+              <td
+                class="py-3 px-4"
+                :title="'封面圖: ' + (item.coverImageUrl ? '✓' : '✗')"
+                :class="item.coverImageUrl ? 'text-green-500' : 'text-red-500'"
+              >
+                {{ item.coverImageUrl ? '✓' : '✗' }}
+              </td>
+              <td
+                class="py-3 px-4"
+                :title="'內容圖片: ' + (hasContentImages(item.content) ? '✓' : '✗')"
+                :class="hasContentImages(item.content) ? 'text-green-500' : 'text-red-500'"
+              >
+                {{ hasContentImages(item.content) ? '✓' : '✗' }}
+              </td>
+              <td
+                class="py-3 px-4"
+                :title="'內容影片: ' + (hasContentVideos(item.content) ? '✓' : '✗')"
+                :class="hasContentVideos(item.content) ? 'text-green-500' : 'text-red-500'"
+              >
+                {{ hasContentVideos(item.content) ? '✓' : '✗' }}
+              </td>
               <td class="py-3 px-4">
                 <span
                   :class="statusDisplayClass(item.status, item.isActive, 'news')"
@@ -128,7 +152,7 @@
             </tr>
             <tr v-if="!newsStore.items || newsStore.items.length === 0">
               <td
-                colspan="6"
+                colspan="10"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -148,6 +172,8 @@
               <th class="py-3 px-4 theme-text opacity-50">分類</th>
               <th class="py-3 px-4 theme-text opacity-50">作者</th>
               <th class="py-3 px-4 theme-text opacity-50">產品型號</th>
+              <th class="py-3 px-4 theme-text opacity-50">圖片</th>
+              <th class="py-3 px-4 theme-text opacity-50">文件</th>
               <th class="py-3 px-4 theme-text opacity-50">影片</th>
               <th class="py-3 px-4 theme-text opacity-50">狀態</th>
               <th class="py-3 px-4 theme-text opacity-50">操作</th>
@@ -165,10 +191,32 @@
               <td class="py-3 px-4 theme-text">{{ item.productModel || '-' }}</td>
               <td
                 class="py-3 px-4"
-                :title="'影片: ' + (item.videoUrl ? '✓' : '✗')"
-                :class="item.videoUrl ? 'text-green-500' : 'text-red-500'"
+                :title="'圖片: ' + (item.imageUrl && item.imageUrl.length > 0 ? '✓' : '✗')"
+                :class="
+                  item.imageUrl && item.imageUrl.length > 0 ? 'text-green-500' : 'text-red-500'
+                "
               >
-                {{ item.videoUrl ? '✓' : '✗' }}
+                {{ item.imageUrl && item.imageUrl.length > 0 ? '✓' : '✗' }}
+              </td>
+              <td
+                class="py-3 px-4"
+                :title="'文件: ' + (item.documentUrl && item.documentUrl.length > 0 ? '✓' : '✗')"
+                :class="
+                  item.documentUrl && item.documentUrl.length > 0
+                    ? 'text-green-500'
+                    : 'text-red-500'
+                "
+              >
+                {{ item.documentUrl && item.documentUrl.length > 0 ? '✓' : '✗' }}
+              </td>
+              <td
+                class="py-3 px-4"
+                :title="'影片: ' + (item.videoUrl && item.videoUrl.length > 0 ? '✓' : '✗')"
+                :class="
+                  item.videoUrl && item.videoUrl.length > 0 ? 'text-green-500' : 'text-red-500'
+                "
+              >
+                {{ item.videoUrl && item.videoUrl.length > 0 ? '✓' : '✗' }}
               </td>
               <td class="py-3 px-4">
                 <span
@@ -202,7 +250,7 @@
             </tr>
             <tr v-if="!faqStore.items || faqStore.items.length === 0">
               <td
-                colspan="7"
+                colspan="10"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -379,6 +427,18 @@ const handleDeleteItem = async (item) => {
   }
 }
 
+// 檢查 News content 是否包含圖片
+const hasContentImages = (content) => {
+  if (!content || !Array.isArray(content)) return false
+  return content.some((block) => block.itemType === 'image' && block.imageUrl)
+}
+
+// 檢查 News content 是否包含影片
+const hasContentVideos = (content) => {
+  if (!content || !Array.isArray(content)) return false
+  return content.some((block) => block.itemType === 'videoEmbed' && block.videoEmbedUrl)
+}
+
 // 刷新列表
 const refreshList = async (showLoadingIndicator = true) => {
   if (showLoadingIndicator) {
@@ -390,9 +450,6 @@ const refreshList = async (showLoadingIndicator = true) => {
 
   try {
     await store.fetchAll()
-    console.log(`${entityName}列表已更新`)
-    // 如果只是靜默更新，可以考慮不彈出成功提示，避免干擾
-    // if (!showLoadingIndicator) { notify.notifySuccess(`${entityName}列表已更新`); }
   } catch (err) {
     console.error(`刷新${entityName}列表失敗：`, err)
     const message = err.message || `刷新${entityName}列表失敗`

@@ -1,8 +1,8 @@
 // controllers/auth/authController.js
 import { StatusCodes } from "http-status-codes";
-import { ApiError, successResponse } from "../utils/responseHandler.js";
-import { handleLogin, handleLogout, getUserProfile, handleTokenExtension } from "../services/authService.js";
-import User from "../models/user.js";
+import { ApiError, successResponse } from "../../utils/responseHandler.js";
+import { handleLogin, handleLogout, getUserProfile, handleTokenExtension } from "../../services/authService.js";
+import User from "../../models/user.js";
 
 /**
  * 通用登入處理 - 供各角色控制器調用
