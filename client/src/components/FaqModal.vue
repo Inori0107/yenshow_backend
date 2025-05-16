@@ -68,8 +68,8 @@
             <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態</label>
             <div v-if="isAdmin">
               <select id="faqIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
-                <option :value="false" class="text-black/70 dark:text-white/70">待審查</option>
-                <option :value="true" class="text-black/70 dark:text-white/70">已發布</option>
+                <option :value="false" class="text-black/70">待審查</option>
+                <option :value="true" class="text-black/70">已發布</option>
               </select>
             </div>
             <div v-else-if="isEditing && !isAdmin">
@@ -349,7 +349,7 @@ const userStore = useUserStore()
 
 const inputClass = computed(() => [
   themeInputClass.value,
-  'w-full rounded-[10px] py-[8px] lg:py-[12px] text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+  'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px] text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
 ])
 
 const loading = ref(false)

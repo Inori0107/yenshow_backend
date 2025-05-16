@@ -199,10 +199,43 @@ export class EntityController {
 				baseQuery.isActive = true;
 			}
 
+			// --- START: Determine populate option based on modelName ---
+			let populateOption = null;
+			const modelName = this.model.modelName;
+
+			if (modelName === "Categories") {
+				// 假設 Categories 已正常工作，但保留以供參考
+				populateOption = "series";
+			} else if (modelName === "SubCategories") {
+				populateOption = {
+					path: "categories",
+					select: "_id name series", // 確保從 categories 中選擇 series
+					populate: {
+						path: "series",
+						select: "_id name" // 選擇 series 的 _id 和 name
+					}
+				};
+			} else if (modelName === "Specifications") {
+				populateOption = {
+					path: "subCategories",
+					select: "_id name categories", // 選擇 subCategories 的 categories
+					populate: {
+						path: "categories",
+						select: "_id name series", // 選擇 categories 的 series
+						populate: {
+							path: "series",
+							select: "_id name" // 選擇 series 的 _id 和 name
+						}
+					}
+				};
+			}
+			// --- END: Determine populate option ---
+
 			const results = await this.entityService.search(baseQuery, {
 				keyword,
 				pagination: { page: parseInt(page) || 1, limit: parseInt(limit) || 20 },
-				sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 }
+				sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 },
+				populate: populateOption // <--- Pass the determined populate option
 			});
 
 			return this._sendResponse(res, StatusCodes.OK, `${this.entityName}搜索結果`, {

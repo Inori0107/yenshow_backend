@@ -1,5 +1,5 @@
 import express from "express";
-import NewsController from "../controllers/NewsController.js";
+import NewsController from "../controllers/user/NewsController.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
 import fileUpload from "../utils/fileUpload.js"; // 引入檔案上傳工具

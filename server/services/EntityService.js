@@ -20,6 +20,8 @@ export class EntityService {
 		this.parentField = options.parentField || null;
 		this.parentModel = options.parentModel || null;
 		this.basicFields = options.basicFields || ["code", "isActive"];
+		// responseKey for controller, used in EntityController
+		this.responseKey = options.responseKey || `${this.modelName.toLowerCase()}List`;
 	}
 
 	/**
@@ -88,13 +90,15 @@ export class EntityService {
 	 * @param {Object} item - 實體項目
 	 * @returns {Object} - 格式化後的數據
 	 */
-	formatOutput(item) {
-		if (!item) return null;
+	formatOutput(itemDocument) {
+		// itemDocument is a Mongoose document
+		if (!itemDocument) return null;
+		// Convert to plain object. virtuals: true ensures virtuals like 'id' (if defined) are included.
+		// Models' own transformOptions will be applied here.
+		const obj = itemDocument.toObject({ virtuals: true });
 
-		// 轉換為普通物件
-		const obj = item.toObject ? item.toObject() : item;
-
-		// 刪除不必要的語言虛擬欄位
+		// Remove language-specific virtual fields if they exist from a previous version
+		// but it's better to handle this in model's toJSON/toObject if they are virtuals.
 		delete obj.TW;
 		delete obj.EN;
 
@@ -163,7 +167,7 @@ export class EntityService {
 			if (options.returnRawInstance) {
 				return updatedEntity; // 返回原始 Mongoose Document 實例
 			}
-			return this.formatOutput(updatedEntity);
+			return this.formatOutputWithSeries(updatedEntity, options.populate);
 		} catch (error) {
 			if (error instanceof ApiError) throw error;
 			throw new ApiError(StatusCodes.BAD_REQUEST, `更新${this.modelName.toLowerCase()}失敗: ${error.message}`);
@@ -220,14 +224,12 @@ export class EntityService {
 	 */
 	async search(query = {}, options = {}) {
 		try {
-			const { keyword, pagination, sort } = options;
+			const { keyword, pagination, sort, populate } = options; // Get populate from options
 
-			// 基本查詢條件
-			const baseQuery = { ...query };
+			const baseQuery = { ...query }; // Already prepared by controller
 
-			// 從 options.sort 解析排序欄位和方向
 			let sortField = "createdAt";
-			let sortDirection = "asc"; // performSearch 預設 asc
+			let sortDirection = "asc";
 			if (sort) {
 				const sortKey = Object.keys(sort)[0];
 				if (sortKey) {
@@ -236,14 +238,10 @@ export class EntityService {
 				}
 			}
 
-			// 設置分頁，提供預設值
 			const page = pagination?.page || 1;
-			const limit = pagination?.limit || 100; // 維持原 search 的預設或用 performSearch 的
+			const limit = pagination?.limit || 100;
+			const searchFields = ["code", "name.TW", "name.EN"];
 
-			// 定義搜尋欄位，只包含文本類型的欄位，例如 code 和 name
-			const searchFields = ["code", "name.TW", "name.EN"]; // 明確指定文本搜尋欄位
-
-			// 使用 performSearch 進行搜尋
 			const searchResults = await performSearch({
 				model: this.model,
 				keyword,
@@ -251,30 +249,30 @@ export class EntityService {
 				searchFields: searchFields,
 				sort: sortField,
 				sortDirection: sortDirection,
-				limit: limit
-				// populate: options.populate // 如果需要，可以從 options 傳遞 populate
+				limit: limit,
+				populate: populate // Pass populate to performSearch
 			});
 
-			// 計算總頁數
 			const total = searchResults.total;
 			const totalPages = Math.ceil(total / limit);
 
-			// 格式化返回結果以匹配之前的結構
+			const finalData = [];
+			if (searchResults.items && searchResults.items.length > 0) {
+				for (const rawDoc of searchResults.items) {
+					// rawDoc is a Mongoose Document
+					// Use the new centralized formatting method
+					finalData.push(this.formatOutputWithSeries(rawDoc, populate));
+				}
+			}
+
 			return {
-				data: searchResults.items.map((item) => this.formatOutput(item)),
-				pagination: pagination // 保持傳入的分頁對象，如果需要包含 total 和 pages，則建立新的
-					? {
-							page,
-							limit,
-							total,
-							pages: totalPages
-						}
-					: null // 如果沒有傳入 pagination，則返回 null
+				data: finalData,
+				pagination: pagination ? { page, limit, total, pages: totalPages } : null
 			};
 		} catch (error) {
-			// 保留原始的錯誤處理
 			if (error instanceof ApiError) throw error;
-			throw new ApiError(StatusCodes.BAD_REQUEST, `搜索${this.modelName.toLowerCase()}失敗: ${error.message}`);
+			// Add modelName to the error message for better context
+			throw new ApiError(StatusCodes.BAD_REQUEST, `搜索${this.modelName ? this.modelName.toLowerCase() : "實體"}失敗: ${error.message}`);
 		}
 	}
 
@@ -382,5 +380,67 @@ export class EntityService {
 				entity[key] = data[key];
 			}
 		}
+	}
+
+	// Helper to consistently format and add series data
+	// rawDoc is a Mongoose document, expected to be populated based on 'populateContext'
+	formatOutputWithSeries(rawDoc, populateContext) {
+		if (!rawDoc) return null;
+
+		// Apply model's toJSON/toObject transforms first
+		const item = rawDoc.toObject({ virtuals: true });
+
+		// Clean up, this might be redundant if model transforms handle it
+		delete item.TW;
+		delete item.EN;
+		delete item.__v; // Should be handled by versionKey: false in schema
+
+		let seriesData = null;
+		const modelName = rawDoc.constructor.modelName; // Get model name from the document itself
+
+		try {
+			if (modelName === "Series") {
+				if (item._id) {
+					// Ensure _id exists
+					seriesData = { _id: item._id.toString(), name: item.name };
+				}
+			} else if (modelName === "Categories") {
+				// 'series' field in Categories model should be populated
+				if (rawDoc.series && rawDoc.series._id) {
+					seriesData = { _id: rawDoc.series._id.toString(), name: rawDoc.series.name };
+				}
+			} else if (modelName === "SubCategories") {
+				// 'categories' then 'categories.series' should be populated
+				if (rawDoc.categories && rawDoc.categories.series && rawDoc.categories.series._id) {
+					seriesData = { _id: rawDoc.categories.series._id.toString(), name: rawDoc.categories.series.name };
+				}
+			} else if (modelName === "Specifications") {
+				// 'subCategories' -> 'subCategories.categories' -> 'subCategories.categories.series'
+				if (rawDoc.subCategories && rawDoc.subCategories.categories && rawDoc.subCategories.categories.series && rawDoc.subCategories.categories.series._id) {
+					seriesData = { _id: rawDoc.subCategories.categories.series._id.toString(), name: rawDoc.subCategories.categories.series.name };
+				}
+			}
+		} catch (e) {
+			console.error(`Error extracting series data for ${modelName} with id ${item._id}:`, e);
+			// Decide if you want to attach partial data or an error marker
+		}
+
+		if (seriesData) {
+			item.series = seriesData;
+		}
+
+		// Optional: Clean up deep populated fields from the item if they are now redundant
+		// For example, if item.categories.series is now at item.series, you might delete item.categories.series
+		if (item.categories && item.categories.series) {
+			delete item.categories.series;
+		}
+		if (item.subCategories && item.subCategories.categories && item.subCategories.categories.series) {
+			delete item.subCategories.categories.series;
+		}
+		// You might want to also remove item.categories or item.subCategories if all their useful info is hoisted
+		// or if frontend doesn't need them directly anymore. This depends on frontend requirements.
+		// Example: delete item.categories; delete item.subCategories;
+
+		return item;
 	}
 }
