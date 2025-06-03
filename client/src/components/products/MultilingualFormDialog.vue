@@ -368,19 +368,44 @@ const loadData = async () => {
     formData.value.parentId = props.parentId // 設置 parentId
 
     // 新方式：同時檢查 <modelType> 和 <modelType>List 鍵名
-    const listKey = `${props.modelType}List`
+    const listKey = `${props.modelType}List` // 例如 "subCategoriesList"
     const singleKey = props.modelType // 例如 "subCategories"
 
     let itemsData = null
-    if (data.result && Array.isArray(data.result[listKey])) {
-      itemsData = data.result[listKey]
-    } else if (data.result && Array.isArray(data.result[singleKey])) {
-      itemsData = data.result[singleKey]
-    } else {
-      console.warn(
-        `[MultilingualFormDialog] Could not find valid array data under keys '${listKey}' or '${singleKey}'.`,
-      )
+
+    if (data.result) {
+      const dataResultKeys = Object.keys(data.result)
+      let actualKeyToUse = null
+
+      // 優先以不區分大小寫的方式尋找 List 版本的鍵
+      for (const key of dataResultKeys) {
+        if (key.toLowerCase() === listKey.toLowerCase()) {
+          actualKeyToUse = key
+          break
+        }
+      }
+
+      // 如果 List 版本的鍵沒找到，再以不區分大小寫的方式尋找 Single 版本的鍵
+      if (!actualKeyToUse) {
+        for (const key of dataResultKeys) {
+          if (key.toLowerCase() === singleKey.toLowerCase()) {
+            actualKeyToUse = key
+            break
+          }
+        }
+      }
+
+      if (actualKeyToUse && Array.isArray(data.result[actualKeyToUse])) {
+        itemsData = data.result[actualKeyToUse]
+      } else {
+        console.log('data.result', data.result)
+        // 更新警告訊息以反映新的查找邏輯
+        console.warn(
+          `[MultilingualFormDialog] Could not find valid array data. Tried to find keys similar to '${listKey}' or '${singleKey}' (case-insensitive) in the received data.`,
+        )
+      }
     }
+
     if (!Array.isArray(itemsData)) {
       // 保留這個檢查以防萬一
       console.warn('[MultilingualFormDialog] itemsData is not a valid array after checking keys.')

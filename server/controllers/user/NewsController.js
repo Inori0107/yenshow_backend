@@ -291,9 +291,7 @@ class NewsController extends EntityController {
 	}
 
 	createItem = async (req, res, next) => {
-		let rawNewItem;
 		try {
-			// Pass newsTitleTwForContext from _prepareNewsData
 			const { processedData, newsTitleTwForContext } = await this._prepareNewsData(req, false, null);
 
 			if (!processedData.author) {
@@ -325,18 +323,20 @@ class NewsController extends EntityController {
 			}
 			processedData.coverImageUrl = null; // Set to null initially, will be updated if file exists
 
-			rawNewItem = await this.entityService.create(processedData, {
+			let newsItem = await this.entityService.create(processedData, {
 				session: req.dbSession,
 				returnRawInstance: true
 			});
 
-			const newsId = rawNewItem._id.toString();
+			console.log("創建完成的 News 物件:", newsItem);
+
+			const newsId = newsItem._id.toString();
 			const entityContext = { id: newsId, name: newsTitleTwForContext };
 			let itemChangedByFileUpload = false;
 
 			if (pendingCoverFile) {
 				try {
-					rawNewItem.coverImageUrl = fileUpload.saveAsset(
+					newsItem.coverImageUrl = fileUpload.saveAsset(
 						pendingCoverFile.buffer,
 						"news",
 						entityContext,
@@ -352,9 +352,9 @@ class NewsController extends EntityController {
 			}
 
 			// Process content images and videos using originalContentBlocksWithFiles
-			if (Array.isArray(rawNewItem.content) && Array.isArray(originalContentBlocksWithFiles)) {
-				for (let blockIndex = 0; blockIndex < rawNewItem.content.length; blockIndex++) {
-					const blockInRawItem = rawNewItem.content[blockIndex]; // This is the block in the DB item
+			if (Array.isArray(newsItem.content) && Array.isArray(originalContentBlocksWithFiles)) {
+				for (let blockIndex = 0; blockIndex < newsItem.content.length; blockIndex++) {
+					const blockInRawItem = newsItem.content[blockIndex]; // This is the block in the DB item
 					const originalBlockData =
 						originalContentBlocksWithFiles.find(
 							(b) => (b._id && b._id === blockInRawItem._id?.toString()) || (b._tempClientKey && b._tempClientKey === blockInRawItem._tempClientKey)
@@ -397,17 +397,13 @@ class NewsController extends EntityController {
 			}
 
 			if (itemChangedByFileUpload) {
-				rawNewItem = await rawNewItem.save({ session: req.dbSession });
+				newsItem = await newsItem.save({ session: req.dbSession });
 			}
 
-			const formattedNewItem = this.entityService.formatOutput(rawNewItem);
+			const formattedNewItem = this.entityService.formatOutput(newsItem);
 			this._sendResponse(res, StatusCodes.CREATED, `${this.entityName} 創建成功`, { [this.responseKey]: formattedNewItem });
 		} catch (error) {
-			if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
-				this._handleError(new ApiError(StatusCodes.CONFLICT, "Slug 已存在"), "創建", next);
-			} else {
-				this._handleError(error, "創建", next);
-			}
+			this._handleError(error, "創建", next);
 		}
 	};
 
@@ -533,6 +529,8 @@ class NewsController extends EntityController {
 
 			const updatedItem = await existingItem.save({ session: req.dbSession });
 
+			console.log("更新完成的 News 物件:", updatedItem);
+
 			if (allFilesToDelete.size > 0) {
 				allFilesToDelete.forEach((filePath) => {
 					try {
@@ -549,11 +547,7 @@ class NewsController extends EntityController {
 			const formattedUpdatedItem = this.entityService.formatOutput(updatedItem);
 			this._sendResponse(res, StatusCodes.OK, `${this.entityName} 更新成功`, { [this.responseKey]: formattedUpdatedItem });
 		} catch (error) {
-			if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
-				this._handleError(new ApiError(StatusCodes.CONFLICT, "Slug 已存在"), "更新", next);
-			} else {
-				this._handleError(error, "更新", next);
-			}
+			this._handleError(error, "更新", next);
 		}
 	};
 

@@ -865,10 +865,6 @@ const submitForm = async () => {
       delete cleanBlock.videoEmbedUrl
       delete cleanBlock.videoCaption
     } else if (block.itemType === 'image') {
-      // No need to push to contentImageFiles here, already done.
-      // If it was marked for new image but no file, _newFile would be null, imageUrl remains __NEW_CONTENT_IMAGE__
-      // Server side should handle this by not creating an image if no file is actually sent for that marker.
-      // Or, if imageUrl became null because user removed it, that's fine.
       if (block.imageUrl === '__NEW_CONTENT_IMAGE__' && !block._newFile) {
         cleanBlock.imageUrl = null // Explicitly nullify if marked new but no file.
       }

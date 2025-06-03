@@ -917,22 +917,45 @@ class ProductsController {
 	}
 
 	_manageProductFileArray(clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) {
-		const cleanedClientUrls = Array.isArray(clientUrls)
-			? clientUrls.filter((url) => typeof url === "string" && clientMarkerPrefix && !url.startsWith(clientMarkerPrefix) && !url.startsWith("blob:"))
-			: [];
+		const validClientKeptUrls = [];
+		if (Array.isArray(clientUrls)) {
+			clientUrls.forEach((url) => {
+				if (typeof url === "string") {
+					// 只保留來自客戶端的、合法的 /storage/ 路徑
+					if (url.startsWith("/storage/")) {
+						validClientKeptUrls.push(url);
+					}
+					// 以 clientMarkerPrefix 開頭的 URL 是前端標記新檔案的方式，
+					// 這些新檔案由 pendingFiles 處理，這裡不需要直接保留 clientMarkerPrefix 的 URL。
+					// 其他格式的 URL (如 @server/...) 將被過濾掉。
+				}
+			});
+		}
 
-		const finalUrls = [...cleanedClientUrls];
+		const finalUrls = [...validClientKeptUrls]; // 從客戶端希望保留的有效 /storage/ URL 開始
 
+		// 識別需要刪除的檔案：資料庫中存在的 /storage/ URL，但客戶端不再希望保留它們
 		if (Array.isArray(existingUrls)) {
 			existingUrls.forEach((oldUrl) => {
-				if (typeof oldUrl === "string" && oldUrl.startsWith("/storage/") && !finalUrls.includes(oldUrl)) {
+				if (typeof oldUrl === "string" && oldUrl.startsWith("/storage/") && !validClientKeptUrls.includes(oldUrl)) {
+					pathsToDelete.push(oldUrl);
+				} else if (
+					typeof oldUrl === "string" &&
+					!oldUrl.startsWith("/storage/") &&
+					!oldUrl.startsWith(clientMarkerPrefix) &&
+					!validClientKeptUrls.includes(oldUrl)
+				) {
+					// 如果資料庫中本身就存在一個非 /storage/ 的錯誤路徑 (例如旧的 @server/...)
+					// 并且客戶端也沒有在其 validClientKeptUrls 中包含它 (通常不會包含)，則也應將其標記為刪除。
+					// 注意：deleteFileByWebPath 僅會嘗試刪除 /storage/ 開頭的檔案。
+					// 對於非 /storage/ 路徑，這主要是為了從資料庫記錄中移除它們。
 					pathsToDelete.push(oldUrl);
 				}
 			});
 		}
 
 		pendingFiles.forEach((_, index) => {
-			finalUrls.push(`__PENDING_PRODUCT_FILE_PLACEHOLDER_${index}__`); // Specific placeholder
+			finalUrls.push(`__PENDING_PRODUCT_FILE_PLACEHOLDER_${index}__`);
 		});
 		return finalUrls;
 	}

@@ -418,6 +418,7 @@ const allProductsFromProp = computed(() => {
       }
     })
   }
+  console.log(productsList)
   return productsList
 })
 

@@ -389,14 +389,8 @@ const productsStore = useProductsStore()
 // 獲取主題相關工具
 const { cardClass, inputClass, conditionalClass } = useThemeClass()
 
-// 基本狀態
-const loading = ref(false)
-const formError = ref('')
-const isProcessing = ref(false)
-const isEditing = computed(() => !!props.productId)
-
-// 表單數據
-const form = ref({
+// Helper to get initial form state - DEFINED HERE AND ONLY HERE
+const getInitialFormState = () => ({
   _id: '',
   name_TW: '',
   name_EN: '',
@@ -411,6 +405,17 @@ const form = ref({
   documents: [],
   videos: [],
 })
+
+// 基本狀態
+const loading = ref(false)
+const formError = ref('')
+const uploadStatus = ref('')
+const uploadProgress = ref(0)
+const isProcessing = ref(false)
+const isEditing = computed(() => !!props.productId)
+
+// 表單數據 - Initialized ONCE here using the function above
+const form = ref(getInitialFormState())
 
 // 初始化附件管理器
 const imageManager = useMultiAttachmentManager({
@@ -432,8 +437,6 @@ const videoManager = useMultiAttachmentManager({
 })
 
 // 相關數據
-const uploadProgress = ref(0)
-const uploadStatus = ref('')
 const specifications = ref([])
 
 // 語言切換狀態
@@ -442,6 +445,8 @@ const descriptionLanguage = ref('TW')
 
 // 批次新增產品特點
 const batchFeaturesText = ref('')
+
+const productDataForEdit = ref(null) // Store fetched product data for comparison
 
 // ===== 計算屬性 (用於獲取子分類) =====
 const subCategories = computed(() => {
@@ -505,6 +510,51 @@ const removeFeature = (index) => {
   } else {
     form.value.features = [{ TW: '', EN: '', featureId: 'feature_1' }]
   }
+}
+
+/**
+ * 批次處理產品特點
+ */
+const processBatchFeatures = () => {
+  if (!batchFeaturesText.value.trim()) {
+    // 如果 textarea 為空或只包含空格，則不執行任何操作
+    return
+  }
+
+  const newFeaturesArray = batchFeaturesText.value
+    .split('\n')
+    .map((featureText) => featureText.trim())
+    .filter((featureText) => featureText !== '')
+
+  if (newFeaturesArray.length === 0) {
+    batchFeaturesText.value = '' // 清空輸入框
+    return
+  }
+
+  newFeaturesArray.forEach((text) => {
+    // 檢查現有 features 是否只有一個空的占位符
+    if (
+      form.value.features.length === 1 &&
+      !form.value.features[0].TW &&
+      !form.value.features[0].EN
+    ) {
+      // 如果是，直接更新這個占位符
+      form.value.features[0][featureLanguage.value] = text
+      form.value.features[0][featureLanguage.value === 'TW' ? 'EN' : 'TW'] = '' // 清空另一語言
+    } else {
+      // 否則，新增一個特點
+      const newIndex = form.value.features.length + 1
+      const newFeature = {
+        TW: '',
+        EN: '',
+        featureId: `feature_${newIndex}`,
+      }
+      newFeature[featureLanguage.value] = text
+      form.value.features.push(newFeature)
+    }
+  })
+
+  batchFeaturesText.value = '' // 清空 textarea
 }
 
 /**
@@ -875,28 +925,9 @@ watch(uploadProgress, (newVal) => {
 // 初始化 - Handled by watch on visible
 // onMounted(() => { ... })
 
-const productDataForEdit = ref(null) // Store fetched product data for comparison
-
-// Helper to get initial form state
-const getInitialFormState = () => ({
-  _id: '',
-  name_TW: '',
-  name_EN: '',
-  code: '',
-  subCategoriesId: '',
-  specifications: '',
-  features: [{ TW: '', EN: '', featureId: 'feature_1' }],
-  description_TW: '',
-  description_EN: '',
-  isActive: true,
-  images: [],
-  documents: [],
-  videos: [],
-})
-
 async function loadProductData() {
   // Reset form first using the refined initial state logic
-  resetForm() // This will now also clear newImageFiles implicitly by not repopulating it
+  resetForm()
 
   if (!isEditing.value || !props.productId) {
     productDataForEdit.value = null // Clear stored data
@@ -912,8 +943,6 @@ async function loadProductData() {
 
   loading.value = true
   formError.value = ''
-  // uploadStatus.value = ''; // uploadStatus is managed by its own watch
-  // uploadProgress.value = 0;
 
   try {
     const fetchedProductData = await productsStore.fetchProductById(props.productId)

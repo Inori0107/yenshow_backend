@@ -241,7 +241,6 @@ class FileUpload {
 	sanitizeFileName(fileName) {
 		return fileName
 			.replace(/[\\/:*?"<>|]/g, "_") // 替換 Windows 不允許的字符
-			.replace(/\s+/g, "_") // 替換空格為下底線
 			.replace(/_+/g, "_") // 替換多個連續下底線為一個
 			.trim();
 	}

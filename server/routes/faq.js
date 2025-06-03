@@ -1,5 +1,5 @@
 import express from "express";
-import FaqController from "../controllers/FaqController.js";
+import FaqController from "../controllers/user/FaqController.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
 import fileUpload from "../utils/fileUpload.js";
