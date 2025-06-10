@@ -1,9 +1,5 @@
 <template>
-  <div
-    v-if="visible"
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="background-color: rgba(0, 0, 0, 0.7)"
-  >
+  <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
     <div
       :class="[
         cardClass,
@@ -250,13 +246,72 @@
 
         <!-- 產品圖片上傳 -->
         <div class="mb-6">
-          <label class="block mb-3"> 產品示圖 </label>
-          <MultiAttachmentUploader
-            :manager="imageManager"
-            attachmentType="image"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <label class="block mb-3">產品示圖</label>
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerImageInput"
+          >
+            <div class="space-y-1 text-center">
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+              </svg>
+              <p class="pl-1">點擊上傳圖片</p>
+            </div>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleImageFiles"
+            />
+          </div>
+          <div
+            v-if="form.images.length > 0 || imageFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+          >
+            <div
+              v-for="(url, index) in form.images"
+              :key="`existing-img-${index}`"
+              class="relative group"
+            >
+              <img :src="url" class="w-full h-24 object-cover rounded-md" />
+              <button
+                type="button"
+                @click.stop="removeExistingImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in imageFiles"
+              :key="`new-img-${index}`"
+              class="relative group"
+            >
+              <img :src="file.previewUrl" class="w-full h-24 object-cover rounded-md" />
+              <button
+                type="button"
+                @click.stop="removeNewImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+          </div>
           <p v-if="validationErrors.images" class="text-red-500 text-sm mt-1">
             {{ validationErrors.images }}
           </p>
@@ -264,13 +319,73 @@
 
         <!-- PDF文件上傳 -->
         <div class="mb-6">
-          <label class="block mb-3"> 相關文件 (PDF) </label>
-          <MultiAttachmentUploader
-            :manager="documentManager"
-            attachmentType="document"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <label class="block mb-3">相關文件 (PDF)</label>
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerDocumentInput"
+          >
+            <div class="space-y-1 text-center">
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+              <p>點擊上傳文件</p>
+            </div>
+            <input
+              ref="documentInputRef"
+              type="file"
+              accept="application/pdf"
+              multiple
+              class="hidden"
+              @change="handleDocumentFiles"
+            />
+          </div>
+          <div v-if="form.documents.length > 0 || documentFiles.length > 0" class="mt-4 space-y-2">
+            <div
+              v-for="(url, index) in form.documents"
+              :key="`existing-doc-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <a :href="url" target="_blank" class="truncate hover:underline">{{
+                getFileNameFromUrl(url)
+              }}</a>
+              <button
+                type="button"
+                @click.stop="removeExistingDocument(index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in documentFiles"
+              :key="`new-doc-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <span class="truncate">{{ file.name }}</span>
+              <button
+                type="button"
+                @click.stop="removeNewDocument(index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+          </div>
           <p v-if="validationErrors.documents" class="text-red-500 text-sm mt-1">
             {{ validationErrors.documents }}
           </p>
@@ -279,12 +394,75 @@
         <!-- Video Upload Section -->
         <div class="mb-6">
           <label class="block mb-3">相關影片 (可上傳多部)</label>
-          <MultiAttachmentUploader
-            :manager="videoManager"
-            attachmentType="video"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerVideoInput"
+          >
+            <div class="space-y-1 text-center">
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6v12m-3-10.5v9" />
+              </svg>
+              <p>點擊上傳影片</p>
+            </div>
+            <input
+              ref="videoInputRef"
+              type="file"
+              accept="video/*"
+              multiple
+              class="hidden"
+              @change="handleVideoFiles"
+            />
+          </div>
+          <div
+            v-if="form.videos.length > 0 || videoFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"
+          >
+            <div
+              v-for="(url, index) in form.videos"
+              :key="`existing-vid-${index}`"
+              class="relative group"
+            >
+              <video :src="url" class="w-full h-24 object-cover rounded-md bg-black"></video>
+              <button
+                type="button"
+                @click.stop="removeExistingVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in videoFiles"
+              :key="`new-vid-${index}`"
+              class="relative group"
+            >
+              <video
+                :src="file.previewUrl"
+                class="w-full h-24 object-cover rounded-md bg-black"
+              ></video>
+              <button
+                type="button"
+                @click.stop="removeNewVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+          </div>
           <p v-if="validationErrors.videos" class="text-red-500 text-sm mt-1">
             {{ validationErrors.videos }}
           </p>
@@ -352,15 +530,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
 import { useThemeClass } from '@/composables/useThemeClass'
 import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
-import { useMultiAttachmentManager } from '@/composables/useMultiAttachmentManager'
-import MultiAttachmentUploader from '@/components/common/MultiAttachmentUploader.vue'
 
 const props = defineProps({
   visible: {
@@ -417,24 +593,15 @@ const isEditing = computed(() => !!props.productId)
 // 表單數據 - Initialized ONCE here using the function above
 const form = ref(getInitialFormState())
 
-// 初始化附件管理器
-const imageManager = useMultiAttachmentManager({
-  formFieldName: 'images',
-  markerPrefix: '__PRODUCT_IMAGE_MARKER_',
-  accept: 'image/*',
-})
+// Attachment state
+const imageFiles = ref([])
+const imageInputRef = ref(null)
 
-const documentManager = useMultiAttachmentManager({
-  formFieldName: 'documents',
-  markerPrefix: '__PRODUCT_DOCUMENT_MARKER_',
-  accept: 'application/pdf',
-})
+const documentFiles = ref([])
+const documentInputRef = ref(null)
 
-const videoManager = useMultiAttachmentManager({
-  formFieldName: 'videos',
-  markerPrefix: '__PRODUCT_VIDEO_MARKER_',
-  accept: 'video/*',
-})
+const videoFiles = ref([])
+const videoInputRef = ref(null)
 
 // 相關數據
 const specifications = ref([])
@@ -566,12 +733,12 @@ const generateCode = () => {
     return
   }
 
-  // 轉換英文名稱為代碼
+  // 轉換英文名稱為代碼，規則與後端 fileUpload.js/sanitizeFileName 保持一致
   let code = form.value.name_EN
     .trim()
-    .replace(/\s+/g, '-') // 將空格替換為連字號
-    .replace(/[^a-zA-Z0-9-]/g, '') // 保留字母、數字和連字號
-    .toUpperCase()
+    .replace(/\s+/g, '-') // 將空格替換為底線
+    .replace(/[\\/:*?"<>|]/g, '_') // 將檔案系統不合法的字元替換為底線
+    .replace(/_+/g, '_') // 將多個連續的底線合併為一個
 
   // 確保代碼不為空
   if (!code) {
@@ -658,58 +825,42 @@ const submitForm = async () => {
     uploadProgress.value = 0
     uploadStatus.value = '準備上傳...'
 
-    // 構建 FormData - 確保符合後端要求
     const formData = new FormData()
 
-    // 添加基本資料
-    formData.append('specifications', form.value.specifications)
-    formData.append('code', form.value.code)
+    // --- 處理附件 ---
+    imageFiles.value.forEach((file) => formData.append('images', file))
+    documentFiles.value.forEach((file) => formData.append('documents', file))
+    videoFiles.value.forEach((file) => formData.append('videos', file))
 
-    // 添加多語言欄位 - 使用 name[TW] 格式與後端匹配
-    if (form.value.name_TW) {
-      formData.append('name[TW]', form.value.name_TW)
-    }
-    if (form.value.name_EN) {
-      formData.append('name[EN]', form.value.name_EN)
-    }
-
-    // 描述欄位
-    if (form.value.description_TW) {
-      formData.append('description[TW]', form.value.description_TW)
-    }
-    if (form.value.description_EN) {
-      formData.append('description[EN]', form.value.description_EN)
-    }
-
-    // 處理特點資料
-    if (form.value.features && form.value.features.length > 0) {
+    // --- 構建資料 ---
+    if (isEditing.value) {
+      // --- 更新邏輯 ---
+      const productPayload = {
+        name: { TW: form.value.name_TW, EN: form.value.name_EN },
+        code: form.value.code,
+        specifications: form.value.specifications,
+        features: form.value.features.filter((f) => f.TW || f.EN),
+        description: { TW: form.value.description_TW, EN: form.value.description_EN },
+        isActive: form.value.isActive,
+        images: form.value.images,
+        documents: form.value.documents,
+        videos: form.value.videos,
+      }
+      formData.append('productDataPayload', JSON.stringify(productPayload))
+    } else {
+      // --- 新增邏輯 ---
+      formData.append('specifications', form.value.specifications)
+      formData.append('code', form.value.code)
+      if (form.value.name_TW) formData.append('name[TW]', form.value.name_TW)
+      if (form.value.name_EN) formData.append('name[EN]', form.value.name_EN)
+      if (form.value.description_TW) formData.append('description[TW]', form.value.description_TW)
+      if (form.value.description_EN) formData.append('description[EN]', form.value.description_EN)
       const validFeatures = form.value.features.filter((f) => f.TW || f.EN)
       if (validFeatures.length > 0) {
         formData.append('features', JSON.stringify(validFeatures))
       }
+      formData.append('isActive', form.value.isActive ? 'true' : 'false')
     }
-
-    // --- 處理多圖片上傳 ---
-    const hasNewImages = imageManager.prepareFormData(formData, form.value, 'images')
-    if (hasNewImages) {
-      // 後端期望 'images' 欄位包含 File 對象， manager 已經處理
-      // form.value.images 現在是 URL/marker 陣列，後端應能解析
-    }
-
-    // --- 處理多文件上傳 ---
-    const hasNewDocuments = documentManager.prepareFormData(formData, form.value, 'documents')
-    if (hasNewDocuments) {
-      // 類似圖片處理
-    }
-
-    // --- 處理多影片上傳 ---
-    const hasNewVideos = videoManager.prepareFormData(formData, form.value, 'videos')
-    if (hasNewVideos) {
-      // 類似圖片處理
-    }
-
-    // 其他選項
-    formData.append('isActive', form.value.isActive ? 'true' : 'false')
 
     // 使用 products store 提交數據
     let result
@@ -717,48 +868,11 @@ const submitForm = async () => {
 
     if (isEditing.value) {
       // 更新產品
-      console.log('[ProductFormModal] Updating product with ID:', form.value._id)
-      console.log('[ProductFormModal] FormData to be sent for update:', formData)
-      // Log each formData entry
-      for (let [key, value] of formData.entries()) {
-        console.log(
-          `[ProductFormModal] FormData Update - ${key}: ${value instanceof File ? value.name : value}`,
-        )
-      }
-
-      const productPayload = {
-        name: { TW: form.value.name_TW, EN: form.value.name_EN }, // 確保後端 _processMultilingualFormData 能處理
-        code: form.value.code,
-        specifications: form.value.specifications,
-        features: form.value.features,
-        description: { TW: form.value.description_TW, EN: form.value.description_EN },
-        isActive: form.value.isActive,
-        images: form.value.images, // <--- 包含現有 URL 和新標記的陣列
-        documents: form.value.documents, // <--- 包含現有 URL 和新標記的陣列
-        videos: form.value.videos, // <--- 包含現有 URL 和新標記的陣列
-        // ... 其他需要提交的 form.value 中的字段
-      }
-
-      // 如果是更新，且 _id 存在，也加入 payload
-      if (isEditing.value && form.value._id) {
-        // productPayload._id = form.value._id; // _id 通常在 URL 中，不在 payload
-      }
-
-      // 將 payload 序列化並添加到 FormData
-      formData.append('productDataPayload', JSON.stringify(productPayload))
       result = await productsStore.updateProduct(form.value._id, formData, (event) => {
         uploadProgress.value = Math.round((100 * event.loaded) / event.total)
       })
     } else {
       // 創建產品
-      console.log('[ProductFormModal] Creating new product.')
-      console.log('[ProductFormModal] FormData to be sent for create:', formData)
-      // Log each formData entry
-      for (let [key, value] of formData.entries()) {
-        console.log(
-          `[ProductFormModal] FormData Create - ${key}: ${value instanceof File ? value.name : value}`,
-        )
-      }
       result = await productsStore.createProduct(formData, (event) => {
         uploadProgress.value = Math.round((100 * event.loaded) / event.total)
       })
@@ -824,10 +938,15 @@ const closeModal = () => {
 const resetForm = () => {
   form.value = getInitialFormState()
 
-  // Reset managers
-  imageManager.reset()
-  documentManager.reset()
-  videoManager.reset()
+  // Reset attachment state
+  imageFiles.value = []
+  documentFiles.value = []
+  videoFiles.value = []
+
+  // Clear file inputs
+  if (imageInputRef.value) imageInputRef.value.value = ''
+  if (documentInputRef.value) documentInputRef.value.value = ''
+  if (videoInputRef.value) videoInputRef.value.value = ''
 
   // Reset upload status
   uploadStatus.value = ''
@@ -847,11 +966,6 @@ const resetForm = () => {
 
   // Reset specifications list (will be repopulated on subCat change or load)
   specifications.value = []
-
-  // 清除 MultiAttachmentUploader 的 input 元素的值，以確保 @change 事件能再次觸發
-  if (imageManager.inputRef.value) imageManager.inputRef.value.value = ''
-  if (documentManager.inputRef.value) documentManager.inputRef.value.value = ''
-  if (videoManager.inputRef.value) videoManager.inputRef.value.value = ''
 }
 
 // ===== 輔助方法 =====
@@ -1013,11 +1127,6 @@ async function loadProductData() {
       videos: [...(fetchedProductData.videos || [])],
     }
 
-    // Populate previews using managers
-    imageManager.populatePreviews(fetchedProductData.images || [])
-    documentManager.populatePreviews(fetchedProductData.documents || [])
-    videoManager.populatePreviews(fetchedProductData.videos || [])
-
     // Populate specifications dropdown based on the determined subCategoriesId
     if (form.value.subCategoriesId) {
       const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
@@ -1044,4 +1153,71 @@ async function loadProductData() {
     loading.value = false
   }
 }
+
+const getFileNameFromUrl = (url) => {
+  try {
+    const decodedUrl = decodeURIComponent(url)
+    return decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1)
+  } catch /* (e) */ {
+    return url.substring(url.lastIndexOf('/') + 1)
+  }
+}
+
+// --- Attachment Handlers ---
+const triggerImageInput = () => imageInputRef.value?.click()
+const triggerDocumentInput = () => documentInputRef.value?.click()
+const triggerVideoInput = () => videoInputRef.value?.click()
+
+const handleImageFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    imageFiles.value.push(fileWithPreview)
+  })
+  if (imageInputRef.value) imageInputRef.value.value = ''
+}
+
+const handleDocumentFiles = (event) => {
+  documentFiles.value.push(...Array.from(event.target.files))
+  if (documentInputRef.value) documentInputRef.value.value = ''
+}
+
+const handleVideoFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    videoFiles.value.push(fileWithPreview)
+  })
+  if (videoInputRef.value) videoInputRef.value.value = ''
+}
+
+const removeNewImage = (index) => {
+  URL.revokeObjectURL(imageFiles.value[index].previewUrl)
+  imageFiles.value.splice(index, 1)
+}
+const removeExistingImage = (index) => {
+  form.value.images.splice(index, 1)
+}
+const removeNewDocument = (index) => {
+  documentFiles.value.splice(index, 1)
+}
+const removeExistingDocument = (index) => {
+  form.value.documents.splice(index, 1)
+}
+const removeNewVideo = (index) => {
+  URL.revokeObjectURL(videoFiles.value[index].previewUrl)
+  videoFiles.value.splice(index, 1)
+}
+const removeExistingVideo = (index) => {
+  form.value.videos.splice(index, 1)
+}
+
+onBeforeUnmount(() => {
+  imageFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
+  videoFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
+})
 </script>

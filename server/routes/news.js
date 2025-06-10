@@ -9,7 +9,7 @@ const router = express.Router();
 // 公開路由 (不需驗證)
 router.get("/search", checkRole([Permissions.PUBLIC]), NewsController.searchItems); // 搜索
 router.get("/", checkRole([Permissions.PUBLIC]), NewsController.getAllItems); // 獲取所有 (啟用狀態)
-router.get("/:id", checkRole([Permissions.PUBLIC]), NewsController.getItemById); // 獲取單個
+router.get("/:slug", checkRole([Permissions.PUBLIC]), NewsController.getItemBySlug); // 獲取單個
 
 // 需要身份驗證的路由
 router.use(requireAuth);
@@ -33,5 +33,8 @@ router.delete("/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), NewsCon
 
 // 批量處理 (如果批量處理也涉及檔案，則可能需要不同的中間件)
 router.post("/batch", checkRole([Permissions.ADMIN, Permissions.STAFF]), NewsController.batchProcess);
+
+// Route for admin to get an item by its internal ID
+router.get("/by-id/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), NewsController.getItemById);
 
 export default router;

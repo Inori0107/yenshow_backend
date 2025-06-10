@@ -41,7 +41,7 @@ const newsSchema = new Schema(
 	{
 		title: {
 			TW: { type: String, required: [true, "繁體中文標題為必填"] },
-			EN: { type: String }
+			EN: { type: String, required: [true, "英文標題為必填 (用於產生語意化路由)"] }
 		},
 		summary: {
 			TW: { type: String },
@@ -71,12 +71,52 @@ const newsSchema = new Schema(
 		author: {
 			type: String,
 			required: [true, "作者為必填"]
+		},
+		slug: {
+			type: String,
+			unique: true,
+			sparse: true, // 允許多個文件沒有 slug (雖然我們的目標是都有)
+			lowercase: true
 		}
 	},
 	{
 		timestamps: true
 	}
 );
+
+// --- HOOKS ---
+newsSchema.pre("save", async function (next) {
+	if ((this.isModified("title.EN") || this.isNew) && this.title && this.title.EN) {
+		const slugify = (text) =>
+			text
+				.toString()
+				.toLowerCase()
+				.replace(/\s+/g, "-") // Replace spaces with -
+				.replace(/[^\w\-]+/g, "") // Remove all non-word chars
+				.replace(/\-\-+/g, "-") // Replace multiple - with single -
+				.replace(/^-+/, "") // Trim - from start of text
+				.replace(/-+$/, ""); // Trim - from end of text
+
+		const Model = this.constructor;
+		const baseSlug = slugify(this.title.EN);
+		let slug = baseSlug;
+		let counter = 1;
+
+		// A more robust way to ensure slug uniqueness
+		while (true) {
+			const existingDoc = await Model.findOne({ slug: slug });
+			// If no doc exists, or the existing doc is this exact one, the slug is unique.
+			if (!existingDoc || existingDoc._id.equals(this._id)) {
+				break;
+			}
+			// Otherwise, the slug is taken. Generate a new one.
+			counter++;
+			slug = `${baseSlug}-${counter}`;
+		}
+		this.slug = slug;
+	}
+	next();
+});
 
 // --- VIRTUALS ---
 newsSchema.virtual("metaTitle").get(function () {

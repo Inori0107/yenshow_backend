@@ -1,13 +1,9 @@
 <template>
-  <div
-    v-if="show"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70"
-    @click.self="closeModal"
-  >
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
     <div
       :class="[
         cardClass,
-        'w-full max-w-2xl rounded-lg shadow-xl p-6 max-h-[90vh] overflow-y-auto relative',
+        'w-full max-w-3xl rounded-lg shadow-xl p-6 max-h-[90vh] overflow-y-auto relative',
       ]"
     >
       <button
@@ -26,7 +22,7 @@
       </button>
 
       <h2
-        class="text-[16px] lg:text-[24px] font-bold text-center mb-[12px] lg:mb-[24px] theme-text"
+        class="text-[21px] lg:text-[24px] font-bold text-center mb-[12px] lg:mb-[24px] theme-text"
       >
         {{ isEditing ? '編輯常見問題' : '新增常見問題' }}
       </h2>
@@ -49,8 +45,8 @@
           {{ formError }}
         </div>
 
-        <!-- Author & IsActive -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Author & IsActive -->
           <div>
             <label for="faqAuthor" class="block mb-3 theme-text">作者 *</label>
             <input
@@ -65,7 +61,7 @@
             </p>
           </div>
           <div>
-            <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態</label>
+            <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態 *</label>
             <div v-if="isAdmin">
               <select id="faqIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
                 <option :value="false" class="text-black/70">待審查</option>
@@ -83,25 +79,51 @@
               </p>
             </div>
           </div>
-        </div>
-
-        <!-- Category & Product Model -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Category -->
           <div>
-            <label for="faqCategory" class="block mb-3 theme-text">分類 *</label>
-            <input
-              id="faqCategory"
-              v-model="form.category"
-              type="text"
-              :class="[inputClass, validationErrors.category ? 'border-red-500' : '']"
-              placeholder="請輸入分類"
-            />
-            <p v-if="validationErrors.category" class="text-red-500 text-xs mt-1">
-              {{ validationErrors.category }}
+            <label for="faqCategoryMain" class="block mb-3 theme-text">主分類 *</label>
+            <select
+              id="faqCategoryMain"
+              v-model="form.category.main"
+              :class="[inputClass, validationErrors['category.main'] ? 'border-red-500' : '']"
+            >
+              <option value="" disabled class="text-black/70">請選擇主分類</option>
+              <option value="名詞解說" class="text-black/70">名詞解說</option>
+              <option value="設備參數" class="text-black/70">設備參數</option>
+              <option value="故障排除" class="text-black/70">故障排除</option>
+            </select>
+            <p v-if="validationErrors['category.main']" class="text-red-500 text-xs mt-1">
+              {{ validationErrors['category.main'] }}
             </p>
           </div>
           <div>
-            <label for="faqProductModel" class="block mb-3 theme-text">產品型號 (選填)</label>
+            <label for="faqCategorySub" class="block mb-3 theme-text opacity-80">自訂子分類</label>
+            <input
+              id="faqCategorySub"
+              v-model="form.category.sub"
+              type="text"
+              :class="[inputClass]"
+              placeholder="例如：安裝、設定"
+            />
+          </div>
+
+          <!-- Publish Date -->
+          <div>
+            <label for="publishDate" class="block mb-3 theme-text">發布日期 *</label>
+            <input
+              type="date"
+              id="publishDate"
+              v-model="form.publishDate"
+              :class="[inputClass, 'pe-3', validationErrors.publishDate ? 'border-red-500' : '']"
+            />
+            <p v-if="validationErrors.publishDate" class="text-red-500 text-xs mt-1">
+              {{ validationErrors.publishDate }}
+            </p>
+          </div>
+
+          <!-- Product Model -->
+          <div>
+            <label for="faqProductModel" class="block mb-3 theme-text opacity-80">產品型號</label>
             <input
               id="faqProductModel"
               v-model="form.productModel"
@@ -112,24 +134,10 @@
           </div>
         </div>
 
-        <!-- Publish Date -->
-        <div>
-          <label for="publishDate" class="block mb-3 theme-text">發布日期 *</label>
-          <input
-            type="date"
-            id="publishDate"
-            v-model="form.publishDate"
-            :class="[inputClass, 'pe-3', validationErrors.publishDate ? 'border-red-500' : '']"
-          />
-          <p v-if="validationErrors.publishDate" class="text-red-500 text-xs mt-1">
-            {{ validationErrors.publishDate }}
-          </p>
-        </div>
-
         <!-- 問題 -->
         <div class="space-y-3">
           <div class="flex justify-between items-center mb-2">
-            <label class="block text-sm font-medium theme-text">問題 *</label>
+            <label class="block theme-text">問題 *</label>
             <div class="flex items-center space-x-1">
               <button
                 type="button"
@@ -158,109 +166,286 @@
             </div>
           </div>
           <div v-show="questionLanguage === 'TW'">
-            <input
+            <textarea
               v-model="form.question.TW"
-              type="text"
+              rows="1"
               :class="[inputClass, validationErrors['question.TW'] ? 'border-red-500' : '']"
               placeholder="請輸入問題 (繁體中文)"
-            />
-            <p v-if="validationErrors['question.TW']" class="text-red-500 text-xs mt-1">
-              {{ validationErrors['question.TW'] }}
-            </p>
+            ></textarea>
           </div>
           <div v-show="questionLanguage === 'EN'">
-            <input
+            <textarea
               v-model="form.question.EN"
-              type="text"
-              :class="[inputClass]"
-              placeholder="請輸入問題 (English)"
-            />
+              rows="3"
+              :class="[inputClass, validationErrors['question.EN'] ? 'border-red-500' : '']"
+              placeholder="請輸入問題 (English) - 用於產生路由"
+            ></textarea>
+          </div>
+          <div class="h-5 mt-1">
+            <p v-if="validationErrors['question.TW']" class="text-red-500 text-xs">
+              {{ validationErrors['question.TW'] }}
+            </p>
+            <p v-else-if="validationErrors['question.EN']" class="text-red-500 text-xs">
+              {{ validationErrors['question.EN'] }}
+            </p>
           </div>
         </div>
 
         <!-- 答案 -->
         <div class="space-y-3">
-          <div class="flex justify-between items-center mb-2">
-            <label class="block text-sm font-medium theme-text">答案 *</label>
-            <div class="flex items-center space-x-1">
-              <button
-                type="button"
-                @click="answerLanguage = 'TW'"
-                :class="[
-                  answerLanguage === 'TW'
-                    ? 'bg-blue-500 text-white'
-                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
-                  'px-2 py-1 text-xs rounded-md',
-                ]"
-              >
-                TW
-              </button>
-              <button
-                type="button"
-                @click="answerLanguage = 'EN'"
-                :class="[
-                  answerLanguage === 'EN'
-                    ? 'bg-blue-500 text-white'
-                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
-                  'px-2 py-1 text-xs rounded-md',
-                ]"
-              >
-                EN
-              </button>
-            </div>
-          </div>
-          <div v-show="answerLanguage === 'TW'">
-            <textarea
-              v-model="form.answer.TW"
-              rows="4"
-              :class="[inputClass, validationErrors['answer.TW'] ? 'border-red-500' : '']"
-              placeholder="請輸入答案 (繁體中文)"
-            ></textarea>
-            <p v-if="validationErrors['answer.TW']" class="text-red-500 text-xs mt-1">
-              {{ validationErrors['answer.TW'] }}
-            </p>
-          </div>
-          <div v-show="answerLanguage === 'EN'">
-            <textarea
-              v-model="form.answer.EN"
-              rows="4"
-              :class="[inputClass]"
-              placeholder="請輸入答案 (English)"
-            ></textarea>
-          </div>
+          <label class="block theme-text">答案 *</label>
+          <RichTextBlockEditor
+            :modelValue="form.answer"
+            @update:modelValue="form.answer = $event"
+            :initial-language="answerLanguage"
+          />
+          <p v-if="validationErrors.answer" class="text-red-500 text-xs mt-1">
+            {{ validationErrors.answer }}
+          </p>
         </div>
 
         <!-- 圖片上傳 -->
         <div class="mb-6">
           <label class="block mb-3 theme-text">圖片 (可上傳多張)</label>
-          <MultiAttachmentUploader
-            :manager="imageManager"
-            attachmentType="image"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerImageInput"
+          >
+            <div class="space-y-1 text-center">
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+              </svg>
+              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
+                <p class="pl-1">點擊或拖曳以上傳圖片</p>
+              </div>
+              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                PNG, JPG, GIF, WEBP, SVG
+              </p>
+            </div>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleImageFiles"
+            />
+          </div>
+          <!-- 預覽區域 -->
+          <div
+            v-if="form.imageUrl.length > 0 || imageFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+          >
+            <!-- 現有圖片 -->
+            <div
+              v-for="(url, index) in form.imageUrl"
+              :key="`existing-${index}`"
+              class="relative group"
+            >
+              <img :src="url" alt="Existing image" class="w-full h-24 object-cover rounded-md" />
+              <button
+                type="button"
+                @click.stop="removeExistingImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+            <!-- 新上傳圖片 -->
+            <div v-for="(file, index) in imageFiles" :key="`new-${index}`" class="relative group">
+              <img
+                :src="file.previewUrl"
+                alt="New image"
+                class="w-full h-24 object-cover rounded-md"
+              />
+              <button
+                type="button"
+                @click.stop="removeNewImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 文件上傳 -->
         <div class="mb-6">
           <label class="block mb-3 theme-text">文件 (可上傳多個)</label>
-          <MultiAttachmentUploader
-            :manager="documentManager"
-            attachmentType="document"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerDocumentInput"
+          >
+            <div class="space-y-1 text-center">
+              <!-- Icon for document -->
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
+                <p class="pl-1">點擊或拖曳以上傳文件</p>
+              </div>
+              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                PDF, DOC, XLS, PPT, TXT
+              </p>
+            </div>
+            <input
+              ref="documentInputRef"
+              type="file"
+              :accept="documentAccept"
+              multiple
+              class="hidden"
+              @change="handleDocumentFiles"
+            />
+          </div>
+          <!-- Document Preview Area -->
+          <div
+            v-if="form.documentUrl.length > 0 || documentFiles.length > 0"
+            class="mt-4 space-y-2"
+          >
+            <!-- Existing Documents -->
+            <div
+              v-for="(url, index) in form.documentUrl"
+              :key="`existing-doc-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <a :href="url" target="_blank" class="text-sm truncate hover:underline">{{
+                getFileNameFromUrl(url)
+              }}</a>
+              <button
+                type="button"
+                @click.stop="removeExistingDocument(index)"
+                class="ml-4 text-red-500 hover:text-red-700"
+              >
+                移除
+              </button>
+            </div>
+            <!-- New Documents -->
+            <div
+              v-for="(file, index) in documentFiles"
+              :key="`new-doc-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <span class="text-sm truncate">{{ file.name }}</span>
+              <button
+                type="button"
+                @click.stop="removeNewDocument(index)"
+                class="ml-4 text-red-500 hover:text-red-700"
+              >
+                移除
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 影片上傳 -->
         <div class="mb-6">
           <label class="block mb-3 theme-text">影片 (可上傳多部)</label>
-          <MultiAttachmentUploader
-            :manager="videoManager"
-            attachmentType="video"
-            :themeConditionalClass="conditionalClass"
-            :inputBaseClass="inputClass"
-          />
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerVideoInput"
+          >
+            <div class="space-y-1 text-center">
+              <!-- Icon for video -->
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6v12m-3-10.5v9" />
+              </svg>
+              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
+                <p class="pl-1">點擊或拖曳以上傳影片</p>
+              </div>
+              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                MP4, WEBM, MOV
+              </p>
+            </div>
+            <input
+              ref="videoInputRef"
+              type="file"
+              accept="video/*"
+              multiple
+              class="hidden"
+              @change="handleVideoFiles"
+            />
+          </div>
+          <!-- Video Preview Area -->
+          <div
+            v-if="form.videoUrl.length > 0 || videoFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"
+          >
+            <!-- Existing Videos -->
+            <div
+              v-for="(url, index) in form.videoUrl"
+              :key="`existing-vid-${index}`"
+              class="relative group"
+            >
+              <video :src="url" class="w-full h-24 object-cover rounded-md bg-black"></video>
+              <button
+                type="button"
+                @click.stop="removeExistingVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+            <!-- New Videos -->
+            <div
+              v-for="(file, index) in videoFiles"
+              :key="`new-vid-${index}`"
+              class="relative group"
+            >
+              <video
+                :src="file.previewUrl"
+                class="w-full h-24 object-cover rounded-md bg-black"
+              ></video>
+              <button
+                type="button"
+                @click.stop="removeNewVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 按鈕 -->
@@ -319,14 +504,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useFaqStore } from '@/stores/faqStore'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useUserStore } from '@/stores/userStore'
-import { useMultiAttachmentManager } from '@/composables/useMultiAttachmentManager'
-import MultiAttachmentUploader from '@/components/common/MultiAttachmentUploader.vue'
+
+const RichTextBlockEditor = defineAsyncComponent(
+  () => import('@/components/news/RichTextBlockEditor.vue'),
+)
 
 const props = defineProps({
   show: {
@@ -361,29 +548,89 @@ const isAdmin = computed(() => userStore.isAdmin)
 const questionLanguage = ref('TW')
 const answerLanguage = ref('TW')
 
-const imageManager = useMultiAttachmentManager({
-  formFieldName: 'faqImages',
-  markerPrefix: '__NEW_FAQ_IMAGE_MARKER_',
-  accept: 'image/*',
-})
+// Image upload state
+const imageFiles = ref([])
+const imageInputRef = ref(null)
 
-const videoManager = useMultiAttachmentManager({
-  formFieldName: 'faqVideos',
-  markerPrefix: '__NEW_FAQ_VIDEO_MARKER_',
-  accept: 'video/*',
-})
+// Video upload state
+const videoFiles = ref([])
+const videoInputRef = ref(null)
 
-const documentManager = useMultiAttachmentManager({
-  formFieldName: 'faqDocuments',
-  markerPrefix: '__NEW_FAQ_DOCUMENT_MARKER__',
-  accept:
-    '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain',
-})
+// Document upload state
+const documentFiles = ref([])
+const documentInputRef = ref(null)
 
-onMounted(() => {
-  console.log('Image input ref in modal onMount:', imageManager.inputRef.value)
-  console.log('Video input ref in modal onMount:', videoManager.inputRef.value)
-  console.log('Document input ref in modal onMount:', documentManager.inputRef.value)
+const documentAccept =
+  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain'
+
+const triggerImageInput = () => imageInputRef.value?.click()
+const triggerVideoInput = () => videoInputRef.value?.click()
+const triggerDocumentInput = () => documentInputRef.value?.click()
+
+const getFileNameFromUrl = (url) => {
+  try {
+    const decodedUrl = decodeURIComponent(url)
+    return decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1)
+  } catch /* (e) */ {
+    return url.substring(url.lastIndexOf('/') + 1)
+  }
+}
+
+const handleImageFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    imageFiles.value.push(fileWithPreview)
+  })
+  if (imageInputRef.value) imageInputRef.value.value = ''
+}
+
+const handleVideoFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    videoFiles.value.push(fileWithPreview)
+  })
+  if (videoInputRef.value) videoInputRef.value.value = ''
+}
+
+const handleDocumentFiles = (event) => {
+  const files = Array.from(event.target.files)
+  documentFiles.value.push(...files)
+  if (documentInputRef.value) documentInputRef.value.value = ''
+}
+
+const removeNewImage = (index) => {
+  URL.revokeObjectURL(imageFiles.value[index].previewUrl)
+  imageFiles.value.splice(index, 1)
+}
+const removeExistingImage = (index) => {
+  form.value.imageUrl.splice(index, 1)
+}
+
+const removeNewVideo = (index) => {
+  URL.revokeObjectURL(videoFiles.value[index].previewUrl)
+  videoFiles.value.splice(index, 1)
+}
+const removeExistingVideo = (index) => {
+  form.value.videoUrl.splice(index, 1)
+}
+
+const removeNewDocument = (index) => {
+  documentFiles.value.splice(index, 1)
+}
+const removeExistingDocument = (index) => {
+  form.value.documentUrl.splice(index, 1)
+}
+
+onBeforeUnmount(() => {
+  // Revoke all object URLs when component is unmounted
+  imageFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
+  videoFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
 })
 
 const formatDateForInput = (dateStringOrDate) => {
@@ -402,8 +649,11 @@ const formatDateForInput = (dateStringOrDate) => {
 const initialFormState = () => ({
   _id: null,
   question: { TW: '', EN: '' },
-  answer: { TW: '', EN: '' },
-  category: '',
+  answer: {
+    TW: { type: 'doc', content: [{ type: 'paragraph' }] },
+    EN: { type: 'doc', content: [{ type: 'paragraph' }] },
+  },
+  category: { main: '', sub: '' },
   author: '',
   publishDate: formatDateForInput(new Date()),
   productModel: '',
@@ -416,9 +666,14 @@ const form = ref(initialFormState())
 
 const resetForm = () => {
   form.value = initialFormState()
-  imageManager.reset()
-  videoManager.reset()
-  documentManager.reset()
+  imageFiles.value = []
+  videoFiles.value = []
+  documentFiles.value = []
+
+  if (imageInputRef.value) imageInputRef.value.value = ''
+  if (videoInputRef.value) videoInputRef.value.value = ''
+  if (documentInputRef.value) documentInputRef.value.value = ''
+
   clearErrors()
   formError.value = ''
   isProcessing.value = false
@@ -442,25 +697,24 @@ watch(
               EN: faqData.question?.EN || '',
             },
             answer: {
-              TW: faqData.answer?.TW || '',
-              EN: faqData.answer?.EN || '',
+              TW: faqData.answer?.TW || { type: 'doc', content: [{ type: 'paragraph' }] },
+              EN: faqData.answer?.EN || { type: 'doc', content: [{ type: 'paragraph' }] },
             },
-            category: faqData.category || '',
+            category: {
+              main: faqData.category?.main || '',
+              sub: faqData.category?.sub || '',
+            },
             author: faqData.author || '',
             publishDate: formatDateForInput(faqData.publishDate),
             productModel: faqData.productModel || '',
             isActive: faqData.isActive,
-            imageUrl: [],
-            videoUrl: [],
-            documentUrl: [],
+            imageUrl: [...(faqData.imageUrl || [])],
+            videoUrl: [...(faqData.videoUrl || [])],
+            documentUrl: [...(faqData.documentUrl || [])],
           }
 
-          imageManager.populatePreviews(faqData.imageUrl || [])
-          videoManager.populatePreviews(faqData.videoUrl || [])
-          documentManager.populatePreviews(faqData.documentUrl || [])
-
           questionLanguage.value = form.value.question.TW ? 'TW' : 'EN'
-          answerLanguage.value = form.value.answer.TW ? 'TW' : 'EN'
+          answerLanguage.value = !isTiptapContentEmpty(form.value.answer.TW) ? 'TW' : 'EN'
         } catch (error) {
           console.error('Failed to load FAQ data for editing:', error)
           formError.value = `載入 FAQ 失敗: ${error.message}`
@@ -478,6 +732,23 @@ watch(
   { immediate: true },
 )
 
+const isTiptapContentEmpty = (content) => {
+  if (!content || !content.content) {
+    return true
+  }
+  if (content.content.length === 0) {
+    return true
+  }
+  if (
+    content.content.length === 1 &&
+    content.content[0].type === 'paragraph' &&
+    !content.content[0].content
+  ) {
+    return true
+  }
+  return false
+}
+
 const validateForm = () => {
   clearErrors()
   let isValid = true
@@ -485,16 +756,16 @@ const validateForm = () => {
     setError('author', '作者為必填項')
     isValid = false
   }
-  if (!form.value.category?.trim()) {
-    setError('category', '分類為必填項')
+  if (!form.value.category.main) {
+    setError('category.main', '主分類為必填項')
     isValid = false
   }
   if (!form.value.question.TW?.trim() && !form.value.question.EN?.trim()) {
     setError('question.TW', '至少需要一種語言的問題')
     isValid = false
   }
-  if (!form.value.answer.TW?.trim() && !form.value.answer.EN?.trim()) {
-    setError('answer.TW', '至少需要一種語言的答案')
+  if (!form.value.question.EN?.trim()) {
+    setError('question.EN', '英文問題為必填，用於產生語意化路由')
     isValid = false
   }
   if (!form.value.publishDate) {
@@ -508,46 +779,69 @@ const validateForm = () => {
     }
   }
 
+  if (isTiptapContentEmpty(form.value.answer.TW) && isTiptapContentEmpty(form.value.answer.EN)) {
+    setError('answer', '至少需要一種語言的答案')
+    isValid = false
+  }
+
   if (!isValid && !formError.value) {
     const firstErrorKey = Object.keys(validationErrors.value)[0]
-    formError.value = validationErrors.value[firstErrorKey]?.message || '表單包含錯誤，請檢查。'
+    if (firstErrorKey) {
+      if (firstErrorKey.includes('question.EN')) {
+        questionLanguage.value = 'EN'
+      } else if (firstErrorKey.includes('question.TW')) {
+        questionLanguage.value = 'TW'
+      }
+    }
+    formError.value = validationErrors.value[firstErrorKey] || '表單包含錯誤，請檢查。'
+  } else if (isValid) {
+    formError.value = ''
   }
   return isValid
 }
 
 const submitForm = async () => {
+  clearErrors() // Clear previous errors before validating again
   if (!validateForm()) return
 
   isProcessing.value = true
   formError.value = ''
 
   const formData = new FormData()
-  let hasNewFiles = false
+  const hasNewFiles =
+    imageFiles.value.length > 0 || videoFiles.value.length > 0 || documentFiles.value.length > 0
 
-  if (imageManager.prepareFormData(formData, form.value, 'imageUrl')) hasNewFiles = true
-  if (videoManager.prepareFormData(formData, form.value, 'videoUrl')) hasNewFiles = true
-  if (documentManager.prepareFormData(formData, form.value, 'documentUrl')) hasNewFiles = true
+  // Append new files
+  imageFiles.value.forEach((file) => {
+    formData.append('faqImages', file)
+  })
+  videoFiles.value.forEach((file) => formData.append('faqVideos', file))
+  documentFiles.value.forEach((file) => formData.append('faqDocuments', file))
 
   const faqDataPayload = {
-    question: form.value.question,
-    answer: form.value.answer,
-    category: form.value.category,
-    author: form.value.author,
+    ...form.value,
     publishDate: form.value.publishDate ? new Date(form.value.publishDate).toISOString() : null,
-    isActive: form.value.isActive,
     productModel: form.value.productModel || null,
     imageUrl: form.value.imageUrl,
     videoUrl: form.value.videoUrl,
     documentUrl: form.value.documentUrl,
   }
+  // Clean up empty EN fields
   if (!faqDataPayload.question.EN) delete faqDataPayload.question.EN
-  if (!faqDataPayload.answer.EN) delete faqDataPayload.answer.EN
+  if (isTiptapContentEmpty(faqDataPayload.answer.EN)) {
+    delete faqDataPayload.answer.EN
+  }
+
+  // Remove fields that are handled by file uploads or shouldn't be in the JSON payload
+  delete faqDataPayload._id
 
   let submissionPayload
+  // Always use FormData if there are new files.
   if (hasNewFiles) {
     formData.append('faqDataPayload', JSON.stringify(faqDataPayload))
     submissionPayload = formData
   } else {
+    // If no new files, just send JSON
     submissionPayload = faqDataPayload
   }
 

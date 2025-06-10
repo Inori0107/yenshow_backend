@@ -119,7 +119,7 @@ class ProductsController {
 	 */
 	async getProducts(req, res) {
 		try {
-			const { specifications, withImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { specifications, hasImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
 
 			// 構建查詢條件 - 移除isActive過濾
 			const query = {};
@@ -130,7 +130,7 @@ class ProductsController {
 			}
 
 			// 自定義過濾器
-			if (withImages === "true") {
+			if (hasImages === "true") {
 				query.images = { $exists: true, $ne: [] };
 			}
 
@@ -244,7 +244,7 @@ class ProductsController {
 	async getProductById(req, res) {
 		try {
 			const { id } = req.params;
-			// 移除isActive過濾
+			// This method does not check for isActive, so it can be used by admin to fetch any product.
 			const product = await Products.findById(id);
 
 			if (!product) {
@@ -448,9 +448,6 @@ class ProductsController {
 				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
 			}
 
-			// 刪除產品關聯的所有檔案
-			console.log(`正在刪除產品 ${id} 的關聯檔案...`);
-
 			// 刪除圖片檔案
 			if (product.images && product.images.length > 0) {
 				for (const imagePath of product.images) {
@@ -467,7 +464,14 @@ class ProductsController {
 				}
 			}
 
-			// 新增部分：刪除產品目錄（僅刪除 images 和 documents 子目錄）
+			// 刪除影片檔案
+			if (product.videos && product.videos.length > 0) {
+				for (const videoPath of product.videos) {
+					const deleted = fileUpload.deleteFileByWebPath(videoPath);
+					console.log(`刪除影片 ${videoPath}: ${deleted ? "成功" : "失敗"}`);
+				}
+			}
+
 			try {
 				// 獲取產品層級結構
 				const hierarchyData = await this._getProductHierarchy(product.specifications);
@@ -858,19 +862,10 @@ class ProductsController {
 		if (!Array.isArray(data.features)) {
 			data.features = [];
 		}
-		// Filter out invalid features (example: ensure TW or EN is present and has featureId)
 		data.features = data.features.filter((f) => f && (f.TW || f.EN) && f.featureId);
+		this._processMultilingualFormData(data);
+		this._parseJsonFields(data);
 
-		// Multilingual fields (name, description) are assumed to be in format name[TW], name[EN]
-		// and processed by _processMultilingualFormData if called before this.
-		// If not using _processFormData, this logic needs to be here or called separately.
-		// For now, assuming req.body already has data.name.TW, data.name.EN etc.
-		this._processMultilingualFormData(data); // Process name[TW] etc. into name: {TW: ..., EN: ...}
-		this._parseJsonFields(data); // Ensure other JSON string fields are parsed (like features if not already)
-
-		// Define marker prefixes (should match frontend if they are sent)
-		// These markers are primarily for the client to signal new files.
-		// Backend logic here relies more on comparing existing URLs with client-provided URLs.
 		const imageMarkerPrefix = "__PRODUCT_IMAGE_MARKER_"; // Example, align with frontend if used
 		const documentMarkerPrefix = "__PRODUCT_DOCUMENT_MARKER_";
 		const videoMarkerPrefix = "__PRODUCT_VIDEO_MARKER_";
@@ -879,21 +874,21 @@ class ProductsController {
 		if (isUpdate) {
 			// Only manage existing files if updating
 			data.images = this._manageProductFileArray(
-				rawData.images, // client-sent array from payload
+				data.images, // client-sent array from payload
 				existingProduct?.images,
 				data._pendingImages,
 				imagePathsToDelete,
 				imageMarkerPrefix
 			);
 			data.documents = this._manageProductFileArray(
-				rawData.documents, // client-sent array from payload
+				data.documents, // client-sent array from payload
 				existingProduct?.documents,
 				data._pendingDocuments,
 				documentPathsToDelete,
 				documentMarkerPrefix
 			);
 			data.videos = this._manageProductFileArray(
-				rawData.videos, // client-sent array from payload
+				data.videos, // client-sent array from payload
 				existingProduct?.videos,
 				data._pendingVideos,
 				videoPathsToDelete,
@@ -912,7 +907,6 @@ class ProductsController {
 			documentPathsToDelete,
 			videoPathsToDelete,
 			productCodeForContext
-			// Hierarchy data will be fetched separately in create/update if needed for file saving
 		};
 	}
 
@@ -920,14 +914,24 @@ class ProductsController {
 		const validClientKeptUrls = [];
 		if (Array.isArray(clientUrls)) {
 			clientUrls.forEach((url) => {
-				if (typeof url === "string") {
-					// 只保留來自客戶端的、合法的 /storage/ 路徑
-					if (url.startsWith("/storage/")) {
-						validClientKeptUrls.push(url);
+				if (typeof url !== "string") return;
+
+				let relativeUrl = url;
+				// 如果是完整的 URL，嘗試轉換為相對路徑
+				if (url.startsWith("http")) {
+					try {
+						const urlObject = new URL(url);
+						relativeUrl = urlObject.pathname;
+					} catch (e) {
+						console.warn(`無法解析收到的 URL: ${url}`);
+						// 如果解析失敗，則不視為有效路徑
+						return;
 					}
-					// 以 clientMarkerPrefix 開頭的 URL 是前端標記新檔案的方式，
-					// 這些新檔案由 pendingFiles 處理，這裡不需要直接保留 clientMarkerPrefix 的 URL。
-					// 其他格式的 URL (如 @server/...) 將被過濾掉。
+				}
+
+				// 確保路徑是我們期望的 /storage/ 格式
+				if (relativeUrl.startsWith("/storage/")) {
+					validClientKeptUrls.push(relativeUrl);
 				}
 			});
 		}
@@ -945,10 +949,6 @@ class ProductsController {
 					!oldUrl.startsWith(clientMarkerPrefix) &&
 					!validClientKeptUrls.includes(oldUrl)
 				) {
-					// 如果資料庫中本身就存在一個非 /storage/ 的錯誤路徑 (例如旧的 @server/...)
-					// 并且客戶端也沒有在其 validClientKeptUrls 中包含它 (通常不會包含)，則也應將其標記為刪除。
-					// 注意：deleteFileByWebPath 僅會嘗試刪除 /storage/ 開頭的檔案。
-					// 對於非 /storage/ 路徑，這主要是為了從資料庫記錄中移除它們。
 					pathsToDelete.push(oldUrl);
 				}
 			});

@@ -1,10 +1,5 @@
 <template>
-  <div
-    v-if="show"
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="background-color: rgba(0, 0, 0, 0.7)"
-    @mousedown.self="closeModal"
-  >
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
     <div
       :class="[
         cardClass,
@@ -83,11 +78,16 @@
         <!-- 錯誤提示 (置於頁籤內容之上) -->
         <div
           v-if="formError"
-          class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+          :class="[
+            conditionalClass(
+              'bg-red-500/20 border border-red-500 text-red-200',
+              'bg-red-100 border border-red-400 text-red-700',
+            ),
+            'px-4 py-3 rounded-md relative mb-4',
+          ]"
           role="alert"
         >
-          <strong class="font-bold">錯誤!</strong>
-          <span class="block sm:inline">{{ formError }}</span>
+          {{ formError }}
         </div>
 
         <!-- 頁籤內容 (可滾動區域) -->
@@ -107,21 +107,22 @@
                 type="text"
                 placeholder="請輸入TW標題"
                 :class="[inputClass, validationErrors.title_TW ? 'border-red-500' : '']"
-                required
               />
               <input
                 v-show="titleLang === 'EN'"
                 v-model="form.title.EN"
                 type="text"
-                placeholder="Enter EN Title"
-                :class="inputClass"
+                placeholder="Enter EN Title (Required for URL)"
+                :class="[inputClass, validationErrors.title_EN ? 'border-red-500' : '']"
               />
-              <p
-                v-if="validationErrors.title_TW && titleLang === 'TW'"
-                class="text-red-500 text-sm mt-1"
-              >
-                {{ validationErrors.title_TW }}
-              </p>
+              <div class="h-5 mt-1">
+                <p v-if="validationErrors.title_TW" class="text-red-500 text-sm">
+                  {{ validationErrors.title_TW }}
+                </p>
+                <p v-else-if="validationErrors.title_EN" class="text-red-500 text-sm">
+                  {{ validationErrors.title_EN }}
+                </p>
+              </div>
             </div>
 
             <!-- 作者 -->
@@ -133,7 +134,6 @@
                   type="text"
                   placeholder="請輸入作者姓名"
                   :class="[inputClass, validationErrors.author ? 'border-red-500' : '']"
-                  required
                 />
                 <p v-if="validationErrors.author" class="text-red-500 text-sm mt-1">
                   {{ validationErrors.author }}
@@ -181,7 +181,6 @@
                   id="category"
                   v-model="form.category"
                   :class="[inputClass, validationErrors.category ? 'border-red-500' : '']"
-                  required
                 >
                   <option disabled value="" class="text-black/70">請選擇分類</option>
                   <option value="新聞稿" class="text-black/70">新聞稿</option>
@@ -243,14 +242,14 @@
                     :class="conditionalClass('text-gray-500', 'text-gray-400')"
                     stroke="currentColor"
                     fill="none"
-                    viewBox="0 0 48 48"
+                    viewBox="0 0 24 24"
                     aria-hidden="true"
                   >
                     <path
-                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                      stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
                     />
                   </svg>
                   <img
@@ -366,12 +365,13 @@
                 v-for="(block, index) in form.contentBlocks"
                 :key="block._tempId || block._id"
                 class="p-4 border rounded-lg group relative"
-                :class="
+                :class="[
                   conditionalClass(
                     'border-gray-700 bg-gray-800/30',
                     'border-gray-300 bg-gray-50/50',
-                  )
-                "
+                  ),
+                  validationErrors[`content_${index}`] ? 'border-red-500' : '',
+                ]"
               >
                 <!-- Block Controls (Move, Delete) -->
                 <div
@@ -465,6 +465,9 @@
                   @update:modelValue="handleBlockRichTextUpdate(index, $event)"
                   @update:blockData="handleBlockDataUpdate(index, $event)"
                 />
+                <p v-if="validationErrors[`content_${index}`]" class="text-red-500 text-xs mt-1">
+                  {{ validationErrors[`content_${index}`] }}
+                </p>
               </div>
               <!-- Fallback if no blocks -->
               <div
@@ -713,6 +716,23 @@ const moveBlock = (index, direction) => {
   form.value.contentBlocks.forEach((block, i) => (block.sortOrder = i))
 }
 
+const isTiptapContentEmpty = (content) => {
+  if (!content || !content.content) {
+    return true
+  }
+  if (content.content.length === 0) {
+    return true
+  }
+  if (
+    content.content.length === 1 &&
+    content.content[0].type === 'paragraph' &&
+    !content.content[0].content
+  ) {
+    return true
+  }
+  return false
+}
+
 // --- Form Validation ---
 const validateForm = () => {
   clearValidationErrors()
@@ -720,6 +740,10 @@ const validateForm = () => {
 
   if (!form.value.title.TW?.trim()) {
     setValidationError('title_TW', 'TW標題為必填')
+    isValid = false
+  }
+  if (!form.value.title.EN?.trim()) {
+    setValidationError('title_EN', 'EN 標題為必填，用於產生語意化路由')
     isValid = false
   }
   if (!form.value.author?.trim()) {
@@ -736,23 +760,27 @@ const validateForm = () => {
     isValid = false
   } else {
     form.value.contentBlocks.forEach((block, index) => {
+      if (block.itemType === 'richText') {
+        const isTwEmpty = isTiptapContentEmpty(block.richTextData.TW)
+        const isEnEmpty = isTiptapContentEmpty(block.richTextData.EN)
+        if (isTwEmpty && isEnEmpty) {
+          setValidationError(`content_${index}`, '富文本區塊內容不能為空')
+          isValid = false
+        }
+      }
       if (block.itemType === 'image') {
         if (block.imageUrl === '__NEW_CONTENT_IMAGE__' && !block._newFile) {
           console.warn(`Block ${index} marked for new image but no file attached.`)
         } else if (!block.imageUrl && !block._newFile && !block._id) {
-          setValidationError(`content_${index}_image`, '圖片為必填')
+          setValidationError(`content_${index}`, '圖片為必填')
           isValid = false
         }
       }
       if (block.itemType === 'videoEmbed') {
         if (block.videoEmbedUrl === '__NEW_CONTENT_VIDEO__' && !block._newVideoFile) {
           console.warn(`Block ${index} marked for new video but no file attached.`)
-          // Potentially set an error if a new video was expected but no file is present
-          // setValidationError(`content_${index}_video_file`, '影片檔案為必填');
-          // isValid = false;
         } else if (!block.videoEmbedUrl && !block._newVideoFile && !block._id) {
-          // If it's a new block (no _id) and neither URL nor file is provided
-          setValidationError(`content_${index}_video_source`, '影片來源 (URL或檔案) 為必填')
+          setValidationError(`content_${index}`, '影片來源 (URL或檔案) 為必填')
           isValid = false
         }
       }
@@ -762,21 +790,28 @@ const validateForm = () => {
   if (!isValid && !formError.value) {
     const firstErrorKey = Object.keys(validationErrors.value)[0]
     if (firstErrorKey) {
-      if (
-        [
-          'title_TW',
-          'author',
-          'category',
-          'publishDate',
-          'isActive',
-          'summary_TW',
-          'coverImageUrl',
-        ].includes(firstErrorKey)
-      )
+      // Auto-switch to the tab with the first error
+      if (firstErrorKey.startsWith('content')) {
+        currentTab.value = 'content'
+      } else {
         currentTab.value = 'general'
-      else if (firstErrorKey.startsWith('content')) currentTab.value = 'content'
+      }
+
+      // Auto-switch language tab for title
+      if (firstErrorKey === 'title_EN') {
+        titleLang.value = 'EN'
+      } else if (firstErrorKey === 'title_TW') {
+        titleLang.value = 'TW'
+      }
+
+      // Auto-switch language tab for summary
+      if (firstErrorKey === 'summary_EN') {
+        summaryMetaLang.value = 'EN'
+      } else if (firstErrorKey === 'summary_TW') {
+        summaryMetaLang.value = 'TW'
+      }
     }
-    formError.value = '請檢查表單中標記的必填欄位或內容。'
+    formError.value = validationErrors.value[firstErrorKey] || '請檢查表單中標記的必填欄位或內容。'
   } else if (isValid) {
     formError.value = ''
   }

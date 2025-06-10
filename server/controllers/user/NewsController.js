@@ -84,6 +84,32 @@ class NewsController extends EntityController {
 		}
 	}
 
+	getItemBySlug = async (req, res, next) => {
+		try {
+			const { slug } = req.params;
+
+			// Public-facing route should only find active news.
+			const query = { slug: slug };
+			const userRole = req.accessContext?.userRole;
+
+			// If the user is not an admin or staff, only show active items.
+			if (userRole !== Permissions.ADMIN && userRole !== Permissions.STAFF) {
+				query.isActive = true;
+			}
+
+			const item = await this.model.findOne(query);
+
+			if (!item) {
+				throw new ApiError(StatusCodes.NOT_FOUND, `${this.entityName} 未找到`);
+			}
+
+			const formattedItem = this.entityService.formatOutput(item);
+			this._sendResponse(res, StatusCodes.OK, `${this.entityName} 獲取成功`, { [this.responseKey]: formattedItem });
+		} catch (error) {
+			this._handleError(error, "獲取", next);
+		}
+	};
+
 	async _prepareNewsData(req, isUpdate = false, existingNews = null) {
 		let rawData;
 		if (req.is("multipart/form-data") && req.body.newsDataPayload) {

@@ -83,8 +83,8 @@
               <th class="py-3 px-4 theme-text opacity-50">作者</th>
               <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
               <th class="py-3 px-4 theme-text opacity-50">封面圖</th>
-              <th class="py-3 px-4 theme-text opacity-50">內容圖片</th>
-              <th class="py-3 px-4 theme-text opacity-50">內容影片</th>
+              <th class="py-3 px-4 theme-text opacity-50">圖片</th>
+              <th class="py-3 px-4 theme-text opacity-50">影片</th>
               <th class="py-3 px-4 theme-text opacity-50">狀態</th>
               <th class="py-3 px-4 theme-text opacity-50">操作</th>
             </tr>
@@ -95,7 +95,9 @@
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
-              <td class="py-3 px-4 theme-text">{{ item.title?.TW || '-' }}</td>
+              <td class="py-3 px-4 theme-text max-w-[550px] truncate">
+                {{ item.title?.TW || '-' }}
+              </td>
               <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ formatDate(item.publishDate) }}</td>
@@ -108,14 +110,14 @@
               </td>
               <td
                 class="py-3 px-4"
-                :title="'內容圖片: ' + (hasContentImages(item.content) ? '✓' : '✗')"
+                :title="'圖片: ' + (hasContentImages(item.content) ? '✓' : '✗')"
                 :class="hasContentImages(item.content) ? 'text-green-500' : 'text-red-500'"
               >
                 {{ hasContentImages(item.content) ? '✓' : '✗' }}
               </td>
               <td
                 class="py-3 px-4"
-                :title="'內容影片: ' + (hasContentVideos(item.content) ? '✓' : '✗')"
+                :title="'影片: ' + (hasContentVideos(item.content) ? '✓' : '✗')"
                 :class="hasContentVideos(item.content) ? 'text-green-500' : 'text-red-500'"
               >
                 {{ hasContentVideos(item.content) ? '✓' : '✗' }}
@@ -169,7 +171,8 @@
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
               <th class="py-3 px-4 theme-text opacity-50">問題 (TW)</th>
-              <th class="py-3 px-4 theme-text opacity-50">分類</th>
+              <th class="py-3 px-4 theme-text opacity-50">主分類</th>
+              <th class="py-3 px-4 theme-text opacity-50">子分類</th>
               <th class="py-3 px-4 theme-text opacity-50">作者</th>
               <th class="py-3 px-4 theme-text opacity-50">產品型號</th>
               <th class="py-3 px-4 theme-text opacity-50">圖片</th>
@@ -186,7 +189,20 @@
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
               <td class="py-3 px-4 theme-text">{{ item.question?.TW || '-' }}</td>
-              <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
+              <td class="py-3 px-4 theme-text">
+                {{
+                  typeof item.category === 'object' && item.category
+                    ? item.category.main || '-'
+                    : item.category || '-'
+                }}
+              </td>
+              <td class="py-3 px-4 theme-text">
+                {{
+                  typeof item.category === 'object' && item.category
+                    ? item.category.sub || '-'
+                    : '-'
+                }}
+              </td>
               <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ item.productModel || '-' }}</td>
               <td

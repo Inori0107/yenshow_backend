@@ -4,15 +4,28 @@ const faqSchema = new Schema(
 	{
 		question: {
 			TW: { type: String, required: [true, "繁體中文問題為必填"] },
-			EN: { type: String }
+			EN: { type: String, required: [true, "英文問題為必填 (用於產生語意化路由)"] }
 		},
 		answer: {
-			TW: { type: String, required: [true, "繁體中文答案為必填"] },
-			EN: { type: String }
+			TW: {
+				type: Schema.Types.Mixed,
+				default: () => ({ type: "doc", content: [{ type: "paragraph" }] })
+			},
+			EN: {
+				type: Schema.Types.Mixed,
+				default: () => ({ type: "doc", content: [{ type: "paragraph" }] })
+			}
 		},
 		category: {
-			type: String,
-			trim: true
+			main: {
+				type: String,
+				enum: ["名詞解說", "設備參數", "故障排除"],
+				required: [true, "主分類為必填"]
+			},
+			sub: {
+				type: String,
+				trim: true
+			}
 		},
 		isActive: {
 			type: Boolean,
@@ -32,7 +45,13 @@ const faqSchema = new Schema(
 		},
 		videoUrl: [{ type: String }],
 		imageUrl: [{ type: String }],
-		documentUrl: [{ type: String }]
+		documentUrl: [{ type: String }],
+		slug: {
+			type: String,
+			unique: true,
+			sparse: true,
+			lowercase: true
+		}
 	},
 	{
 		timestamps: true,
@@ -40,6 +59,37 @@ const faqSchema = new Schema(
 		toJSON: { virtuals: true } // 確保 virtuals 被包含在 toJSON 結果中
 	}
 );
+
+// --- HOOKS ---
+faqSchema.pre("save", async function (next) {
+	if ((this.isModified("question.EN") || this.isNew) && this.question && this.question.EN) {
+		const slugify = (text) =>
+			text
+				.toString()
+				.toLowerCase()
+				.replace(/\s+/g, "-") // 使用連字號替換空格
+				.replace(/[^\w\-]+/g, "") // 移除所有非單詞字符（除了連字號）
+				.replace(/\-\-+/g, "-") // 將多個連字號替換為單個
+				.replace(/^-+/, "") // 從開頭移除連字號
+				.replace(/-+$/, ""); // 從結尾移除連字號
+
+		const Model = this.constructor;
+		const baseSlug = slugify(this.question.EN);
+		let slug = baseSlug;
+		let counter = 1;
+
+		while (true) {
+			const existingDoc = await Model.findOne({ slug: slug });
+			if (!existingDoc || existingDoc._id.equals(this._id)) {
+				break;
+			}
+			counter++;
+			slug = `${baseSlug}-${counter}`;
+		}
+		this.slug = slug;
+	}
+	next();
+});
 
 // --- VIRTUALS ---
 faqSchema.virtual("metaTitle").get(function () {
@@ -50,8 +100,11 @@ faqSchema.virtual("metaTitle").get(function () {
 	let baseTitleTW = "";
 	let baseTitleEN = "";
 
-	if (this.category && this.category.trim() !== "") {
-		let categoryStr = this.category.trim();
+	if (this.category && this.category.main) {
+		let categoryStr = this.category.main;
+		if (this.category.sub && this.category.sub.trim() !== "") {
+			categoryStr = `${this.category.sub.trim()} | ${this.category.main}`;
+		}
 		// 限制 category 長度
 		if (categoryStr.length > 20) {
 			categoryStr = categoryStr.substring(0, 20) + "...";

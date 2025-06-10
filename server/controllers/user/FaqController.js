@@ -30,6 +30,28 @@ class FaqController extends EntityController {
 		}
 	}
 
+	getItemBySlug = async (req, res, next) => {
+		try {
+			const { slug } = req.params;
+			const query = { slug: slug };
+			const userRole = req.accessContext?.userRole;
+
+			if (userRole !== Permissions.ADMIN && userRole !== Permissions.STAFF) {
+				query.isActive = true;
+			}
+
+			const item = await this.model.findOne(query);
+			if (!item) {
+				throw new ApiError(StatusCodes.NOT_FOUND, `${this.entityName} 未找到`);
+			}
+
+			const formattedItem = this.entityService.formatOutput(item);
+			this._sendResponse(res, StatusCodes.OK, `${this.entityName} 獲取成功`, { [this.responseKey]: formattedItem });
+		} catch (error) {
+			this._handleError(error, "獲取", next);
+		}
+	};
+
 	async _prepareFaqData(req, isUpdate = false, existingFaq = null) {
 		let rawData;
 		if (req.is("multipart/form-data") && req.body.faqDataPayload) {
@@ -70,8 +92,26 @@ class FaqController extends EntityController {
 		// Validation
 		if (!data.question?.TW && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "繁體中文問題為必填");
 		if (!data.answer?.TW && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "繁體中文答案為必填");
+		if (data.answer) {
+			const validateTiptap = (content, fieldName) => {
+				if (!content || typeof content !== "object" || content.type !== "doc" || !Array.isArray(content.content)) {
+					throw new ApiError(StatusCodes.BAD_REQUEST, `${fieldName} 的內容格式無效，不是一個有效的 Tiptap document`);
+				}
+				// 基礎的空內容檢查：一個段落節點，且沒有內容
+				const isEmpty = content.content.length === 1 && content.content[0].type === "paragraph" && !content.content[0].content;
+				if (content.content.length === 0 || isEmpty) {
+					// 允許儲存空內容，但可以在此處添加邏輯（如果需要）
+				}
+			};
+			if (data.answer.TW) {
+				validateTiptap(data.answer.TW, "繁體中文答案 (TW)");
+			}
+			if (data.answer.EN) {
+				validateTiptap(data.answer.EN, "英文答案 (EN)");
+			}
+		}
 		if (!data.author && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "作者為必填");
-		if (!data.category && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "分類為必填");
+		if (!data.category?.main && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "主分類為必填");
 
 		if (userRole !== Permissions.ADMIN) {
 			if (!isUpdate) data.isActive = false;
