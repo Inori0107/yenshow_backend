@@ -154,7 +154,7 @@
             </tr>
             <tr v-if="!newsStore.items || newsStore.items.length === 0">
               <td
-                colspan="10"
+                colspan="9"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -171,6 +171,7 @@
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
               <th class="py-3 px-4 theme-text opacity-50">問題 (TW)</th>
+              <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
               <th class="py-3 px-4 theme-text opacity-50">主分類</th>
               <th class="py-3 px-4 theme-text opacity-50">子分類</th>
               <th class="py-3 px-4 theme-text opacity-50">作者</th>
@@ -189,6 +190,9 @@
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
               <td class="py-3 px-4 theme-text">{{ item.question?.TW || '-' }}</td>
+              <td class="py-3 px-4 theme-text">
+                {{ formatDate(item.publishDate || item.createdAt) }}
+              </td>
               <td class="py-3 px-4 theme-text">
                 {{
                   typeof item.category === 'object' && item.category
@@ -266,7 +270,7 @@
             </tr>
             <tr v-if="!faqStore.items || faqStore.items.length === 0">
               <td
-                colspan="10"
+                colspan="11"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -357,13 +361,12 @@ const fetchData = async () => {
   }
 }
 
-// 格式化日期 (僅用於 News)
+// 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString() // 使用本地化日期格式
-    // 或者使用更詳細的格式: return date.toLocaleString();
   } catch {
     return dateString // 如果轉換失敗，返回原始字串
   }

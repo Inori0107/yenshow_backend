@@ -7,7 +7,7 @@
     "dev": "nodemon app.js",
     "init-database": "node scripts/init-database.js",
     "create-admin": "node scripts/createInitialAdmin.js",
-    "import-products": "node scripts/import-products.js"
+    "migrate-product": "node scripts/migrate-product.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +21,7 @@
     "express": "^4.19.2",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.5.0",
+    "fs-extra": "^11.3.0",
     "google-auth-library": "^9.15.1",
     "googleapis": "^148.0.0",
     "helmet": "^8.1.0",

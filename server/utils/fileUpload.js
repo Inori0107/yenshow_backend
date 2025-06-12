@@ -306,45 +306,6 @@ class FileUpload {
 	}
 
 	/**
-	 * 刪除產品目錄
-	 * @param {Object} hierarchyData - 層級結構資料
-	 * @param {String} productCode - 產品代碼
-	 * @returns {Object} 包含刪除結果的物件
-	 */
-	deleteProductDirectories(hierarchyData, productCode) {
-		try {
-			if (!hierarchyData || !productCode) {
-				throw new ApiError(400, "缺少刪除產品目錄所需的 hierarchyData 或 productCode");
-			}
-			const { series, category, subCategory, specification } = hierarchyData;
-			if (!series || !category || !subCategory || !specification) {
-				throw new ApiError(400, "層級結構不完整，無法刪除產品目錄");
-			}
-
-			const entityContext = {
-				seriesName: series.name?.TW || "unknown",
-				categoryName: category.name?.TW || "unknown",
-				subCategoryName: subCategory.name?.TW || "unknown",
-				specificationName: specification.name?.TW || "unknown",
-				productCode: productCode
-			};
-
-			const deleteSuccess = this.deleteEntityDirectory("products", entityContext);
-
-			return {
-				success: deleteSuccess,
-				message: deleteSuccess ? `產品目錄 '${productCode}' 已成功刪除` : `產品目錄 '${productCode}' 刪除失敗`
-			};
-		} catch (error) {
-			console.error(`刪除產品目錄 '${productCode}' 失敗:`, error);
-			return {
-				success: false,
-				message: error.message || "刪除產品目錄時發生未知錯誤"
-			};
-		}
-	}
-
-	/**
 	 * 將 Web 路徑轉換為實體路徑
 	 * @param {String} webPath - Web 路徑
 	 * @returns {String} 實體路徑
@@ -382,15 +343,16 @@ class FileUpload {
 			throw new ApiError(400, "無效的檔案內容");
 		}
 
-		const { hierarchyData, productCode, fileName, fileType } = options;
+		const { hierarchyData, productCode, fileName, fileType, productId } = options;
 
 		// 檢查必要參數
-		if (!hierarchyData || !productCode || !fileName || !fileType) {
+		if (!hierarchyData || !productCode || !fileName || !fileType || !productId) {
 			const missingParams = [];
 			if (!hierarchyData) missingParams.push("hierarchyData");
 			if (!productCode) missingParams.push("productCode");
 			if (!fileName) missingParams.push("fileName");
 			if (!fileType) missingParams.push("fileType");
+			if (!productId) missingParams.push("productId");
 
 			throw new ApiError(400, `缺少必要參數: ${missingParams.join(", ")}`);
 		}
@@ -401,6 +363,8 @@ class FileUpload {
 
 		try {
 			const entityContext = {
+				id: productId, // Use ID for path generation
+				// The following are now just for the human-readable part of the path
 				seriesName: series.name?.TW || "unknown",
 				categoryName: category.name?.TW || "unknown",
 				subCategoryName: subCategory.name?.TW || "unknown",
@@ -508,24 +472,13 @@ class FileUpload {
 				const safeId = this.sanitizeFileName(entityContext.id.toString());
 				return safeId;
 			case "products":
-				if (
-					!entityContext ||
-					!entityContext.seriesName ||
-					!entityContext.categoryName ||
-					!entityContext.subCategoryName ||
-					!entityContext.specificationName ||
-					!entityContext.productCode
-				) {
-					throw new ApiError(400, "產品路徑上下文不完整");
+				if (!entityContext || !entityContext.id) {
+					console.error(`Context for ${entityType} must include 'id'. Received:`, entityContext);
+					throw new ApiError(400, "產品路徑上下文不完整，缺少 ID");
 				}
-				// 使用 .join('/') 以建立適合 Web 的路徑片段
-				return [
-					this.sanitizeFileName(entityContext.seriesName),
-					this.sanitizeFileName(entityContext.categoryName),
-					this.sanitizeFileName(entityContext.subCategoryName),
-					this.sanitizeFileName(entityContext.specificationName),
-					this.sanitizeFileName(entityContext.productCode)
-				].join("/");
+				// The primary directory is the product's unique ID.
+				const productIdDir = this.sanitizeFileName(entityContext.id.toString());
+				return productIdDir;
 			default:
 				throw new ApiError(500, `不支援的實體類型用於路徑生成: ${entityType}`);
 		}

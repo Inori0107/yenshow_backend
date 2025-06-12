@@ -16,7 +16,9 @@ const productSchema = new Schema(
 		code: {
 			type: String,
 			required: true,
+			unique: true,
 			trim: true,
+			index: true,
 			comment: "系列識別碼，用於系統識別和URL"
 		},
 		specifications: { type: Schema.Types.ObjectId, ref: "Specifications", required: true },
@@ -38,13 +40,52 @@ const productSchema = new Schema(
 		images: [{ type: String }],
 		documents: [{ type: String }],
 		videos: [{ type: String }],
-		isActive: { type: Boolean, default: false, index: true }
+		isActive: { type: Boolean, default: false, index: true },
+		slug: {
+			type: String,
+			unique: true,
+			sparse: true,
+			lowercase: true,
+			index: true
+		}
 	},
 	{
 		timestamps: true,
 		versionKey: false
 	}
 );
+
+// --- HOOKS ---
+productSchema.pre("save", async function (next) {
+	if ((this.isModified("code") || this.isNew) && this.code) {
+		const slugify = (text) =>
+			text
+				.toString()
+				.toLowerCase()
+				.replace(/\s+/g, "-") // Replace spaces with -
+				.replace(/[^\w\-]+/g, "") // Remove all non-word chars
+				.replace(/\-\-+/g, "-") // Replace multiple - with single -
+				.replace(/^-+/, "") // Trim - from start of text
+				.replace(/-+$/, ""); // Trim - from end of text
+
+		const Model = this.constructor;
+		const baseSlug = slugify(this.code);
+		let slug = baseSlug;
+		let counter = 1;
+
+		while (true) {
+			const existingDoc = await Model.findOne({ slug: slug });
+			if (!existingDoc || existingDoc._id.equals(this._id)) {
+				break;
+			}
+			counter++;
+			slug = `${baseSlug}-${counter}`;
+		}
+		this.slug = slug;
+	}
+	next();
+});
+// --- HOOKS END ---
 
 // --- 添加轉換配置 ---
 const transformOptions = {

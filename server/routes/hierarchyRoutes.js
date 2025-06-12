@@ -52,6 +52,11 @@ router.get(
 
 router.get("/products", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.getProducts);
 router.get("/products/search", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.searchProducts);
+router.get(
+	"/products/slug/:slug",
+	checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]),
+	ProductsController.getProductBySlug
+);
 router.get("/products/:id", checkRole([Permissions.ADMIN, Permissions.STAFF, Permissions.CLIENT, Permissions.PUBLIC]), ProductsController.getProductById);
 
 // 寫入操作 - 僅內部角色

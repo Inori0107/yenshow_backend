@@ -6,6 +6,33 @@
         'w-full max-w-2xl rounded-[10px] shadow-lg p-[24px] max-h-[90vh] overflow-y-auto relative',
       ]"
     >
+      <button
+        @click="closeModal"
+        class="absolute top-4 right-4 p-1.5 rounded-full transition-colors z-10"
+        :class="
+          conditionalClass(
+            'bg-gray-700 hover:bg-gray-600 text-white',
+            'bg-gray-200 hover:bg-gray-300 text-gray-800',
+          )
+        "
+        title="關閉"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
       <h2
         class="text-[16px] lg:text-[24px] font-bold text-center mb-[12px] lg:mb-[24px] theme-text"
       >

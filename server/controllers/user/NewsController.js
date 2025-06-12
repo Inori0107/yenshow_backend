@@ -84,6 +84,24 @@ class NewsController extends EntityController {
 		}
 	}
 
+	getAllItems = async (req, res, next) => {
+		try {
+			const query = {};
+			const userRole = req.accessContext?.userRole;
+
+			if (userRole !== Permissions.ADMIN && userRole !== Permissions.STAFF) {
+				query.isActive = true;
+			}
+
+			const items = await this.model.find(query).sort({ publishDate: -1, createdAt: -1 });
+
+			const formattedItems = items.map((item) => this.entityService.formatOutput(item));
+			this._sendResponse(res, StatusCodes.OK, `消息列表獲取成功`, { [this.responseKey]: formattedItems });
+		} catch (error) {
+			this._handleError(error, "獲取列表", next);
+		}
+	};
+
 	getItemBySlug = async (req, res, next) => {
 		try {
 			const { slug } = req.params;
