@@ -436,9 +436,17 @@ class ProductsController {
 			const newDocumentUrls = (await Promise.all(pendingDocuments.map((file) => saveFile(file, "documents")))).filter(Boolean);
 			const newVideoUrls = (await Promise.all(pendingVideos.map((file) => saveFile(file, "videos")))).filter(Boolean);
 
-			updatePayload.images = (updatePayload.images || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newImageUrls);
-			updatePayload.documents = (updatePayload.documents || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newDocumentUrls);
-			updatePayload.videos = (updatePayload.videos || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newVideoUrls);
+			if (updatePayload.images !== undefined) {
+				updatePayload.images = (updatePayload.images || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newImageUrls);
+			}
+			if (updatePayload.documents !== undefined) {
+				updatePayload.documents = (updatePayload.documents || [])
+					.filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_"))
+					.concat(newDocumentUrls);
+			}
+			if (updatePayload.videos !== undefined) {
+				updatePayload.videos = (updatePayload.videos || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newVideoUrls);
+			}
 
 			// 4. 更新產品: Apply updates to the existing item
 			Object.keys(updatePayload).forEach((key) => {
@@ -873,27 +881,43 @@ class ProductsController {
 		// Manage file arrays
 		if (isUpdate) {
 			// Only manage existing files if updating
-			data.images = this._manageProductFileArray(
+			const updatedImages = this._manageProductFileArray(
 				data.images, // client-sent array from payload
 				existingProduct?.images,
 				data._pendingImages,
 				imagePathsToDelete,
 				imageMarkerPrefix
 			);
-			data.documents = this._manageProductFileArray(
+			if (updatedImages !== undefined) {
+				data.images = updatedImages;
+			} else {
+				delete data.images;
+			}
+
+			const updatedDocuments = this._manageProductFileArray(
 				data.documents, // client-sent array from payload
 				existingProduct?.documents,
 				data._pendingDocuments,
 				documentPathsToDelete,
 				documentMarkerPrefix
 			);
-			data.videos = this._manageProductFileArray(
+			if (updatedDocuments !== undefined) {
+				data.documents = updatedDocuments;
+			} else {
+				delete data.documents;
+			}
+			const updatedVideos = this._manageProductFileArray(
 				data.videos, // client-sent array from payload
 				existingProduct?.videos,
 				data._pendingVideos,
 				videoPathsToDelete,
 				videoMarkerPrefix
 			);
+			if (updatedVideos !== undefined) {
+				data.videos = updatedVideos;
+			} else {
+				delete data.videos;
+			}
 		} else {
 			// For create, initialize as empty arrays, will be populated after upload
 			data.images = [];
@@ -911,6 +935,9 @@ class ProductsController {
 	}
 
 	_manageProductFileArray(clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) {
+		if (clientUrls === undefined) {
+			return undefined;
+		}
 		const validClientKeptUrls = [];
 		if (Array.isArray(clientUrls)) {
 			clientUrls.forEach((url) => {

@@ -44,24 +44,6 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-          </svg>
-
-          <!-- 產品圖標 -->
-          <svg
-            v-else-if="link.name === 'series'"
-            class="w-[36px] lg:w-[48px] aspect-square"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <path d="M16 10a4 4 0 0 1-8 0"></path>
@@ -84,6 +66,24 @@
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
             <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+
+          <!-- 用戶管理圖標 -->
+          <svg
+            v-else-if="link.name === 'admin'"
+            class="w-[36px] lg:w-[48px] aspect-square"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
 
           <span>{{ link.text }}</span>
@@ -159,16 +159,6 @@
             >
               {{ isAdmin ? '管理員' : '一般用戶' }}
             </div>
-
-            <router-link
-              v-if="isAdmin"
-              to="/admin"
-              class="block px-[12px] py-[6px] text-[16px] transition-colors w-full text-left"
-              :class="conditionalClass('hover:bg-gray-700', 'hover:bg-slate-100')"
-              @click="closeUserMenu"
-            >
-              用戶管理
-            </router-link>
 
             <router-link
               to="/change-password"
@@ -270,11 +260,16 @@ const isDarkTheme = computed(() => theme.value === 'dark')
 const toggleTheme = themeStore.toggleTheme
 
 // 導航連結配置 - 使用 computed 讓它能夠更靈活地根據狀態變化
-const navLinks = computed(() => [
-  { to: '/', name: 'home', text: '首頁', icon: '/Dashboard.svg' },
-  { to: '/series', name: 'series', text: '產品', icon: '/Products.svg' },
-  { to: '/contentManagement', name: 'contentManagement', text: '專欄', icon: '/News.svg' },
-])
+const navLinks = computed(() => {
+  const links = [
+    { to: '/', name: 'home', text: '產品' },
+    { to: '/contentManagement', name: 'contentManagement', text: '專欄' },
+  ]
+  if (isAdmin.value) {
+    links.push({ to: '/admin', name: 'admin', text: '用戶' })
+  }
+  return links
+})
 
 // 控制狀態
 const showUserMenu = ref(false)
@@ -285,9 +280,9 @@ const closeUserMenu = () => (showUserMenu.value = false)
 
 // 檢查當前路由
 const isActiveRoute = (name) => {
-  // 特別處理 series 路由
-  if (name === 'series') {
-    return route.path.startsWith('/series')
+  // 特別處理 home 路由 (現在是 series)
+  if (name === 'home') {
+    return ['home', 'series-category'].includes(route.name)
   }
   return route.name === name
 }
@@ -309,10 +304,12 @@ const checkUserStatus = async () => {
   try {
     await userStore.profile()
   } catch (error) {
-    if (error?.response?.status === 401) {
-      await userStore.logout()
-      router.push('/login')
-    }
+    // 只要檢查狀態失敗，就視為登入無效
+    console.error('檢查使用者狀態時發生錯誤，將引導至登入頁面:', error)
+    notify.notifyError('連線階段已過期或無效，請重新登入。')
+    await userStore.logout()
+    // 使用 window.location.href 確保頁面完全刷新，清除所有舊狀態
+    window.location.href = '/login'
   }
 }
 

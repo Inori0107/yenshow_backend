@@ -55,13 +55,12 @@
               <!-- 電子郵件 -->
               <div>
                 <label for="email" class="block text-sm font-medium mb-2 theme-text"
-                  >電子郵件 *</label
+                  >電子郵件</label
                 >
                 <input
                   type="email"
                   id="email"
                   v-model="formData.email"
-                  required
                   :class="[
                     inputClass,
                     'w-full px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500',
@@ -313,8 +312,8 @@ watch(
 
 const validateForm = () => {
   // 必填欄位檢查
-  if (!formData.account || !formData.email || !formData.password) {
-    error.value = '帳號、信箱和密碼為必填欄位'
+  if (!formData.account || !formData.password) {
+    error.value = '帳號和密碼為必填欄位'
     return false
   }
 
@@ -324,8 +323,8 @@ const validateForm = () => {
     return false
   }
 
-  // Email 格式檢查
-  if (!validator.isEmail(formData.email)) {
+  // Email 格式檢查（如果有填寫的話）
+  if (formData.email && !validator.isEmail(formData.email)) {
     error.value = '無效的 email 格式'
     return false
   }

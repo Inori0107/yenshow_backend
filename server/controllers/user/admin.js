@@ -31,8 +31,8 @@ export const createUser = async (req, res, next) => {
 		const { account, email, password, role, ...additionalInfo } = req.body;
 
 		// 基本驗證
-		if (!account || !password || !email || !role) {
-			throw ApiError.badRequest("帳號、密碼、郵箱和角色為必填欄位");
+		if (!account || !password || !role) {
+			throw ApiError.badRequest("帳號、密碼和角色為必填欄位");
 		}
 
 		// 角色驗證

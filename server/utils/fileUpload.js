@@ -206,7 +206,9 @@ class FileUpload {
 	generateUniqueFileName(originalName, prefix = "") {
 		const ext = path.extname(originalName);
 		const baseName = path.basename(originalName, ext);
-		return `${prefix ? prefix + "_" : ""}${baseName}${ext}`;
+		// 清理基本檔名並添加時間戳以確保唯一性
+		const sanitizedBaseName = this.sanitizeFileName(baseName);
+		return `${prefix ? prefix + "_" : ""}${sanitizedBaseName}${ext}`;
 	}
 
 	/**

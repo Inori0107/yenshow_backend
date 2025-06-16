@@ -12,18 +12,12 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/series',
       component: () => import('@/views/SeriesView.vue'),
       meta: { requiresAuth: true },
       children: [
         {
           path: '',
-          name: 'series',
+          name: 'home',
           redirect: { name: 'series-category', params: { seriesCode: 'default' } },
         },
         {
@@ -50,7 +44,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true },
     },
   ],
 })

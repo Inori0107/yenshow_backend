@@ -82,6 +82,7 @@ export const sendContactEmail = async (contactFormData, files = []) => {
 		const { data, error } = await resend.emails.send({
 			from: fromEmail,
 			to: [process.env.CONTACT_EMAIL_RECIPIENT], // 收件人地址，Resend 接受陣列
+			cc: process.env.CONTACT_EMAIL_CC ? process.env.CONTACT_EMAIL_CC.split(",").map((e) => e.trim()) : undefined,
 			subject: mailSubject,
 			html: mailHtml,
 			text: mailText,

@@ -2,7 +2,6 @@
   <div class="container mx-auto py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold mb-4 theme-text">內容管理</h1>
-      <p :class="conditionalClass('text-gray-400', 'text-slate-500')">管理最新消息與常見問題</p>
     </div>
 
     <!-- Tab 切換按鈕 -->
