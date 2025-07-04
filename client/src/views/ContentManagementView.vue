@@ -90,7 +90,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in newsStore.items"
+              v-for="item in pagedItems"
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
@@ -162,6 +162,36 @@
             </tr>
           </tbody>
         </table>
+        <!-- 分頁控制 -->
+        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
+          <button
+            @click="changePage(pagination.currentPage - 1)"
+            :disabled="pagination.currentPage === 1"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            上一頁
+          </button>
+          <span class="px-3 py-1 theme-text">
+            {{ pagination.currentPage }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="changePage(pagination.currentPage + 1)"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            下一頁
+          </button>
+        </div>
       </div>
 
       <!-- 常見問題列表 -->
@@ -184,7 +214,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in faqStore.items"
+              v-for="item in pagedItems"
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
@@ -278,6 +308,36 @@
             </tr>
           </tbody>
         </table>
+        <!-- 分頁控制 -->
+        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
+          <button
+            @click="changePage(pagination.currentPage - 1)"
+            :disabled="pagination.currentPage === 1"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            上一頁
+          </button>
+          <span class="px-3 py-1 theme-text">
+            {{ pagination.currentPage }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="changePage(pagination.currentPage + 1)"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            下一頁
+          </button>
+        </div>
       </div>
     </div>
 
@@ -298,7 +358,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useNewsStore } from '@/stores/newsStore'
 import { useFaqStore } from '@/stores/faqStore'
 import { useThemeClass } from '@/composables/useThemeClass'
@@ -320,6 +380,54 @@ const editingItem = ref(null) // 正在編輯的項目 (News 或 Faq)
 
 // 操作狀態追蹤
 const deletingItem = ref(null) // 正在刪除的項目 ID
+
+// 分頁狀態
+const pagination = ref({
+  currentPage: 1,
+  itemsPerPage: 10,
+  totalPages: 1,
+})
+
+// 依據 activeTab 決定分頁資料來源
+const pagedItems = computed(() => {
+  let list = []
+  if (activeTab.value === 'news') {
+    list = newsStore.items || []
+  } else if (activeTab.value === 'faq') {
+    list = faqStore.items || []
+  }
+  const start = (pagination.value.currentPage - 1) * pagination.value.itemsPerPage
+  const end = start + pagination.value.itemsPerPage
+  return list.slice(start, end)
+})
+
+// 監聽資料或 activeTab 變化時，重設分頁
+watch(
+  [() => newsStore.items, () => faqStore.items, activeTab],
+  () => {
+    let total = 0
+    if (activeTab.value === 'news') {
+      total = newsStore.items ? newsStore.items.length : 0
+    } else if (activeTab.value === 'faq') {
+      total = faqStore.items ? faqStore.items.length : 0
+    }
+    pagination.value.totalPages = Math.ceil(total / pagination.value.itemsPerPage) || 1
+    if (pagination.value.currentPage > pagination.value.totalPages) {
+      pagination.value.currentPage = pagination.value.totalPages
+    }
+    if (pagination.value.currentPage < 1) {
+      pagination.value.currentPage = 1
+    }
+  },
+  { immediate: true },
+)
+
+// 切換分頁
+const changePage = (page) => {
+  if (page < 1 || page > pagination.value.totalPages || page === pagination.value.currentPage)
+    return
+  pagination.value.currentPage = page
+}
 
 // 根據 activeTab 獲取對應的 store
 const currentStore = () => {

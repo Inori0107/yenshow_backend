@@ -157,7 +157,7 @@
                 conditionalClass('border-gray-700 text-gray-300', 'border-slate-100 text-slate-500')
               "
             >
-              {{ isAdmin ? '管理員' : '一般用戶' }}
+              {{ isAdmin ? '管理員' : '員工' }}
             </div>
 
             <router-link
@@ -252,7 +252,7 @@ const { toggleSearch } = useGlobalSearch()
 const { conditionalClass } = useThemeClass()
 
 // 使用 storeToRefs 獲取響應式的用戶狀態
-const { isLogin, isAdmin, account } = storeToRefs(userStore)
+const { isLogin, isAdmin, isStaff, account } = storeToRefs(userStore)
 
 // 主題相關
 const { theme } = storeToRefs(themeStore)
@@ -265,7 +265,7 @@ const navLinks = computed(() => {
     { to: '/', name: 'home', text: '產品' },
     { to: '/contentManagement', name: 'contentManagement', text: '專欄' },
   ]
-  if (isAdmin.value) {
+  if (isAdmin.value || isStaff.value) {
     links.push({ to: '/admin', name: 'admin', text: '用戶' })
   }
   return links

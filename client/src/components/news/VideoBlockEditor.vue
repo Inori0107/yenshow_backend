@@ -212,27 +212,6 @@ const hasExternalHttpUrl = computed(
   () => props.blockData.videoEmbedUrl && props.blockData.videoEmbedUrl.startsWith('http'),
 )
 
-// Watch for debugging
-watch(
-  () => props.blockData,
-  (newVal /* oldVal */) => {
-    console.log('VideoBlockEditor: blockData changed')
-    if (newVal) {
-      console.log('New blockData._previewVideoUrl:', newVal._previewVideoUrl)
-      console.log('New blockData.videoEmbedUrl:', newVal.videoEmbedUrl)
-      console.log(
-        'New blockData._newVideoFile:',
-        newVal._newVideoFile ? newVal._newVideoFile.name : null,
-      )
-    }
-    // Optional: Log old values if needed for comparison
-    // if (oldVal) {
-    //    console.log('Old blockData._previewVideoUrl:', oldVal._previewVideoUrl);
-    // }
-  },
-  { deep: true, immediate: true },
-)
-
 const currentVideoFileName = computed(() => {
   if (props.blockData._newVideoFile) return props.blockData._newVideoFile.name
   if (
@@ -294,23 +273,29 @@ watch(
 )
 
 const triggerVideoFileInput = () => {
-  console.log('VideoInputRef before click:', videoInputRef.value)
   videoInputRef.value?.click()
 }
 
 const handleUrlInput = (value) => {
-  // When user types in URL field, we assume they want to use a URL, not a file.
-  // Clear any selected file if URL is entered.
-  let newBlockData = {
-    videoEmbedUrl: value.trim(),
+  const trimmedValue = value.trim()
+  if (!trimmedValue) {
+    emitUpdate({
+      videoEmbedUrl: null,
+      _newVideoFile: null,
+      _previewVideoUrl: null,
+    })
+    return
+  }
+
+  // Attempt to convert to an embeddable URL immediately
+  const embeddableUrl = getEmbeddableUrl(trimmedValue)
+  const finalUrl = embeddableUrl || trimmedValue // Use converted URL if successful, otherwise keep original for user to correct
+
+  emitUpdate({
+    videoEmbedUrl: finalUrl,
     _newVideoFile: null,
     _previewVideoUrl: null,
-  }
-  if (!value.trim()) {
-    // If URL is cleared, reset to allow file upload
-    newBlockData.videoEmbedUrl = null
-  }
-  emitUpdate(newBlockData)
+  })
 }
 
 const handleVideoFileChange = (event) => {
@@ -382,26 +367,28 @@ const emitUpdate = (newDataChanges) => {
 // Renamed function to avoid conflict with computed prop
 const getEmbeddableUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('/storage/')) return url // Already a local server path
-  if (url.startsWith('blob:')) return url // Already a blob
 
-  let youtubeMatch = url.match(
-    /^https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-  )
+  // YouTube: Grabs ID from youtu.be, youtube.com/watch, youtube.com/embed, and shorts
+  const youtubeRegex =
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  const youtubeMatch = url.match(youtubeRegex)
   if (youtubeMatch && youtubeMatch[1]) {
     return `https://www.youtube.com/embed/${youtubeMatch[1]}`
   }
 
-  let vimeoMatch = url.match(/^https?:\/\/(?:www\.)?vimeo\.com\/(\d+)/)
+  // Vimeo: Grabs ID from vimeo.com
+  const vimeoRegex = /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/
+  const vimeoMatch = url.match(vimeoRegex)
   if (vimeoMatch && vimeoMatch[1]) {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}`
   }
 
-  if (url.includes('/embed/')) {
+  // If it's already an embed link, return it as is.
+  if (isEmbedLink(url)) {
     return url
   }
 
-  return null
+  return null // Return null if no valid embeddable URL can be created
 }
 
 const clearExternalUrl = () => {

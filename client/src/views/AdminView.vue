@@ -103,7 +103,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="user in userList"
+              v-for="user in pagedUsers"
               :key="user._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
@@ -150,32 +150,11 @@
               <td class="py-3 px-4">
                 <div class="flex gap-2">
                   <button
-                    @click="handleResetPassword(user._id)"
-                    :disabled="passwordResetting === user._id"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span
-                      v-if="passwordResetting === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    重置密碼
-                  </button>
-                  <button
                     v-if="user.role !== 'admin'"
-                    @click="handleStatusToggle(user)"
-                    :class="
-                      user.isActive
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    "
-                    :disabled="statusLoading === user._id"
-                    class="px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
+                    @click="handleEditUser(user)"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer"
                   >
-                    <span
-                      v-if="statusLoading === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    {{ user.isActive ? '停用' : '啟用' }}
+                    編輯
                   </button>
                   <button
                     v-if="user.role !== 'admin'"
@@ -194,6 +173,36 @@
             </tr>
           </tbody>
         </table>
+        <!-- 分頁控制 -->
+        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
+          <button
+            @click="changePage(pagination.currentPage - 1)"
+            :disabled="pagination.currentPage === 1"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            上一頁
+          </button>
+          <span class="px-3 py-1 theme-text">
+            {{ pagination.currentPage }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="changePage(pagination.currentPage + 1)"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            下一頁
+          </button>
+        </div>
       </div>
 
       <!-- 客戶列表 -->
@@ -211,7 +220,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="user in filteredUsers('client')"
+              v-for="user in pagedUsers"
               :key="user._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
@@ -237,31 +246,11 @@
               <td class="py-3 px-4">
                 <div class="flex gap-2">
                   <button
-                    @click="handleResetPassword(user._id)"
-                    :disabled="passwordResetting === user._id"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
+                    v-if="user.role !== 'admin'"
+                    @click="handleEditUser(user)"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer"
                   >
-                    <span
-                      v-if="passwordResetting === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    重置密碼
-                  </button>
-                  <button
-                    @click="handleStatusToggle(user)"
-                    :class="
-                      user.isActive
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    "
-                    :disabled="statusLoading === user._id"
-                    class="px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span
-                      v-if="statusLoading === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    {{ user.isActive ? '停用' : '啟用' }}
+                    編輯
                   </button>
                   <button
                     @click="handleDeleteUser(user)"
@@ -279,6 +268,36 @@
             </tr>
           </tbody>
         </table>
+        <!-- 分頁控制 -->
+        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
+          <button
+            @click="changePage(pagination.currentPage - 1)"
+            :disabled="pagination.currentPage === 1"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            上一頁
+          </button>
+          <span class="px-3 py-1 theme-text">
+            {{ pagination.currentPage }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="changePage(pagination.currentPage + 1)"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            下一頁
+          </button>
+        </div>
       </div>
 
       <!-- 員工列表 -->
@@ -295,7 +314,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="user in filteredUsers('staff')"
+              v-for="user in pagedUsers"
               :key="user._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
@@ -328,49 +347,13 @@
               <td class="py-3 px-4 theme-text">{{ user.staffInfo?.department || '-' }}</td>
               <td class="py-3 px-4 theme-text">{{ user.staffInfo?.position || '-' }}</td>
               <td class="py-3 px-4">
-                <span
-                  :class="
-                    user.isActive
-                      ? conditionalClass(
-                          'bg-green-500/20 text-green-300',
-                          'bg-green-100 text-green-700',
-                        )
-                      : conditionalClass('bg-red-500/20 text-red-300', 'bg-red-100 text-red-700')
-                  "
-                  class="px-2 py-1 rounded-full text-sm"
-                >
-                  {{ user.isActive ? '啟用' : '停用' }}
-                </span>
-              </td>
-              <td class="py-3 px-4">
                 <div class="flex gap-2">
                   <button
-                    @click="handleResetPassword(user._id)"
-                    :disabled="passwordResetting === user._id"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span
-                      v-if="passwordResetting === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    重置密碼
-                  </button>
-                  <button
                     v-if="user.role !== 'admin'"
-                    @click="handleStatusToggle(user)"
-                    :class="
-                      user.isActive
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    "
-                    :disabled="statusLoading === user._id"
-                    class="px-3 py-1 rounded text-sm transition cursor-pointer flex items-center gap-1"
+                    @click="handleEditUser(user)"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition cursor-pointer"
                   >
-                    <span
-                      v-if="statusLoading === user._id"
-                      class="animate-spin h-3 w-3 border-b-2 border-white rounded-full"
-                    ></span>
-                    {{ user.isActive ? '停用' : '啟用' }}
+                    編輯
                   </button>
                   <button
                     v-if="user.role !== 'admin'"
@@ -389,6 +372,36 @@
             </tr>
           </tbody>
         </table>
+        <!-- 分頁控制 -->
+        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
+          <button
+            @click="changePage(pagination.currentPage - 1)"
+            :disabled="pagination.currentPage === 1"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            上一頁
+          </button>
+          <span class="px-3 py-1 theme-text">
+            {{ pagination.currentPage }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="changePage(pagination.currentPage + 1)"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            :class="
+              conditionalClass(
+                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+              )
+            "
+          >
+            下一頁
+          </button>
+        </div>
       </div>
     </div>
 
@@ -398,13 +411,16 @@
       :default-role="
         activeTab === 'clients' ? 'client' : activeTab === 'staff' ? 'staff' : 'client'
       "
+      :is-editing="isEditing"
+      :edit-user-data="editingUser"
       @user-created="refreshUserList"
+      @update:show="handleModalClose"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { useThemeClass } from '@/composables/useThemeClass'
 import CreateUserModal from '@/components/CreateUserModal.vue'
@@ -422,9 +438,61 @@ const showCreateUserModal = ref(false)
 const activeTab = ref('all') // 新增：當前標籤頁，預設為全部用戶
 
 // 操作狀態追蹤
-const statusLoading = ref(null) // 正在變更狀態的用戶ID
-const passwordResetting = ref(null) // 正在重設密碼的用戶ID
 const deletingUser = ref(null) // 正在刪除的用戶ID
+const editingUser = ref(null)
+const isEditing = ref(false)
+
+// 分頁狀態
+const pagination = ref({
+  currentPage: 1,
+  itemsPerPage: 10, // 每頁顯示10筆
+  totalPages: 1,
+})
+
+// 依據 activeTab 決定分頁資料來源
+const pagedUsers = computed(() => {
+  let list = []
+  if (activeTab.value === 'all') {
+    list = userList.value
+  } else if (activeTab.value === 'clients') {
+    list = filteredUsers('client')
+  } else if (activeTab.value === 'staff') {
+    list = filteredUsers('staff')
+  }
+  const start = (pagination.value.currentPage - 1) * pagination.value.itemsPerPage
+  const end = start + pagination.value.itemsPerPage
+  return list.slice(start, end)
+})
+
+// 監聽 userList 或 activeTab 變化時，重設分頁
+watch(
+  [userList, activeTab],
+  () => {
+    let total = 0
+    if (activeTab.value === 'all') {
+      total = userList.value.length
+    } else if (activeTab.value === 'clients') {
+      total = filteredUsers('client').length
+    } else if (activeTab.value === 'staff') {
+      total = filteredUsers('staff').length
+    }
+    pagination.value.totalPages = Math.ceil(total / pagination.value.itemsPerPage) || 1
+    if (pagination.value.currentPage > pagination.value.totalPages) {
+      pagination.value.currentPage = pagination.value.totalPages
+    }
+    if (pagination.value.currentPage < 1) {
+      pagination.value.currentPage = 1
+    }
+  },
+  { immediate: true },
+)
+
+// 切換分頁
+const changePage = (page) => {
+  if (page < 1 || page > pagination.value.totalPages || page === pagination.value.currentPage)
+    return
+  pagination.value.currentPage = page
+}
 
 // 根據角色過濾用戶
 const filteredUsers = (role) => {
@@ -476,53 +544,24 @@ const fetchUsers = async () => {
 }
 
 // 處理用戶狀態切換
-const handleStatusToggle = async (user) => {
+const handleEditUser = async (user) => {
   if (user.role === 'admin') {
-    notify.notifyWarning('無法停用管理員帳號')
+    notify.notifyWarning('無法編輯管理員帳號')
     return
   }
 
-  const action = user.isActive ? '停用' : '啟用'
-  if (!confirm(`確定要${action}該用戶嗎？`)) return
-
-  try {
-    statusLoading.value = user._id
-    const result = user.isActive
-      ? await userStore.deactivateUser(user._id)
-      : await userStore.activateUser(user._id)
-
-    console.log(`${action}操作結果:`, result)
-    notify.notifySuccess(`${action}用戶成功`)
-    await refreshUserList()
-  } catch (error) {
-    console.error(`${user.isActive ? '停用' : '啟用'}用戶失敗:`, error)
-    notify.notifyError(typeof error === 'string' ? error : '操作失敗，請稍後再試')
-  } finally {
-    statusLoading.value = null
-  }
+  // 開啟編輯模式
+  editingUser.value = user
+  isEditing.value = true
+  showCreateUserModal.value = true
 }
 
-// 處理重置密碼
-const handleResetPassword = async (userId) => {
-  if (!confirm('確定要重置該用戶的密碼嗎？')) return
-
-  try {
-    passwordResetting.value = userId
-    console.log('正在重置密碼...')
-    const result = await userStore.resetUserPassword(userId)
-    console.log('重置密碼結果:', result)
-
-    if (result && result.success) {
-      notify.notifySuccess(`密碼重置成功，新密碼：${result.newPassword}`)
-      await refreshUserList()
-    } else {
-      throw new Error(result?.message || '重置密碼失敗')
-    }
-  } catch (error) {
-    console.error('重置密碼過程中發生錯誤:', error)
-    notify.notifyError(typeof error === 'string' ? error : '重置密碼失敗，請稍後再試')
-  } finally {
-    passwordResetting.value = null
+// 處理 Modal 關閉
+const handleModalClose = (show) => {
+  if (!show) {
+    // 重置編輯狀態
+    editingUser.value = null
+    isEditing.value = false
   }
 }
 

@@ -17,6 +17,7 @@ import hierarchyRoutes from "./routes/hierarchyRoutes.js";
 import faqRoutes from "./routes/faq.js";
 import newsRoutes from "./routes/news.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import lineRoutes from "./routes/line.js";
 // 導入模型 - 僅用於初始化檢查，確保模型正確載入
 import "./models/products.js";
 import "./models/categories.js";
@@ -38,6 +39,9 @@ const configureApp = () => {
 
 	// 基本安全性設定
 	app.use(helmet());
+
+	// LINE Webhook 必須在 express.json() 之前，以保留 raw body 進行簽名驗證
+	app.use("/api/line", lineRoutes);
 
 	// 添加請求大小限制
 	app.use(express.json({ limit: "50mb" }));
