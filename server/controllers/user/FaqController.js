@@ -35,9 +35,9 @@ class FaqController extends EntityController {
 			const query = {};
 			const userRole = req.accessContext?.userRole;
 
-			if (userRole !== Permissions.ADMIN && userRole !== Permissions.STAFF) {
-				query.isActive = true;
-			}
+			// if (userRole !== Permissions.ADMIN && userRole !== Permissions.STAFF) {
+			// 	query.isActive = true;
+			// }
 
 			// Get all items and sort by publishDate descending, then createdAt descending
 			const items = await this.model.find(query).sort({ publishDate: -1, createdAt: -1 });

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="min-h-[300px]">
     <!-- 表頭 -->
     <div
       class="grid grid-cols-5 justify-items-center items-center py-3 text-center text-[12px] lg:text-[16px] rounded-t-lg"
@@ -481,7 +481,7 @@ const targetSpecificationIds = computed(() => {
 
 // 計算選中的子分類標籤
 const selectedCategoriesLabel = computed(() => {
-  if (!selectedSubCategoriesId.value) return '全部子分類'
+  if (!selectedSubCategoriesId.value) return '子分類'
   const selected = subCategories.value.find((s) => s._id === selectedSubCategoriesId.value)
   if (!selected) return '選擇子分類' // Handle case where selected id might be invalid momentarily
   return getLocalizedField(selected, 'name', '未命名子分類', 'TW')

@@ -1,5 +1,4 @@
 import * as lineService from "../services/lineService.js";
-import { trackEvent } from "../services/analyticsService.js";
 
 /**
  * LINE Webhook Controller
@@ -24,30 +23,19 @@ export const webhook = async (req, res, next) => {
 };
 
 const handleEvent = async (event) => {
-	const { userId } = event.source;
-
 	if (event.type === "unfollow") {
-		trackEvent(userId, "unfollow_bot");
 		return lineService.handleUnfollow(event);
 	}
 
 	if (event.type === "follow") {
-		trackEvent(userId, "follow_bot");
 		return lineService.handleFollow(event);
 	}
 
 	if (event.type === "message" && event.message.type === "text") {
-		trackEvent(userId, "receive_text_message", {
-			message_length: event.message.text.length,
-			message_text: event.message.text
-		});
 		return lineService.handleMessage(event);
 	}
 
 	if (event.type === "postback") {
-		trackEvent(userId, "postback_received", {
-			postback_data: event.postback.data
-		});
 		return lineService.handlePostback(event);
 	}
 

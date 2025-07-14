@@ -91,6 +91,64 @@
           清除顏色
         </button>
       </div>
+
+      <!-- Table Group -->
+      <div class="toolbar-button-group flex flex-wrap items-center gap-1 text-[13px] col-span-full">
+        <label :class="['toolbar-label', conditionalClass('text-gray-400', 'text-gray-600')]">
+          表格：
+        </label>
+        <button
+          type="button"
+          @click="
+            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+          "
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          插入表格
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().toggleHeaderRow().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          標題行
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().addColumnAfter().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          右增列
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().deleteColumn().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          刪除列
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().addRowAfter().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          下增行
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().deleteRow().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          刪除行
+        </button>
+        <button
+          type="button"
+          @click="editor.chain().focus().deleteTable().run()"
+          :class="['toolbar-button', defaultButtonClass]"
+        >
+          刪除表格
+        </button>
+      </div>
     </div>
     <editor-content :editor="editor" class="tiptap-content-area" />
   </div>
@@ -107,6 +165,10 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
+import Table from '@tiptap/extension-table'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
+import TableRow from '@tiptap/extension-table-row'
 
 const props = defineProps({
   modelValue: {
@@ -173,6 +235,12 @@ const editor = useEditor({
     }),
     TextStyle,
     Color,
+    Table.configure({
+      resizable: true,
+    }),
+    TableRow,
+    TableHeader,
+    TableCell,
   ],
   editable: true,
   onUpdate: ({ editor: updatedEditor }) => {
@@ -375,5 +443,72 @@ html:not(.dark) .ProseMirror blockquote {
 html.dark .ProseMirror blockquote {
   border-left-color: #4b5563;
   color: #9ca3af;
+}
+
+/* Table styles */
+.ProseMirror table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  table-layout: fixed;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: none;
+  border-bottom: 1px solid;
+  padding: 0.5rem;
+  vertical-align: top;
+  position: relative;
+  text-align: left;
+}
+
+.ProseMirror th {
+  border-bottom-width: 3px;
+}
+
+/* Light mode styles */
+html:not(.dark) .ProseMirror th,
+html:not(.dark) .ProseMirror td {
+  border-color: #e5e7eb;
+}
+
+html:not(.dark) .ProseMirror th {
+  font-weight: 500;
+  color: #6b7280;
+  background-color: transparent;
+}
+
+/* Dark mode styles */
+html.dark .ProseMirror th,
+html.dark .ProseMirror td {
+  border-color: #4b5563;
+}
+
+html.dark .ProseMirror th {
+  font-weight: 500;
+  color: #9ca3af;
+  background-color: transparent;
+}
+
+.ProseMirror .selectedCell:after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(96, 165, 250, 0.2);
+  pointer-events: none;
+}
+
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #60a5fa;
+  pointer-events: none;
 }
 </style>

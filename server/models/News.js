@@ -55,7 +55,7 @@ const newsSchema = new Schema(
 			type: String,
 			required: [true, "分類為必填"],
 			enum: {
-				values: ["新聞稿", "小知識", "其他"],
+				values: ["智慧方案", "產品介紹", "品牌新聞"],
 				message: "無效的分類：{VALUE}"
 			}
 		},

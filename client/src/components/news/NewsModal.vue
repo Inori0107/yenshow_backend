@@ -183,9 +183,9 @@
                   :class="[inputClass, validationErrors.category ? 'border-red-500' : '']"
                 >
                   <option disabled value="" class="text-black/70">請選擇分類</option>
-                  <option value="新聞稿" class="text-black/70">新聞稿</option>
-                  <option value="小知識" class="text-black/70">小知識</option>
-                  <option value="其他" class="text-black/70">其他</option>
+                  <option value="智慧方案" class="text-black/70">智慧方案</option>
+                  <option value="產品介紹" class="text-black/70">產品介紹</option>
+                  <option value="品牌新聞" class="text-black/70">品牌新聞</option>
                 </select>
                 <p v-if="validationErrors.category" class="text-red-500 text-sm mt-1">
                   {{ validationErrors.category }}

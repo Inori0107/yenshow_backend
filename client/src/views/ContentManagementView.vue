@@ -77,15 +77,85 @@
         <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
-              <th class="py-3 px-4 theme-text opacity-50">標題 (TW)</th>
-              <th class="py-3 px-4 theme-text opacity-50">分類</th>
-              <th class="py-3 px-4 theme-text opacity-50">作者</th>
-              <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
-              <th class="py-3 px-4 theme-text opacity-50">封面圖</th>
-              <th class="py-3 px-4 theme-text opacity-50">圖片</th>
-              <th class="py-3 px-4 theme-text opacity-50">影片</th>
-              <th class="py-3 px-4 theme-text opacity-50">狀態</th>
-              <th class="py-3 px-4 theme-text opacity-50">操作</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">標題 (TW)</th>
+              <th class="py-3 px-4 lg:px-6 relative" ref="categoryDropdownRef">
+                <button
+                  @click="toggleCategoryDropdown"
+                  class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-[10px] transition-colors theme-text"
+                  :class="
+                    conditionalClass(
+                      'border-2 border-[#3F5069] hover:bg-[#3a434c]',
+                      'border-2 border-slate-300 bg-white hover:bg-slate-50',
+                    )
+                  "
+                  :disabled="newsCategories.length === 0"
+                >
+                  <span>{{ selectedNewsCategoryLabel }}</span>
+                  <svg
+                    v-if="newsCategories.length > 0"
+                    class="w-4 h-4 transition-transform"
+                    :class="{ 'rotate-180': isCategoryDropdownOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M19 9l-7 7-7-7"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  v-if="isCategoryDropdownOpen"
+                  :class="[
+                    cardClass,
+                    'absolute left-1/2 -translate-x-1/2 z-20 mt-2 min-w-[160px] rounded-lg shadow-xl max-h-60 overflow-y-auto text-left',
+                  ]"
+                >
+                  <div
+                    :class="conditionalClass('bg-gray-800/80', 'bg-white/80')"
+                    class="backdrop-blur-sm rounded-lg"
+                  >
+                    <button
+                      @click="selectNewsCategory(null)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>全部分類</span>
+                      <span v-if="!selectedNewsCategory" class="text-blue-400">✓</span>
+                    </button>
+                    <button
+                      v-for="category in newsCategories"
+                      :key="category"
+                      @click="selectNewsCategory(category)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>{{ category }}</span>
+                      <span v-if="selectedNewsCategory === category" class="text-blue-400">✓</span>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">作者</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">發布日期</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">封面圖</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">圖片</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">影片</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">狀態</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -94,34 +164,34 @@
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
-              <td class="py-3 px-4 theme-text max-w-[550px] truncate">
+              <td class="py-3 px-4 lg:px-6 theme-text max-w-[500px] truncate">
                 {{ item.title?.TW || '-' }}
               </td>
-              <td class="py-3 px-4 theme-text">{{ item.category || '-' }}</td>
-              <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
-              <td class="py-3 px-4 theme-text">{{ formatDate(item.publishDate) }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">{{ item.category || '-' }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">{{ item.author || '-' }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">{{ formatDate(item.publishDate) }}</td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'封面圖: ' + (item.coverImageUrl ? '✓' : '✗')"
                 :class="item.coverImageUrl ? 'text-green-500' : 'text-red-500'"
               >
                 {{ item.coverImageUrl ? '✓' : '✗' }}
               </td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'圖片: ' + (hasContentImages(item.content) ? '✓' : '✗')"
                 :class="hasContentImages(item.content) ? 'text-green-500' : 'text-red-500'"
               >
                 {{ hasContentImages(item.content) ? '✓' : '✗' }}
               </td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'影片: ' + (hasContentVideos(item.content) ? '✓' : '✗')"
                 :class="hasContentVideos(item.content) ? 'text-green-500' : 'text-red-500'"
               >
                 {{ hasContentVideos(item.content) ? '✓' : '✗' }}
               </td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 lg:px-6">
                 <span
                   :class="statusDisplayClass(item.status, item.isActive, 'news')"
                   class="px-2 py-1 rounded-full text-sm"
@@ -129,7 +199,7 @@
                   {{ getStatusLabel(item.status, item.isActive, 'news') }}
                 </span>
               </td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 lg:px-6">
                 <div class="flex gap-2 justify-center">
                   <button
                     @click="handleEditItem(item)"
@@ -162,36 +232,6 @@
             </tr>
           </tbody>
         </table>
-        <!-- 分頁控制 -->
-        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
-          <button
-            @click="changePage(pagination.currentPage - 1)"
-            :disabled="pagination.currentPage === 1"
-            :class="
-              conditionalClass(
-                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
-                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
-              )
-            "
-          >
-            上一頁
-          </button>
-          <span class="px-3 py-1 theme-text">
-            {{ pagination.currentPage }} / {{ pagination.totalPages }}
-          </span>
-          <button
-            @click="changePage(pagination.currentPage + 1)"
-            :disabled="pagination.currentPage === pagination.totalPages"
-            :class="
-              conditionalClass(
-                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
-                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
-              )
-            "
-          >
-            下一頁
-          </button>
-        </div>
       </div>
 
       <!-- 常見問題列表 -->
@@ -199,17 +239,16 @@
         <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
-              <th class="py-3 px-4 theme-text opacity-50">問題 (TW)</th>
-              <th class="py-3 px-4 theme-text opacity-50">發布日期</th>
-              <th class="py-3 px-4 theme-text opacity-50">主分類</th>
-              <th class="py-3 px-4 theme-text opacity-50">子分類</th>
-              <th class="py-3 px-4 theme-text opacity-50">作者</th>
-              <th class="py-3 px-4 theme-text opacity-50">產品型號</th>
-              <th class="py-3 px-4 theme-text opacity-50">圖片</th>
-              <th class="py-3 px-4 theme-text opacity-50">文件</th>
-              <th class="py-3 px-4 theme-text opacity-50">影片</th>
-              <th class="py-3 px-4 theme-text opacity-50">狀態</th>
-              <th class="py-3 px-4 theme-text opacity-50">操作</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">問題 (TW)</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">發布日期</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">主分類</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">作者</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">產品型號</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">圖片</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">文件</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">影片</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">狀態</th>
+              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -218,28 +257,23 @@
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
-              <td class="py-3 px-4 theme-text">{{ item.question?.TW || '-' }}</td>
-              <td class="py-3 px-4 theme-text">
+              <td class="py-3 px-4 lg:px-6 theme-text max-w-[500px] truncate">
+                {{ item.question?.TW || '-' }}
+              </td>
+              <td class="py-3 px-4 lg:px-6 theme-text">
                 {{ formatDate(item.publishDate || item.createdAt) }}
               </td>
-              <td class="py-3 px-4 theme-text">
+              <td class="py-3 px-4 lg:px-6 theme-text">
                 {{
                   typeof item.category === 'object' && item.category
                     ? item.category.main || '-'
                     : item.category || '-'
                 }}
               </td>
-              <td class="py-3 px-4 theme-text">
-                {{
-                  typeof item.category === 'object' && item.category
-                    ? item.category.sub || '-'
-                    : '-'
-                }}
-              </td>
-              <td class="py-3 px-4 theme-text">{{ item.author || '-' }}</td>
-              <td class="py-3 px-4 theme-text">{{ item.productModel || '-' }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">{{ item.author || '-' }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">{{ item.productModel || '-' }}</td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'圖片: ' + (item.imageUrl && item.imageUrl.length > 0 ? '✓' : '✗')"
                 :class="
                   item.imageUrl && item.imageUrl.length > 0 ? 'text-green-500' : 'text-red-500'
@@ -248,7 +282,7 @@
                 {{ item.imageUrl && item.imageUrl.length > 0 ? '✓' : '✗' }}
               </td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'文件: ' + (item.documentUrl && item.documentUrl.length > 0 ? '✓' : '✗')"
                 :class="
                   item.documentUrl && item.documentUrl.length > 0
@@ -259,7 +293,7 @@
                 {{ item.documentUrl && item.documentUrl.length > 0 ? '✓' : '✗' }}
               </td>
               <td
-                class="py-3 px-4"
+                class="py-3 px-4 lg:px-6"
                 :title="'影片: ' + (item.videoUrl && item.videoUrl.length > 0 ? '✓' : '✗')"
                 :class="
                   item.videoUrl && item.videoUrl.length > 0 ? 'text-green-500' : 'text-red-500'
@@ -267,7 +301,7 @@
               >
                 {{ item.videoUrl && item.videoUrl.length > 0 ? '✓' : '✗' }}
               </td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 lg:px-6">
                 <span
                   :class="statusDisplayClass(null, item.isActive, 'faq')"
                   class="px-2 py-1 rounded-full text-sm"
@@ -275,7 +309,7 @@
                   {{ getStatusLabel(null, item.isActive, 'faq') }}
                 </span>
               </td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 lg:px-6">
                 <div class="flex gap-2 justify-center">
                   <button
                     @click="handleEditItem(item)"
@@ -299,7 +333,7 @@
             </tr>
             <tr v-if="!faqStore.items || faqStore.items.length === 0">
               <td
-                colspan="11"
+                colspan="10"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -308,36 +342,41 @@
             </tr>
           </tbody>
         </table>
-        <!-- 分頁控制 -->
-        <div v-if="pagination.totalPages > 1" class="py-4 flex justify-center gap-2">
-          <button
-            @click="changePage(pagination.currentPage - 1)"
-            :disabled="pagination.currentPage === 1"
-            :class="
-              conditionalClass(
-                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
-                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
-              )
-            "
-          >
-            上一頁
-          </button>
-          <span class="px-3 py-1 theme-text">
-            {{ pagination.currentPage }} / {{ pagination.totalPages }}
-          </span>
-          <button
-            @click="changePage(pagination.currentPage + 1)"
-            :disabled="pagination.currentPage === pagination.totalPages"
-            :class="
-              conditionalClass(
-                'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
-                'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
-              )
-            "
-          >
-            下一頁
-          </button>
-        </div>
+      </div>
+
+      <!-- 共用的分頁控制 -->
+      <div
+        v-if="pagination.totalPages > 1"
+        class="py-4 flex justify-center gap-2 border-t"
+        :class="conditionalClass('border-white/10', 'border-slate-200')"
+      >
+        <button
+          @click="changePage(pagination.currentPage - 1)"
+          :disabled="pagination.currentPage === 1"
+          :class="
+            conditionalClass(
+              'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+              'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+            )
+          "
+        >
+          上一頁
+        </button>
+        <span class="px-3 py-1 theme-text">
+          {{ pagination.currentPage }} / {{ pagination.totalPages }}
+        </span>
+        <button
+          @click="changePage(pagination.currentPage + 1)"
+          :disabled="pagination.currentPage === pagination.totalPages"
+          :class="
+            conditionalClass(
+              'px-3 py-1 rounded bg-[#3F5069] disabled:opacity-50 disabled:cursor-not-allowed',
+              'px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed',
+            )
+          "
+        >
+          下一頁
+        </button>
       </div>
     </div>
 
@@ -358,7 +397,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useNewsStore } from '@/stores/newsStore'
 import { useFaqStore } from '@/stores/faqStore'
 import { useThemeClass } from '@/composables/useThemeClass'
@@ -378,6 +417,11 @@ const activeTab = ref('news') // 'news' or 'faq'
 const showModal = ref(false)
 const editingItem = ref(null) // 正在編輯的項目 (News 或 Faq)
 
+// 分類篩選相關狀態
+const categoryDropdownRef = ref(null)
+const isCategoryDropdownOpen = ref(false)
+const selectedNewsCategory = ref(null) // null 代表全部分類
+
 // 操作狀態追蹤
 const deletingItem = ref(null) // 正在刪除的項目 ID
 
@@ -388,14 +432,36 @@ const pagination = ref({
   totalPages: 1,
 })
 
+// 計算不重複的消息分類
+const newsCategories = computed(() => {
+  if (!newsStore.items) return []
+  const categories = newsStore.items.map((item) => item.category).filter(Boolean)
+  return [...new Set(categories)]
+})
+
+// 計算分類下拉選單的按鈕標籤
+const selectedNewsCategoryLabel = computed(() => {
+  return selectedNewsCategory.value || '分類'
+})
+
+// 根據 activeTab 和篩選條件決定列表資料
+const filteredItems = computed(() => {
+  if (activeTab.value === 'news') {
+    const items = newsStore.items || []
+    if (!selectedNewsCategory.value) {
+      return items
+    }
+    return items.filter((item) => item.category === selectedNewsCategory.value)
+  }
+  if (activeTab.value === 'faq') {
+    return faqStore.items || []
+  }
+  return []
+})
+
 // 依據 activeTab 決定分頁資料來源
 const pagedItems = computed(() => {
-  let list = []
-  if (activeTab.value === 'news') {
-    list = newsStore.items || []
-  } else if (activeTab.value === 'faq') {
-    list = faqStore.items || []
-  }
+  const list = filteredItems.value
   const start = (pagination.value.currentPage - 1) * pagination.value.itemsPerPage
   const end = start + pagination.value.itemsPerPage
   return list.slice(start, end)
@@ -403,23 +469,18 @@ const pagedItems = computed(() => {
 
 // 監聽資料或 activeTab 變化時，重設分頁
 watch(
-  [() => newsStore.items, () => faqStore.items, activeTab],
+  [filteredItems, activeTab],
   () => {
-    let total = 0
-    if (activeTab.value === 'news') {
-      total = newsStore.items ? newsStore.items.length : 0
-    } else if (activeTab.value === 'faq') {
-      total = faqStore.items ? faqStore.items.length : 0
-    }
+    const total = filteredItems.value.length
     pagination.value.totalPages = Math.ceil(total / pagination.value.itemsPerPage) || 1
     if (pagination.value.currentPage > pagination.value.totalPages) {
-      pagination.value.currentPage = pagination.value.totalPages
+      pagination.value.currentPage = pagination.value.totalPages || 1
     }
     if (pagination.value.currentPage < 1) {
       pagination.value.currentPage = 1
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 
 // 切換分頁
@@ -438,13 +499,39 @@ const currentStore = () => {
 const setActiveTab = async (tab) => {
   if (activeTab.value === tab) return
   activeTab.value = tab
+  // 切換 tab 時重置篩選
+  selectedNewsCategory.value = null
+  isCategoryDropdownOpen.value = false
   await fetchData()
+}
+
+// 分類下拉選單操作
+const toggleCategoryDropdown = () => {
+  isCategoryDropdownOpen.value = !isCategoryDropdownOpen.value
+}
+
+const selectNewsCategory = (category) => {
+  selectedNewsCategory.value = category
+  isCategoryDropdownOpen.value = false
+  pagination.value.currentPage = 1 // 篩選後回到第一頁
 }
 
 // 初始化載入
 onMounted(async () => {
   await fetchData()
+  document.addEventListener('click', handleClickOutside)
 })
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// 點擊外部關閉下拉選單
+const handleClickOutside = (event) => {
+  if (categoryDropdownRef.value && !categoryDropdownRef.value.contains(event.target)) {
+    isCategoryDropdownOpen.value = false
+  }
+}
 
 // 獲取數據
 const fetchData = async () => {
@@ -481,11 +568,8 @@ const formatDate = (dateString) => {
 
 // Helper function to get status label
 const getStatusLabel = (statusKey, isActive, type) => {
-  if (type === 'faq') {
+  if (type === 'faq' || type === 'news') {
     return isActive ? '已發布' : '待審查'
-  }
-  if (type === 'news') {
-    return isActive ? '已發布' : '待審查' // News 也根據 isActive 顯示
   }
   // Fallback or other types (if any)
   const statusMap = {
@@ -499,12 +583,9 @@ const getStatusLabel = (statusKey, isActive, type) => {
 // Helper function for status display class
 const statusDisplayClass = (status, isActive, type) => {
   if (type === 'faq' || type === 'news') {
-    // News 也根據 isActive 決定樣式
-    if (isActive) {
-      return conditionalClass('bg-green-500/30 text-green-300', 'bg-green-100 text-green-700') // Published
-    } else {
-      return conditionalClass('bg-yellow-500/30 text-yellow-300', 'bg-yellow-100 text-yellow-700') // Pending Review
-    }
+    return isActive
+      ? conditionalClass('bg-green-500/30 text-green-300', 'bg-green-100 text-green-700')
+      : conditionalClass('bg-yellow-500/30 text-yellow-300', 'bg-yellow-100 text-yellow-700')
   }
   switch (status) {
     case 'published':

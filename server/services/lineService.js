@@ -2,6 +2,7 @@ import { Client } from "@line/bot-sdk";
 import hierarchyService from "./HierarchyService.js";
 import { createProductNavigationMessage, createProductListMessage } from "../utils/lineFlexTemplates.js";
 import { transformProductImagePaths } from "../utils/urlTransformer.js";
+import { trackEvent } from "./analyticsService.js";
 
 // Initialize LINE SDK Client
 const client = new Client({
@@ -12,8 +13,9 @@ const client = new Client({
 /**
  * Fetches series and their respective categories, then sends a single Flex Message.
  * @param {string} replyToken - The reply token from the webhook event.
+ * @param {string} userId - The user's ID for analytics tracking.
  */
-const sendProductNavigation = async (replyToken) => {
+const sendProductNavigation = async (replyToken, userId) => {
 	try {
 		const hierarchy = await hierarchyService.getFullHierarchyData({
 			accessOptions: { filterActive: true },
@@ -26,6 +28,7 @@ const sendProductNavigation = async (replyToken) => {
 
 		const flexMessage = createProductNavigationMessage(hierarchy);
 		await client.replyMessage(replyToken, flexMessage);
+		trackEvent(userId, "view_product_navigation");
 	} catch (error) {
 		console.error("Failed to send product navigation:", error);
 		throw error;
@@ -66,13 +69,15 @@ function extractProductsFromCategoryTree(categoryNode) {
  * Sends a Flex Message containing a list of products for a specific category.
  * @param {string} replyToken - The reply token from the webhook event.
  * @param {string} categoryId - The ID of the category to get products for.
+ * @param {string} userId - The user's ID for analytics tracking.
  */
-const sendProductList = async (replyToken, categoryId) => {
+const sendProductList = async (replyToken, categoryId, userId) => {
 	try {
 		// 1. 使用 HierarchyService 獲取該分類下的完整巢狀資料樹
 		const categoryTree = await hierarchyService.getSubHierarchyData("categories", categoryId, {
 			accessOptions: { filterActive: true }
 		});
+		const categoryName = categoryTree?.name?.TW || "Unknown Category";
 
 		// 2. 使用模仿前端邏輯的函式來提取所有產品
 		let productList = extractProductsFromCategoryTree(categoryTree);
@@ -84,11 +89,19 @@ const sendProductList = async (replyToken, categoryId) => {
 		}
 
 		if (productList.length === 0) {
+			trackEvent(userId, "view_empty_category", {
+				category_id: categoryId,
+				category_name: categoryName
+			});
 			return client.replyMessage(replyToken, { type: "text", text: "這個分類底下目前沒有任何產品喔！" });
 		}
 
 		const flexMessage = createProductListMessage(productList);
 		await client.replyMessage(replyToken, flexMessage);
+		trackEvent(userId, "view_category_products", {
+			category_id: categoryId,
+			category_name: categoryName
+		});
 	} catch (error) {
 		console.error(`Failed to send product list for category ${categoryId}:`, error);
 		throw error;
@@ -98,13 +111,20 @@ const sendProductList = async (replyToken, categoryId) => {
 // --- Event Handlers ---
 
 export const handleMessage = async (event) => {
+	const userId = event.source.userId;
 	if (event.message.type === "text") {
 		const userMessage = event.message.text.trim();
+		trackEvent(userId, "receive_text_message", {
+			message_text: userMessage
+		});
 		if (userMessage === "產品一覽") {
-			return sendProductNavigation(event.replyToken);
+			return sendProductNavigation(event.replyToken, userId);
 		}
 		// You can add other keyword responses here.
 		// For example, sending a default reply for unhandled messages.
+		trackEvent(userId, "unhandled_text_message", {
+			message_text: userMessage
+		});
 	}
 	return Promise.resolve(null);
 };
@@ -112,10 +132,11 @@ export const handleMessage = async (event) => {
 export const handlePostback = async (event) => {
 	const postbackData = new URLSearchParams(event.postback.data);
 	const action = postbackData.get("action");
+	const userId = event.source.userId;
 
 	if (action === "view_products") {
 		const categoryId = postbackData.get("categoryId");
-		return sendProductList(event.replyToken, categoryId);
+		return sendProductList(event.replyToken, categoryId, userId);
 	}
 
 	console.log("Unhandled Postback received:", event.postback.data);
@@ -123,7 +144,9 @@ export const handlePostback = async (event) => {
 };
 
 export const handleFollow = async (event) => {
-	console.log(`User ${event.source.userId} followed the bot.`);
+	const userId = event.source.userId;
+	trackEvent(userId, "follow_bot");
+	console.log(`User ${userId} followed the bot.`);
 	const welcomeMessages = [
 		{
 			type: "text",
@@ -143,7 +166,9 @@ export const handleFollow = async (event) => {
 };
 
 export const handleUnfollow = async (event) => {
+	const userId = event.source.userId;
+	trackEvent(userId, "unfollow_bot");
 	// It's not possible to reply to an unfollow event.
-	console.log(`User ${event.source.userId} unfollowed or blocked the bot.`);
+	console.log(`User ${userId} unfollowed or blocked the bot.`);
 	return Promise.resolve(null);
 };
