@@ -1,6 +1,8 @@
 import { ApiError } from "../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
 import { performSearch } from "../utils/searchHelper.js";
+import mongoose from "mongoose";
+import { hierarchyConfig } from "../controllers/models/hierarchyConfig.js"; // 導入階層設定
 
 /**
  * EntityService 類 - 提供模型實體通用操作
@@ -82,7 +84,13 @@ export class EntityService {
 	 * @returns {Promise<void>}
 	 */
 	async checkDependencies(id) {
-		return;
+		const config = hierarchyConfig[this.modelName];
+		if (config && config.childModel) {
+			const count = await config.childModel.countDocuments({ [config.childModelParentField]: id });
+			if (count > 0) {
+				throw new ApiError(StatusCodes.BAD_REQUEST, `無法刪除此 ${this.modelName}，因為它直接或間接包含了 ${count} 個子項目。`);
+			}
+		}
 	}
 
 	/**
@@ -198,21 +206,46 @@ export class EntityService {
 	 * @returns {Promise<Boolean>} - 是否成功刪除
 	 */
 	async delete(id, options = {}) {
-		try {
-			// 檢查實體是否存在
-			await this.ensureExists(id);
+		const session = options.session;
 
-			// 檢查是否有子項依賴
-			if (options.checkDependencies !== false) {
-				await this.checkDependencies(id);
+		const execute = async (session) => {
+			const config = hierarchyConfig[this.modelName];
+
+			// 如果有子模型定義，則遞迴刪除子項目
+			if (config && config.childModel) {
+				const children = await config.childModel.find({ [config.childModelParentField]: id }).session(session);
+
+				for (const child of children) {
+					// 創建子模型的 EntityService 實例
+					const childService = new EntityService(config.childModel);
+					// 遞迴調用 delete
+					await childService.delete(child._id, { session });
+				}
 			}
 
-			// 執行刪除
-			const result = await this.model.findByIdAndDelete(id);
+			// 刪除當前實體
+			const result = await this.model.findByIdAndDelete(id).session(session);
+			if (!result) {
+				console.log(`實體 ${this.modelName} (ID: ${id}) 在刪除過程中未找到，可能已被處理。`);
+			}
 			return !!result;
-		} catch (error) {
-			if (error instanceof ApiError) throw error;
-			throw new ApiError(StatusCodes.BAD_REQUEST, `刪除${this.modelName.toLowerCase()}失敗: ${error.message}`);
+		};
+
+		// 如果已經在一個事務中，直接執行
+		if (session) {
+			return await execute(session);
+		} else {
+			// 否則，開啟一個新的事務
+			const newSession = await this.model.db.startSession();
+			try {
+				let finalResult;
+				await newSession.withTransaction(async (s) => {
+					finalResult = await execute(s);
+				});
+				return finalResult;
+			} finally {
+				await newSession.endSession();
+			}
 		}
 	}
 

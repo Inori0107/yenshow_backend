@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon app.js",
     "init-database": "node scripts/init-database.js",
+    "cleanup-orphans": "node scripts/cleanup-orphans.js",
     "create-admin": "node scripts/createInitialAdmin.js",
     "migrate-product": "node scripts/migrate-product.js"
   },

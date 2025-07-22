@@ -880,44 +880,35 @@ class ProductsController {
 
 		// Manage file arrays
 		if (isUpdate) {
-			// Only manage existing files if updating
-			const updatedImages = this._manageProductFileArray(
-				data.images, // client-sent array from payload
-				existingProduct?.images,
-				data._pendingImages,
-				imagePathsToDelete,
-				imageMarkerPrefix
-			);
-			if (updatedImages !== undefined) {
-				data.images = updatedImages;
-			} else {
-				delete data.images;
-			}
+			// 對 images, documents, videos 應用相同的檔案管理邏輯
+			const fileTypes = ["images", "documents", "videos"];
+			const markerPrefixes = {
+				images: imageMarkerPrefix,
+				documents: documentMarkerPrefix,
+				videos: videoMarkerPrefix
+			};
+			const pathsToDelete = {
+				images: imagePathsToDelete,
+				documents: documentPathsToDelete,
+				videos: videoPathsToDelete
+			};
 
-			const updatedDocuments = this._manageProductFileArray(
-				data.documents, // client-sent array from payload
-				existingProduct?.documents,
-				data._pendingDocuments,
-				documentPathsToDelete,
-				documentMarkerPrefix
-			);
-			if (updatedDocuments !== undefined) {
-				data.documents = updatedDocuments;
-			} else {
-				delete data.documents;
-			}
-			const updatedVideos = this._manageProductFileArray(
-				data.videos, // client-sent array from payload
-				existingProduct?.videos,
-				data._pendingVideos,
-				videoPathsToDelete,
-				videoMarkerPrefix
-			);
-			if (updatedVideos !== undefined) {
-				data.videos = updatedVideos;
-			} else {
-				delete data.videos;
-			}
+			fileTypes.forEach((type) => {
+				const updatedFiles = this._manageProductFileArray(
+					data[type], // client-sent array from payload
+					existingProduct?.[type],
+					data[`_pending${type.charAt(0).toUpperCase() + type.slice(1)}`],
+					pathsToDelete[type],
+					markerPrefixes[type]
+				);
+
+				if (updatedFiles !== undefined) {
+					data[type] = updatedFiles;
+				} else {
+					// 如果 manage 回傳 undefined，表示不應更新此欄位
+					delete data[type];
+				}
+			});
 		} else {
 			// For create, initialize as empty arrays, will be populated after upload
 			data.images = [];
@@ -935,9 +926,16 @@ class ProductsController {
 	}
 
 	_manageProductFileArray(clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) {
+		// 如果客戶端未提供此欄位，則不進行任何操作
 		if (clientUrls === undefined) {
 			return undefined;
 		}
+
+		// 新增：如果客戶端傳送空陣列且沒有新檔案，也視為「不變更」，以避免意外刪除
+		if (Array.isArray(clientUrls) && clientUrls.length === 0 && (!pendingFiles || pendingFiles.length === 0)) {
+			return undefined;
+		}
+
 		const validClientKeptUrls = [];
 		if (Array.isArray(clientUrls)) {
 			clientUrls.forEach((url) => {
