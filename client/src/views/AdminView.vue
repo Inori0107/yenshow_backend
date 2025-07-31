@@ -413,7 +413,7 @@
       "
       :is-editing="isEditing"
       :edit-user-data="editingUser"
-      @user-created="refreshUserList"
+      @user-created="handleUserUpdate"
       @update:show="handleModalClose"
     />
   </div>
@@ -530,7 +530,7 @@ const fetchUsers = async () => {
     await userStore.getAllUsers()
     if (userStore.users && Array.isArray(userStore.users)) {
       userList.value = [...userStore.users]
-      notify.notifySuccess('用戶列表載入成功')
+      // notify.notifySuccess('用戶列表載入成功')
     } else {
       throw new Error('無法獲取用戶列表資料')
     }
@@ -578,12 +578,14 @@ const handleDeleteUser = async (user) => {
 
   try {
     deletingUser.value = user._id
-    console.log('正在刪除用戶:', user.account)
-    const result = await userStore.deleteUser(user._id)
-
-    console.log('刪除操作結果:', result)
+    await userStore.deleteUser(user._id)
     notify.notifySuccess(`成功刪除用戶 ${user.account}`)
-    await refreshUserList()
+
+    // 本地刪除
+    const index = userList.value.findIndex((u) => u._id === user._id)
+    if (index !== -1) {
+      userList.value.splice(index, 1)
+    }
   } catch (error) {
     console.error('刪除用戶失敗:', error)
     notify.notifyError(typeof error === 'string' ? error : '刪除用戶失敗，請稍後再試')
@@ -592,25 +594,19 @@ const handleDeleteUser = async (user) => {
   }
 }
 
-// 安全地刷新用戶列表
-const refreshUserList = async () => {
-  if (!loading.value) {
-    try {
-      console.log('刷新用戶列表開始')
-      await userStore.getAllUsers()
-
-      if (userStore.users && Array.isArray(userStore.users)) {
-        userList.value = [...userStore.users]
-        console.log('用戶列表刷新成功', userList.value.length)
-        notify.notifySuccess('用戶列表已更新')
-      } else {
-        console.warn('無法獲取最新用戶列表')
-      }
-    } catch (err) {
-      console.error('刷新用戶列表失敗：', err)
+// 處理用戶新增/更新
+const handleUserUpdate = (user) => {
+  if (isEditing.value) {
+    // 更新
+    const index = userList.value.findIndex((u) => u._id === user._id)
+    if (index !== -1) {
+      userList.value.splice(index, 1, user)
     }
+    notify.notifySuccess(`用戶 ${user.account} 已更新`)
   } else {
-    console.warn('忽略刷新請求，因為目前已有載入操作在進行中')
+    // 新增
+    userList.value.unshift(user)
+    notify.notifySuccess(`用戶 ${user.account} 已新增`)
   }
 }
 </script>

@@ -38,6 +38,32 @@
       </div>
 
       <form v-else @submit.prevent="submitForm" class="space-y-[12px] lg:space-y-[24px]">
+        <!-- 頁籤導航 -->
+        <div class="border-b" :class="conditionalClass('border-gray-700', 'border-gray-200')">
+          <nav class="flex space-x-8" aria-label="Tabs">
+            <button
+              v-for="tab in tabs"
+              :key="tab.name"
+              type="button"
+              @click="currentTab = tab.name"
+              :class="[
+                currentTab === tab.name
+                  ? conditionalClass(
+                      'border-blue-500 text-blue-400',
+                      'border-blue-600 text-blue-700',
+                    )
+                  : conditionalClass(
+                      'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500',
+                      'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                    ),
+                'pb-3 px-1 border-b-2 text-sm cursor-pointer',
+              ]"
+            >
+              {{ tab.label }}
+            </button>
+          </nav>
+        </div>
+
         <div
           v-if="formError"
           class="bg-red-500/20 border border-red-500 text-red-100 px-4 py-3 rounded-md mb-4"
@@ -45,405 +71,563 @@
           {{ formError }}
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Author & IsActive -->
-          <div>
-            <label for="faqAuthor" class="block mb-3 theme-text">作者 *</label>
-            <input
-              id="faqAuthor"
-              v-model="form.author"
-              type="text"
-              :class="[inputClass, validationErrors.author ? 'border-red-500' : '']"
-              placeholder="請輸入作者名稱"
-            />
-            <p v-if="validationErrors.author" class="text-red-500 text-xs mt-1">
-              {{ validationErrors.author }}
-            </p>
-          </div>
-          <div>
-            <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態 *</label>
-            <div v-if="isAdmin">
-              <select id="faqIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
-                <option :value="false" class="text-black/70">待審查</option>
-                <option :value="true" class="text-black/70">已發布</option>
-              </select>
-            </div>
-            <div v-else-if="isEditing && !isAdmin">
-              <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
-                {{ form.isActive ? '已發布' : '待審查' }}
-              </p>
-            </div>
-            <div v-else>
-              <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
-                待審查 (提交後將由管理員審核)
-              </p>
-            </div>
-          </div>
-          <!-- Category -->
-          <div>
-            <label for="faqCategoryMain" class="block mb-3 theme-text">主分類 *</label>
-            <select
-              id="faqCategoryMain"
-              v-model="form.category.main"
-              :class="[inputClass, validationErrors['category.main'] ? 'border-red-500' : '']"
-            >
-              <option value="" disabled class="text-black/70">請選擇主分類</option>
-              <option value="名詞解說" class="text-black/70">名詞解說</option>
-              <option value="設備參數" class="text-black/70">設備參數</option>
-              <option value="故障排除" class="text-black/70">故障排除</option>
-            </select>
-            <p v-if="validationErrors['category.main']" class="text-red-500 text-xs mt-1">
-              {{ validationErrors['category.main'] }}
-            </p>
-          </div>
-          <div>
-            <label for="faqCategorySub" class="block mb-3 theme-text opacity-80">自訂子分類</label>
-            <input
-              id="faqCategorySub"
-              v-model="form.category.sub"
-              type="text"
-              :class="[inputClass]"
-              placeholder="例如：安裝、設定"
-            />
-          </div>
-
-          <!-- Publish Date -->
-          <div>
-            <label for="publishDate" class="block mb-3 theme-text">發布日期 *</label>
-            <input
-              type="date"
-              id="publishDate"
-              v-model="form.publishDate"
-              :class="[inputClass, 'pe-3', validationErrors.publishDate ? 'border-red-500' : '']"
-            />
-            <p v-if="validationErrors.publishDate" class="text-red-500 text-xs mt-1">
-              {{ validationErrors.publishDate }}
-            </p>
-          </div>
-
-          <!-- Product Model -->
-          <div>
-            <label for="faqProductModel" class="block mb-3 theme-text opacity-80">產品型號</label>
-            <input
-              id="faqProductModel"
-              v-model="form.productModel"
-              type="text"
-              :class="[inputClass]"
-              placeholder="例如: XYZ-123"
-            />
-          </div>
-        </div>
-
-        <!-- 問題 -->
-        <div class="space-y-3">
-          <div class="flex justify-between items-center mb-2">
-            <label class="block theme-text">問題 *</label>
-            <div class="flex items-center space-x-1">
-              <button
-                type="button"
-                @click="questionLanguage = 'TW'"
-                :class="[
-                  questionLanguage === 'TW'
-                    ? 'bg-blue-500 text-white'
-                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
-                  'px-2 py-1 text-xs rounded-md',
-                ]"
-              >
-                TW
-              </button>
-              <button
-                type="button"
-                @click="questionLanguage = 'EN'"
-                :class="[
-                  questionLanguage === 'EN'
-                    ? 'bg-blue-500 text-white'
-                    : conditionalClass('bg-gray-700 text-gray-300', 'bg-gray-200 text-gray-700'),
-                  'px-2 py-1 text-xs rounded-md',
-                ]"
-              >
-                EN
-              </button>
-            </div>
-          </div>
-          <div v-show="questionLanguage === 'TW'">
-            <textarea
-              v-model="form.question.TW"
-              rows="1"
-              :class="[inputClass, validationErrors['question.TW'] ? 'border-red-500' : '']"
-              placeholder="請輸入問題 (繁體中文)"
-            ></textarea>
-          </div>
-          <div v-show="questionLanguage === 'EN'">
-            <textarea
-              v-model="form.question.EN"
-              rows="3"
-              :class="[inputClass, validationErrors['question.EN'] ? 'border-red-500' : '']"
-              placeholder="請輸入問題 (English) - 用於產生路由"
-            ></textarea>
-          </div>
-          <div class="h-5 mt-1">
-            <p v-if="validationErrors['question.TW']" class="text-red-500 text-xs">
-              {{ validationErrors['question.TW'] }}
-            </p>
-            <p v-else-if="validationErrors['question.EN']" class="text-red-500 text-xs">
-              {{ validationErrors['question.EN'] }}
-            </p>
-          </div>
-        </div>
-
-        <!-- 答案 -->
-        <div class="space-y-3">
-          <label class="block theme-text">答案 *</label>
-          <RichTextBlockEditor
-            :modelValue="form.answer"
-            @update:modelValue="form.answer = $event"
-            :initial-language="answerLanguage"
-          />
-          <p v-if="validationErrors.answer" class="text-red-500 text-xs mt-1">
-            {{ validationErrors.answer }}
-          </p>
-        </div>
-
-        <!-- 圖片上傳 -->
-        <div class="mb-6">
-          <label class="block mb-3 theme-text">圖片 (可上傳多張)</label>
-          <div
-            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
-            :class="conditionalClass('border-gray-600', 'border-gray-300')"
-            @click="triggerImageInput"
-          >
-            <div class="space-y-1 text-center">
-              <svg
-                class="mx-auto h-12 w-12"
-                :class="conditionalClass('text-gray-500', 'text-gray-400')"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.5"
-                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+        <!-- 頁籤內容 -->
+        <div class="space-y-[12px] lg:space-y-[24px] overflow-y-auto flex-grow min-h-[400px]">
+          <!-- 基本資料 -->
+          <div v-show="currentTab === 'general'">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Author & IsActive -->
+              <div>
+                <label for="faqAuthor" class="block mb-3 theme-text">作者 *</label>
+                <input
+                  id="faqAuthor"
+                  v-model="form.author"
+                  type="text"
+                  :class="[inputClass, validationErrors.author ? 'border-red-500' : '']"
+                  placeholder="請輸入作者名稱"
                 />
-              </svg>
-              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
-                <p class="pl-1">點擊或拖曳以上傳圖片</p>
+                <p v-if="validationErrors.author" class="text-red-500 text-xs mt-1">
+                  {{ validationErrors.author }}
+                </p>
               </div>
-              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
-                PNG, JPG, GIF, WEBP, SVG
-              </p>
+              <div>
+                <label for="faqIsActiveSelect" class="block mb-3 theme-text">發布狀態 *</label>
+                <div v-if="isAdmin">
+                  <select id="faqIsActiveSelect" v-model="form.isActive" :class="[inputClass]">
+                    <option :value="false" class="text-black/70">待審查</option>
+                    <option :value="true" class="text-black/70">已發布</option>
+                  </select>
+                </div>
+                <div v-else-if="isEditing && !isAdmin">
+                  <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
+                    {{ form.isActive ? '已發布' : '待審查' }}
+                  </p>
+                </div>
+                <div v-else>
+                  <p :class="[inputClass, 'bg-opacity-50 cursor-not-allowed']">
+                    待審查 (提交後將由管理員審核)
+                  </p>
+                </div>
+              </div>
+              <!-- Category -->
+              <div>
+                <label for="faqCategoryMain" class="block mb-3 theme-text">主分類 *</label>
+                <select
+                  id="faqCategoryMain"
+                  v-model="form.category.main"
+                  :class="[inputClass, validationErrors['category.main'] ? 'border-red-500' : '']"
+                >
+                  <option value="" disabled class="text-black/70">請選擇主分類</option>
+                  <option value="名詞解說" class="text-black/70">名詞解說</option>
+                  <option value="產品介紹" class="text-black/70">產品介紹</option>
+                  <option value="故障排除" class="text-black/70">故障排除</option>
+                </select>
+                <p v-if="validationErrors['category.main']" class="text-red-500 text-xs mt-1">
+                  {{ validationErrors['category.main'] }}
+                </p>
+              </div>
+              <div>
+                <label for="faqCategorySub" class="block mb-3 theme-text opacity-80"
+                  >自訂子分類</label
+                >
+                <input
+                  id="faqCategorySub"
+                  v-model="form.category.sub"
+                  type="text"
+                  :class="[inputClass]"
+                  placeholder="例如：安裝、設定"
+                />
+              </div>
+
+              <!-- Publish Date -->
+              <div>
+                <label for="publishDate" class="block mb-3 theme-text">發布日期 *</label>
+                <input
+                  type="date"
+                  id="publishDate"
+                  v-model="form.publishDate"
+                  :class="[
+                    inputClass,
+                    'pe-3',
+                    validationErrors.publishDate ? 'border-red-500' : '',
+                  ]"
+                />
+                <p v-if="validationErrors.publishDate" class="text-red-500 text-xs mt-1">
+                  {{ validationErrors.publishDate }}
+                </p>
+              </div>
+
+              <!-- Product Model -->
+              <div>
+                <label for="faqProductModel" class="block mb-3 theme-text opacity-80"
+                  >產品型號</label
+                >
+                <input
+                  id="faqProductModel"
+                  v-model="form.productModel"
+                  type="text"
+                  :class="[inputClass]"
+                  placeholder="例如: XYZ-123"
+                />
+              </div>
             </div>
-            <input
-              ref="imageInputRef"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleImageFiles"
-            />
-          </div>
-          <!-- 預覽區域 -->
-          <div
-            v-if="form.imageUrl.length > 0 || imageFiles.length > 0"
-            class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
-          >
-            <!-- 現有圖片 -->
-            <div
-              v-for="(url, index) in form.imageUrl"
-              :key="`existing-${index}`"
-              class="relative group"
-            >
-              <img :src="url" alt="Existing image" class="w-full h-24 object-cover rounded-md" />
-              <button
-                type="button"
-                @click.stop="removeExistingImage(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+            <!-- 問題 -->
+            <div class="space-y-3 mt-4">
+              <div class="flex justify-between items-center mb-2">
+                <label class="block theme-text">問題 *</label>
+                <div class="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    @click="questionLanguage = 'TW'"
+                    :class="[
+                      questionLanguage === 'TW'
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-2 py-1 text-xs rounded-md',
+                    ]"
+                  >
+                    TW
+                  </button>
+                  <button
+                    type="button"
+                    @click="questionLanguage = 'EN'"
+                    :class="[
+                      questionLanguage === 'EN'
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-2 py-1 text-xs rounded-md',
+                    ]"
+                  >
+                    EN
+                  </button>
+                </div>
+              </div>
+              <div v-show="questionLanguage === 'TW'">
+                <textarea
+                  v-model="form.question.TW"
+                  rows="1"
+                  :class="[inputClass, validationErrors['question.TW'] ? 'border-red-500' : '']"
+                  placeholder="請輸入問題 (繁體中文)"
+                ></textarea>
+              </div>
+              <div v-show="questionLanguage === 'EN'">
+                <textarea
+                  v-model="form.question.EN"
+                  rows="3"
+                  :class="[inputClass, validationErrors['question.EN'] ? 'border-red-500' : '']"
+                  placeholder="請輸入問題 (English) - 用於產生路由"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 摘要 -->
+            <div class="space-y-3 mt-4">
+              <div class="flex justify-between items-center mb-2">
+                <label class="block theme-text">摘要 *</label>
+                <div class="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    @click="summaryLanguage = 'TW'"
+                    :class="[
+                      summaryLanguage === 'TW'
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-2 py-1 text-xs rounded-md',
+                    ]"
+                  >
+                    TW
+                  </button>
+                  <button
+                    type="button"
+                    @click="summaryLanguage = 'EN'"
+                    :class="[
+                      summaryLanguage === 'EN'
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-2 py-1 text-xs rounded-md',
+                    ]"
+                  >
+                    EN
+                  </button>
+                </div>
+              </div>
+              <div v-show="summaryLanguage === 'TW'">
+                <textarea
+                  v-model="form.summary.TW"
+                  rows="3"
+                  :class="[inputClass]"
+                  placeholder="請輸入摘要 (繁體中文)"
+                ></textarea>
+              </div>
+              <div v-show="summaryLanguage === 'EN'">
+                <textarea
+                  v-model="form.summary.EN"
+                  rows="3"
+                  :class="[inputClass]"
+                  placeholder="請輸入摘要 (English)"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 關聯內容 -->
+            <div class="space-y-3 mt-4">
+              <div class="flex justify-between items-center mb-2">
+                <label class="block theme-text">相關問題</label>
+                <div class="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    @click="relatedFaqFilterCategory = null"
+                    :class="[
+                      !relatedFaqFilterCategory
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-3 py-1.5 text-xs rounded-md transition-colors',
+                    ]"
+                  >
+                    全部分類
+                  </button>
+                  <button
+                    v-for="cat in faqCategories"
+                    :key="cat"
+                    type="button"
+                    @click="relatedFaqFilterCategory = cat"
+                    :class="[
+                      relatedFaqFilterCategory === cat
+                        ? 'bg-blue-500 text-white'
+                        : conditionalClass(
+                            'bg-gray-700 text-gray-300',
+                            'bg-gray-200 text-gray-700',
+                          ),
+                      'px-3 py-1.5 text-xs rounded-md transition-colors',
+                    ]"
+                  >
+                    {{ cat }}
+                  </button>
+                </div>
+              </div>
+              <div
+                class="max-h-48 overflow-y-auto rounded-md border p-3"
+                :class="conditionalClass('border-gray-600', 'border-gray-300')"
               >
-                &#x2715;
-              </button>
+                <div v-if="filteredAllFaqs.length === 0" class="text-sm text-gray-500">
+                  沒有其他問題可供關聯
+                </div>
+                <div
+                  v-for="faq in filteredAllFaqs"
+                  :key="faq._id"
+                  class="flex items-center space-x-3 py-2"
+                >
+                  <input
+                    :id="`faq-${faq._id}`"
+                    type="checkbox"
+                    :value="faq._id"
+                    v-model="form.relatedFaqs"
+                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label :for="`faq-${faq._id}`" class="theme-text text-sm cursor-pointer">
+                    {{ faq.question.TW }}
+                  </label>
+                </div>
+              </div>
             </div>
-            <!-- 新上傳圖片 -->
-            <div v-for="(file, index) in imageFiles" :key="`new-${index}`" class="relative group">
-              <img
-                :src="file.previewUrl"
-                alt="New image"
-                class="w-full h-24 object-cover rounded-md"
+          </div>
+
+          <!-- 主要內容 -->
+          <div v-show="currentTab === 'mainContent'">
+            <!-- 答案 -->
+            <div class="space-y-3">
+              <label class="block theme-text">答案 *</label>
+              <RichTextBlockEditor
+                :modelValue="form.answer"
+                @update:modelValue="form.answer = $event"
+                :initial-language="answerLanguage"
               />
-              <button
-                type="button"
-                @click.stop="removeNewImage(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
-              >
-                &#x2715;
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 文件上傳 -->
-        <div class="mb-6">
-          <label class="block mb-3 theme-text">文件 (可上傳多個)</label>
-          <div
-            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
-            :class="conditionalClass('border-gray-600', 'border-gray-300')"
-            @click="triggerDocumentInput"
-          >
-            <div class="space-y-1 text-center">
-              <!-- Icon for document -->
-              <svg
-                class="mx-auto h-12 w-12"
-                :class="conditionalClass('text-gray-500', 'text-gray-400')"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.5"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                />
-              </svg>
-              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
-                <p class="pl-1">點擊或拖曳以上傳文件</p>
-              </div>
-              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
-                PDF, DOC, XLS, PPT, TXT
+              <p v-if="validationErrors.answer" class="text-red-500 text-xs mt-1">
+                {{ validationErrors.answer }}
               </p>
             </div>
-            <input
-              ref="documentInputRef"
-              type="file"
-              :accept="documentAccept"
-              multiple
-              class="hidden"
-              @change="handleDocumentFiles"
-            />
           </div>
-          <!-- Document Preview Area -->
-          <div
-            v-if="form.documentUrl.length > 0 || documentFiles.length > 0"
-            class="mt-4 space-y-2"
-          >
-            <!-- Existing Documents -->
-            <div
-              v-for="(url, index) in form.documentUrl"
-              :key="`existing-doc-${index}`"
-              class="flex items-center justify-between p-2 rounded-md"
-              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
-            >
-              <a :href="url" target="_blank" class="text-sm truncate hover:underline">{{
-                getFileNameFromUrl(url)
-              }}</a>
-              <button
-                type="button"
-                @click.stop="removeExistingDocument(index)"
-                class="ml-4 text-red-500 hover:text-red-700"
-              >
-                移除
-              </button>
-            </div>
-            <!-- New Documents -->
-            <div
-              v-for="(file, index) in documentFiles"
-              :key="`new-doc-${index}`"
-              class="flex items-center justify-between p-2 rounded-md"
-              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
-            >
-              <span class="text-sm truncate">{{ file.name }}</span>
-              <button
-                type="button"
-                @click.stop="removeNewDocument(index)"
-                class="ml-4 text-red-500 hover:text-red-700"
-              >
-                移除
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <!-- 影片上傳 -->
-        <div class="mb-6">
-          <label class="block mb-3 theme-text">影片 (可上傳多部)</label>
-          <div
-            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
-            :class="conditionalClass('border-gray-600', 'border-gray-300')"
-            @click="triggerVideoInput"
-          >
-            <div class="space-y-1 text-center">
-              <!-- Icon for video -->
-              <svg
-                class="mx-auto h-12 w-12"
-                :class="conditionalClass('text-gray-500', 'text-gray-400')"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+          <!-- 附加檔案 -->
+          <div v-show="currentTab === 'attachments'">
+            <!-- 圖片上傳 -->
+            <div class="mb-6">
+              <label class="block mb-3 theme-text">圖片 (可上傳多張)</label>
+              <div
+                class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+                :class="conditionalClass('border-gray-600', 'border-gray-300')"
+                @click="triggerImageInput"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.5"
-                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                <div class="space-y-1 text-center">
+                  <svg
+                    class="mx-auto h-12 w-12"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                    />
+                  </svg>
+                  <div
+                    class="flex text-sm"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                  >
+                    <p class="pl-1">點擊或拖曳以上傳圖片</p>
+                  </div>
+                  <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                    PNG, JPG, GIF, WEBP, SVG
+                  </p>
+                </div>
+                <input
+                  ref="imageInputRef"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  class="hidden"
+                  @change="handleImageFiles"
                 />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6v12m-3-10.5v9" />
-              </svg>
-              <div class="flex text-sm" :class="conditionalClass('text-gray-500', 'text-gray-400')">
-                <p class="pl-1">點擊或拖曳以上傳影片</p>
               </div>
-              <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
-                MP4, WEBM, MOV
-              </p>
-            </div>
-            <input
-              ref="videoInputRef"
-              type="file"
-              accept="video/*"
-              multiple
-              class="hidden"
-              @change="handleVideoFiles"
-            />
-          </div>
-          <!-- Video Preview Area -->
-          <div
-            v-if="form.videoUrl.length > 0 || videoFiles.length > 0"
-            class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"
-          >
-            <!-- Existing Videos -->
-            <div
-              v-for="(url, index) in form.videoUrl"
-              :key="`existing-vid-${index}`"
-              class="relative group"
-            >
-              <video :src="url" class="w-full h-24 object-cover rounded-md bg-black"></video>
-              <button
-                type="button"
-                @click.stop="removeExistingVideo(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+              <!-- 預覽區域 -->
+              <div
+                v-if="form.imageUrl.length > 0 || imageFiles.length > 0"
+                class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
               >
-                &#x2715;
-              </button>
+                <!-- 現有圖片 -->
+                <div
+                  v-for="(url, index) in form.imageUrl"
+                  :key="`existing-${index}`"
+                  class="relative group"
+                >
+                  <img
+                    :src="url"
+                    alt="Existing image"
+                    class="w-full h-24 object-cover rounded-md"
+                  />
+                  <button
+                    type="button"
+                    @click.stop="removeExistingImage(index)"
+                    class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+                <!-- 新上傳圖片 -->
+                <div
+                  v-for="(file, index) in imageFiles"
+                  :key="`new-${index}`"
+                  class="relative group"
+                >
+                  <img
+                    :src="file.previewUrl"
+                    alt="New image"
+                    class="w-full h-24 object-cover rounded-md"
+                  />
+                  <button
+                    type="button"
+                    @click.stop="removeNewImage(index)"
+                    class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+              </div>
             </div>
-            <!-- New Videos -->
-            <div
-              v-for="(file, index) in videoFiles"
-              :key="`new-vid-${index}`"
-              class="relative group"
-            >
-              <video
-                :src="file.previewUrl"
-                class="w-full h-24 object-cover rounded-md bg-black"
-              ></video>
-              <button
-                type="button"
-                @click.stop="removeNewVideo(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+
+            <!-- 文件上傳 -->
+            <div class="mb-6">
+              <label class="block mb-3 theme-text">文件 (可上傳多個)</label>
+              <div
+                class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+                :class="conditionalClass('border-gray-600', 'border-gray-300')"
+                @click="triggerDocumentInput"
               >
-                &#x2715;
-              </button>
+                <div class="space-y-1 text-center">
+                  <!-- Icon for document -->
+                  <svg
+                    class="mx-auto h-12 w-12"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                    />
+                  </svg>
+                  <div
+                    class="flex text-sm"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                  >
+                    <p class="pl-1">點擊或拖曳以上傳文件</p>
+                  </div>
+                  <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                    PDF, DOC, XLS, PPT, TXT
+                  </p>
+                </div>
+                <input
+                  ref="documentInputRef"
+                  type="file"
+                  :accept="documentAccept"
+                  multiple
+                  class="hidden"
+                  @change="handleDocumentFiles"
+                />
+              </div>
+              <!-- Document Preview Area -->
+              <div
+                v-if="form.documentUrl.length > 0 || documentFiles.length > 0"
+                class="mt-4 space-y-2"
+              >
+                <!-- Existing Documents -->
+                <div
+                  v-for="(url, index) in form.documentUrl"
+                  :key="`existing-doc-${index}`"
+                  class="flex items-center justify-between p-2 rounded-md"
+                  :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+                >
+                  <a :href="url" target="_blank" class="text-sm truncate hover:underline">{{
+                    getFileNameFromUrl(url)
+                  }}</a>
+                  <button
+                    type="button"
+                    @click.stop="removeExistingDocument(index)"
+                    class="ml-4 text-red-500 hover:text-red-700"
+                  >
+                    移除
+                  </button>
+                </div>
+                <!-- New Documents -->
+                <div
+                  v-for="(file, index) in documentFiles"
+                  :key="`new-doc-${index}`"
+                  class="flex items-center justify-between p-2 rounded-md"
+                  :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+                >
+                  <span class="text-sm truncate">{{ file.name }}</span>
+                  <button
+                    type="button"
+                    @click.stop="removeNewDocument(index)"
+                    class="ml-4 text-red-500 hover:text-red-700"
+                  >
+                    移除
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 影片上傳 -->
+            <div class="mb-6">
+              <label class="block mb-3 theme-text">影片 (可上傳多部)</label>
+              <div
+                class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+                :class="conditionalClass('border-gray-600', 'border-gray-300')"
+                @click="triggerVideoInput"
+              >
+                <div class="space-y-1 text-center">
+                  <!-- Icon for video -->
+                  <svg
+                    class="mx-auto h-12 w-12"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15.75 6v12m-3-10.5v9"
+                    />
+                  </svg>
+                  <div
+                    class="flex text-sm"
+                    :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                  >
+                    <p class="pl-1">點擊或拖曳以上傳影片</p>
+                  </div>
+                  <p class="text-xs" :class="conditionalClass('text-gray-600', 'text-gray-500')">
+                    MP4, WEBM, MOV
+                  </p>
+                </div>
+                <input
+                  ref="videoInputRef"
+                  type="file"
+                  accept="video/*"
+                  multiple
+                  class="hidden"
+                  @change="handleVideoFiles"
+                />
+              </div>
+              <!-- Video Preview Area -->
+              <div
+                v-if="form.videoUrl.length > 0 || videoFiles.length > 0"
+                class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"
+              >
+                <!-- Existing Videos -->
+                <div
+                  v-for="(url, index) in form.videoUrl"
+                  :key="`existing-vid-${index}`"
+                  class="relative group"
+                >
+                  <video :src="url" class="w-full h-24 object-cover rounded-md bg-black"></video>
+                  <button
+                    type="button"
+                    @click.stop="removeExistingVideo(index)"
+                    class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+                <!-- New Videos -->
+                <div
+                  v-for="(file, index) in videoFiles"
+                  :key="`new-vid-${index}`"
+                  class="relative group"
+                >
+                  <video
+                    :src="file.previewUrl"
+                    class="w-full h-24 object-cover rounded-md bg-black"
+                  ></video>
+                  <button
+                    type="button"
+                    @click.stop="removeNewVideo(index)"
+                    class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-75 group-hover:opacity-100"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -524,6 +708,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  allFaqs: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['update:show', 'saved'])
@@ -545,7 +733,34 @@ const isProcessing = ref(false)
 const isEditing = computed(() => !!props.faqItem?._id)
 const isAdmin = computed(() => userStore.isAdmin)
 
+const currentTab = ref('general')
+const tabs = [
+  { name: 'general', label: '基本資訊' },
+  { name: 'mainContent', label: '主要內容' },
+  { name: 'attachments', label: '附加檔案' },
+]
+
+const relatedFaqFilterCategory = ref(null)
+const faqCategories = ['名詞解說', '產品介紹', '故障排除']
+
+const filteredAllFaqs = computed(() => {
+  let faqs = props.allFaqs
+
+  // 1. 編輯時，從列表中排除自己
+  if (isEditing.value) {
+    faqs = faqs.filter((faq) => faq._id !== props.faqItem._id)
+  }
+
+  // 2. 根據分類篩選
+  if (relatedFaqFilterCategory.value) {
+    faqs = faqs.filter((faq) => faq.category?.main === relatedFaqFilterCategory.value)
+  }
+
+  return faqs
+})
+
 const questionLanguage = ref('TW')
+const summaryLanguage = ref('TW')
 const answerLanguage = ref('TW')
 
 // Image upload state
@@ -571,7 +786,7 @@ const getFileNameFromUrl = (url) => {
   try {
     const decodedUrl = decodeURIComponent(url)
     return decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1)
-  } catch /* (e) */ {
+  } catch {
     return url.substring(url.lastIndexOf('/') + 1)
   }
 }
@@ -641,7 +856,7 @@ const formatDateForInput = (dateStringOrDate) => {
     const month = ('0' + (date.getMonth() + 1)).slice(-2)
     const day = ('0' + date.getDate()).slice(-2)
     return `${year}-${month}-${day}`
-  } catch /* (e) */ {
+  } catch {
     return ''
   }
 }
@@ -653,6 +868,7 @@ const initialFormState = () => ({
     TW: { type: 'doc', content: [{ type: 'paragraph' }] },
     EN: { type: 'doc', content: [{ type: 'paragraph' }] },
   },
+  summary: { TW: '', EN: '' },
   category: { main: '', sub: '' },
   author: '',
   publishDate: formatDateForInput(new Date()),
@@ -661,6 +877,7 @@ const initialFormState = () => ({
   imageUrl: [],
   videoUrl: [],
   documentUrl: [],
+  relatedFaqs: [],
 })
 const form = ref(initialFormState())
 
@@ -686,6 +903,7 @@ watch(
   async (newVal) => {
     if (newVal) {
       resetForm()
+      relatedFaqFilterCategory.value = null // 重置篩選器
       if (isEditing.value && props.faqItem?._id) {
         loading.value = true
         try {
@@ -695,6 +913,10 @@ watch(
             question: {
               TW: faqData.question?.TW || '',
               EN: faqData.question?.EN || '',
+            },
+            summary: {
+              TW: faqData.summary?.TW || '',
+              EN: faqData.summary?.EN || '',
             },
             answer: {
               TW: faqData.answer?.TW || { type: 'doc', content: [{ type: 'paragraph' }] },
@@ -711,6 +933,7 @@ watch(
             imageUrl: [...(faqData.imageUrl || [])],
             videoUrl: [...(faqData.videoUrl || [])],
             documentUrl: [...(faqData.documentUrl || [])],
+            relatedFaqs: faqData.relatedFaqs?.map((faq) => faq._id || faq) || [],
           }
 
           questionLanguage.value = form.value.question.TW ? 'TW' : 'EN'
@@ -768,6 +991,12 @@ const validateForm = () => {
     setError('question.EN', '英文問題為必填，用於產生語意化路由')
     isValid = false
   }
+
+  if (!form.value.summary.TW?.trim()) {
+    setError('summary.TW', '摘要為必填項')
+    isValid = false
+  }
+
   if (!form.value.publishDate) {
     setError('publishDate', '發布日期為必填項')
     isValid = false
@@ -791,6 +1020,24 @@ const validateForm = () => {
         questionLanguage.value = 'EN'
       } else if (firstErrorKey.includes('question.TW')) {
         questionLanguage.value = 'TW'
+      } else if (firstErrorKey.includes('summary.TW')) {
+        summaryLanguage.value = 'TW'
+      }
+
+      // 自動切換到包含錯誤的 Tab
+      if (
+        [
+          'author',
+          'category.main',
+          'publishDate',
+          'question.TW',
+          'question.EN',
+          'summary.TW',
+        ].includes(firstErrorKey)
+      ) {
+        currentTab.value = 'general'
+      } else if (['answer'].includes(firstErrorKey)) {
+        currentTab.value = 'mainContent'
       }
     }
     formError.value = validationErrors.value[firstErrorKey] || '表單包含錯誤，請檢查。'
@@ -825,11 +1072,17 @@ const submitForm = async () => {
     imageUrl: form.value.imageUrl,
     videoUrl: form.value.videoUrl,
     documentUrl: form.value.documentUrl,
+    relatedFaqs: form.value.relatedFaqs,
   }
   // Clean up empty EN fields
   if (!faqDataPayload.question.EN) delete faqDataPayload.question.EN
   if (isTiptapContentEmpty(faqDataPayload.answer.EN)) {
     delete faqDataPayload.answer.EN
+  }
+  if (!faqDataPayload.summary.TW) delete faqDataPayload.summary.TW
+  if (!faqDataPayload.summary.EN) delete faqDataPayload.summary.EN
+  if (Object.keys(faqDataPayload.summary).length === 0) {
+    delete faqDataPayload.summary
   }
 
   // Remove fields that are handled by file uploads or shouldn't be in the JSON payload
@@ -861,8 +1114,6 @@ const submitForm = async () => {
       throw new Error(errorMessage)
     }
 
-    notify.notifySuccess(`問題 ${isEditing.value ? '更新' : '創建'} 成功！`)
-    notify.triggerRefresh('faq')
     emit('saved', {
       faq: result || { _id: form.value._id || 'tempId', ...faqDataPayload },
       isNew: !isEditing.value,
@@ -879,5 +1130,6 @@ const submitForm = async () => {
 const closeModal = () => {
   if (isProcessing.value) return
   emit('update:show', false)
+  currentTab.value = 'general' // 關閉時重置 Tab
 }
 </script>

@@ -73,7 +73,13 @@
       </div>
 
       <!-- 最新消息列表 -->
-      <div v-if="activeTab === 'news'" class="overflow-x-auto">
+      <div
+        v-if="activeTab === 'news'"
+        :class="[
+          'min-h-[580px]',
+          { 'overflow-x-auto': !isCategoryDropdownOpen && !isSortDropdownOpen },
+        ]"
+      >
         <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
@@ -149,8 +155,70 @@
                   </div>
                 </div>
               </th>
+              <th class="py-3 px-4 lg:px-6 relative" ref="sortDropdownRef">
+                <button
+                  @click="toggleSortDropdown"
+                  class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-[10px] transition-colors theme-text"
+                  :class="
+                    conditionalClass(
+                      'border-2 border-[#3F5069] hover:bg-[#3a434c]',
+                      'border-2 border-slate-300 bg-white hover:bg-slate-50',
+                    )
+                  "
+                >
+                  <span>{{ currentSortLabel }}</span>
+                  <svg
+                    class="w-4 h-4 transition-transform"
+                    :class="{ 'rotate-180': isSortDropdownOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M19 9l-7 7-7-7"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  v-if="isSortDropdownOpen"
+                  :class="[
+                    cardClass,
+                    'absolute right-0 z-20 mt-2 min-w-[180px] rounded-lg shadow-xl max-h-60 overflow-y-auto text-left',
+                  ]"
+                >
+                  <div
+                    :class="conditionalClass('bg-gray-800/80', 'bg-white/80')"
+                    class="backdrop-blur-sm rounded-lg"
+                  >
+                    <button
+                      v-for="option in sortOptions"
+                      :key="option.label"
+                      @click="setSort(option.value)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>{{ option.label }}</span>
+                      <span
+                        v-if="
+                          currentSort.field === option.value.field &&
+                          currentSort.order === option.value.order
+                        "
+                        class="text-blue-400"
+                        >✓</span
+                      >
+                    </button>
+                  </div>
+                </div>
+              </th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">作者</th>
-              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">發布日期</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">封面圖</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">圖片</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">影片</th>
@@ -168,8 +236,12 @@
                 {{ item.title?.TW || '-' }}
               </td>
               <td class="py-3 px-4 lg:px-6 theme-text">{{ item.category || '-' }}</td>
+              <td class="py-3 px-4 lg:px-6 theme-text">
+                {{
+                  formatDate(currentSort.field === 'createdAt' ? item.createdAt : item.publishDate)
+                }}
+              </td>
               <td class="py-3 px-4 lg:px-6 theme-text">{{ item.author || '-' }}</td>
-              <td class="py-3 px-4 lg:px-6 theme-text">{{ formatDate(item.publishDate) }}</td>
               <td
                 class="py-3 px-4 lg:px-6"
                 :title="'封面圖: ' + (item.coverImageUrl ? '✓' : '✗')"
@@ -235,15 +307,152 @@
       </div>
 
       <!-- 常見問題列表 -->
-      <div v-else-if="activeTab === 'faq'" class="overflow-x-auto">
+      <div
+        v-else-if="activeTab === 'faq'"
+        :class="[
+          'min-h-[580px]',
+          { 'overflow-x-auto': !isFaqCategoryDropdownOpen && !isSortDropdownOpen },
+        ]"
+      >
         <table class="w-full text-center">
           <thead :class="conditionalClass('border-b border-white/10', 'border-b border-slate-200')">
             <tr>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">問題 (TW)</th>
-              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">發布日期</th>
-              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">主分類</th>
+              <th class="py-3 px-4 lg:px-6 relative" ref="faqCategoryDropdownRef">
+                <button
+                  @click="toggleFaqCategoryDropdown"
+                  class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-[10px] transition-colors theme-text"
+                  :class="
+                    conditionalClass(
+                      'border-2 border-[#3F5069] hover:bg-[#3a434c]',
+                      'border-2 border-slate-300 bg-white hover:bg-slate-50',
+                    )
+                  "
+                  :disabled="faqCategories.length === 0"
+                >
+                  <span>{{ selectedFaqCategoryLabel }}</span>
+                  <svg
+                    v-if="faqCategories.length > 0"
+                    class="w-4 h-4 transition-transform"
+                    :class="{ 'rotate-180': isFaqCategoryDropdownOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M19 9l-7 7-7-7"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  v-if="isFaqCategoryDropdownOpen"
+                  :class="[
+                    cardClass,
+                    'absolute left-1/2 -translate-x-1/2 z-20 mt-2 min-w-[160px] rounded-lg shadow-xl max-h-60 overflow-y-auto text-left',
+                  ]"
+                >
+                  <div
+                    :class="conditionalClass('bg-gray-800/80', 'bg-white/80')"
+                    class="backdrop-blur-sm rounded-lg"
+                  >
+                    <button
+                      @click="selectFaqCategory(null)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>全部分類</span>
+                      <span v-if="!selectedFaqCategory" class="text-blue-400">✓</span>
+                    </button>
+                    <button
+                      v-for="category in faqCategories"
+                      :key="category"
+                      @click="selectFaqCategory(category)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>{{ category }}</span>
+                      <span v-if="selectedFaqCategory === category" class="text-blue-400">✓</span>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th class="py-3 px-4 lg:px-6 relative" ref="sortDropdownRef">
+                <button
+                  @click="toggleSortDropdown"
+                  class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-[10px] transition-colors theme-text"
+                  :class="
+                    conditionalClass(
+                      'border-2 border-[#3F5069] hover:bg-[#3a434c]',
+                      'border-2 border-slate-300 bg-white hover:bg-slate-50',
+                    )
+                  "
+                >
+                  <span>{{ currentSortLabel }}</span>
+                  <svg
+                    class="w-4 h-4 transition-transform"
+                    :class="{ 'rotate-180': isSortDropdownOpen }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M19 9l-7 7-7-7"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  v-if="isSortDropdownOpen"
+                  :class="[
+                    cardClass,
+                    'absolute right-0 z-20 mt-2 min-w-[180px] rounded-lg shadow-xl max-h-60 overflow-y-auto text-left',
+                  ]"
+                >
+                  <div
+                    :class="conditionalClass('bg-gray-800/80', 'bg-white/80')"
+                    class="backdrop-blur-sm rounded-lg"
+                  >
+                    <button
+                      v-for="option in sortOptions"
+                      :key="option.label"
+                      @click="setSort(option.value)"
+                      class="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                      :class="
+                        conditionalClass(
+                          'hover:bg-white/10 text-white',
+                          'hover:bg-slate-100 text-slate-700',
+                        )
+                      "
+                    >
+                      <span>{{ option.label }}</span>
+                      <span
+                        v-if="
+                          currentSort.field === option.value.field &&
+                          currentSort.order === option.value.order
+                        "
+                        class="text-blue-400"
+                        >✓</span
+                      >
+                    </button>
+                  </div>
+                </div>
+              </th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">作者</th>
-              <th class="py-3 px-4 lg:px-6 theme-text opacity-50">產品型號</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">圖片</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">文件</th>
               <th class="py-3 px-4 lg:px-6 theme-text opacity-50">影片</th>
@@ -261,17 +470,22 @@
                 {{ item.question?.TW || '-' }}
               </td>
               <td class="py-3 px-4 lg:px-6 theme-text">
-                {{ formatDate(item.publishDate || item.createdAt) }}
-              </td>
-              <td class="py-3 px-4 lg:px-6 theme-text">
                 {{
                   typeof item.category === 'object' && item.category
                     ? item.category.main || '-'
                     : item.category || '-'
                 }}
               </td>
+              <td class="py-3 px-4 lg:px-6 theme-text">
+                {{
+                  formatDate(
+                    currentSort.field === 'createdAt'
+                      ? item.createdAt
+                      : item.publishDate || item.createdAt,
+                  )
+                }}
+              </td>
               <td class="py-3 px-4 lg:px-6 theme-text">{{ item.author || '-' }}</td>
-              <td class="py-3 px-4 lg:px-6 theme-text">{{ item.productModel || '-' }}</td>
               <td
                 class="py-3 px-4 lg:px-6"
                 :title="'圖片: ' + (item.imageUrl && item.imageUrl.length > 0 ? '✓' : '✗')"
@@ -333,7 +547,7 @@
             </tr>
             <tr v-if="!faqStore.items || faqStore.items.length === 0">
               <td
-                colspan="10"
+                colspan="9"
                 class="text-center py-6"
                 :class="conditionalClass('text-gray-400', 'text-slate-500')"
               >
@@ -385,13 +599,14 @@
       v-if="activeTab === 'news'"
       v-model:show="showModal"
       :news-item="editingItem"
-      @saved="refreshList"
+      @saved="handleNewsUpdate"
     />
     <FaqModal
       v-if="activeTab === 'faq'"
       v-model:show="showModal"
       :faq-item="editingItem"
-      @saved="refreshList"
+      :all-faqs="faqStore.items"
+      @saved="handleFaqUpdate"
     />
   </div>
 </template>
@@ -422,6 +637,30 @@ const categoryDropdownRef = ref(null)
 const isCategoryDropdownOpen = ref(false)
 const selectedNewsCategory = ref(null) // null 代表全部分類
 
+// FAQ 分類篩選相關狀態
+const faqCategoryDropdownRef = ref(null)
+const isFaqCategoryDropdownOpen = ref(false)
+const selectedFaqCategory = ref(null)
+
+// 排序相關狀態
+const sortDropdownRef = ref(null)
+const isSortDropdownOpen = ref(false)
+const sortOptions = ref([
+  { label: '最新發布', value: { field: 'publishDate', order: 'desc' } },
+  { label: '最早發布', value: { field: 'publishDate', order: 'asc' } },
+  { label: '最新建立', value: { field: 'createdAt', order: 'desc' } },
+  { label: '最早建立', value: { field: 'createdAt', order: 'asc' } },
+])
+const currentSort = ref(sortOptions.value[0].value)
+
+const currentSortLabel = computed(() => {
+  const option = sortOptions.value.find(
+    (opt) =>
+      opt.value.field === currentSort.value.field && opt.value.order === currentSort.value.order,
+  )
+  return option ? option.label : '排序'
+})
+
 // 操作狀態追蹤
 const deletingItem = ref(null) // 正在刪除的項目 ID
 
@@ -444,19 +683,56 @@ const selectedNewsCategoryLabel = computed(() => {
   return selectedNewsCategory.value || '分類'
 })
 
+// 計算不重複的 FAQ 主分類
+const faqCategories = computed(() => {
+  if (!faqStore.items) return []
+  const categories = faqStore.items.map((item) => item.category?.main).filter(Boolean)
+  return [...new Set(categories)]
+})
+
+// 計算 FAQ 分類下拉選單的按鈕標籤
+const selectedFaqCategoryLabel = computed(() => {
+  return selectedFaqCategory.value || '分類'
+})
+
 // 根據 activeTab 和篩選條件決定列表資料
 const filteredItems = computed(() => {
+  let itemsToFilter = []
   if (activeTab.value === 'news') {
     const items = newsStore.items || []
-    if (!selectedNewsCategory.value) {
-      return items
+    if (selectedNewsCategory.value) {
+      itemsToFilter = items.filter((item) => item.category === selectedNewsCategory.value)
+    } else {
+      itemsToFilter = items
     }
-    return items.filter((item) => item.category === selectedNewsCategory.value)
+  } else if (activeTab.value === 'faq') {
+    const items = faqStore.items || []
+    if (selectedFaqCategory.value) {
+      itemsToFilter = items.filter((item) => item.category?.main === selectedFaqCategory.value)
+    } else {
+      itemsToFilter = items
+    }
   }
-  if (activeTab.value === 'faq') {
-    return faqStore.items || []
-  }
-  return []
+
+  // 排序邏輯
+  const { field, order } = currentSort.value
+  return [...itemsToFilter].sort((a, b) => {
+    let valA = field === 'publishDate' ? a.publishDate || a.createdAt : a[field]
+    let valB = field === 'publishDate' ? b.publishDate || b.createdAt : b[field]
+
+    // 確保有值可比較
+    if (!valA) return order === 'desc' ? 1 : -1
+    if (!valB) return order === 'desc' ? -1 : 1
+
+    const dateA = new Date(valA).getTime()
+    const dateB = new Date(valB).getTime()
+
+    // 增強排序穩定性，處理無效日期
+    if (isNaN(dateA)) return 1
+    if (isNaN(dateB)) return -1
+
+    return order === 'desc' ? dateB - dateA : dateA - dateB
+  })
 })
 
 // 依據 activeTab 決定分頁資料來源
@@ -502,6 +778,8 @@ const setActiveTab = async (tab) => {
   // 切換 tab 時重置篩選
   selectedNewsCategory.value = null
   isCategoryDropdownOpen.value = false
+  selectedFaqCategory.value = null
+  isFaqCategoryDropdownOpen.value = false
   await fetchData()
 }
 
@@ -514,6 +792,28 @@ const selectNewsCategory = (category) => {
   selectedNewsCategory.value = category
   isCategoryDropdownOpen.value = false
   pagination.value.currentPage = 1 // 篩選後回到第一頁
+}
+
+// FAQ 分類下拉選單操作
+const toggleFaqCategoryDropdown = () => {
+  isFaqCategoryDropdownOpen.value = !isFaqCategoryDropdownOpen.value
+}
+
+const selectFaqCategory = (category) => {
+  selectedFaqCategory.value = category
+  isFaqCategoryDropdownOpen.value = false
+  pagination.value.currentPage = 1 // 篩選後回到第一頁
+}
+
+// 排序下拉選單操作
+const toggleSortDropdown = () => {
+  isSortDropdownOpen.value = !isSortDropdownOpen.value
+}
+
+const setSort = (sortValue) => {
+  currentSort.value = sortValue
+  isSortDropdownOpen.value = false
+  pagination.value.currentPage = 1 // 排序後回到第一頁
 }
 
 // 初始化載入
@@ -530,6 +830,12 @@ onUnmounted(() => {
 const handleClickOutside = (event) => {
   if (categoryDropdownRef.value && !categoryDropdownRef.value.contains(event.target)) {
     isCategoryDropdownOpen.value = false
+  }
+  if (faqCategoryDropdownRef.value && !faqCategoryDropdownRef.value.contains(event.target)) {
+    isFaqCategoryDropdownOpen.value = false
+  }
+  if (sortDropdownRef.value && !sortDropdownRef.value.contains(event.target)) {
+    isSortDropdownOpen.value = false
   }
 }
 
@@ -625,13 +931,55 @@ const handleDeleteItem = async (item) => {
   try {
     await store.delete(item._id)
     notify.notifySuccess(`成功刪除${entityName}`)
-    await refreshList(false) // 更新列表但不顯示載入動畫
+
+    // 本地刪除
+    if (activeTab.value === 'faq') {
+      const index = faqStore.items.findIndex((i) => i._id === item._id)
+      if (index !== -1) {
+        faqStore.items.splice(index, 1)
+      }
+    } else {
+      const index = newsStore.items.findIndex((i) => i._id === item._id)
+      if (index !== -1) {
+        newsStore.items.splice(index, 1)
+      }
+    }
   } catch (err) {
     const message = err.message || `刪除${entityName}失敗，請稍後再試`
     notify.notifyError(message)
   } finally {
     deletingItem.value = null
   }
+}
+
+// 新增：處理 News 更新
+const handleNewsUpdate = (payload) => {
+  const { news, isNew } = payload
+  if (isNew) {
+    newsStore.items.unshift(news)
+  } else {
+    const index = newsStore.items.findIndex((item) => item._id === news._id)
+    if (index !== -1) {
+      newsStore.items.splice(index, 1, news)
+    }
+  }
+  showModal.value = false
+  notify.notifySuccess(`消息已成功${isNew ? '新增' : '更新'}`)
+}
+
+// 新增：處理 FAQ 更新
+const handleFaqUpdate = (payload) => {
+  const { faq, isNew } = payload
+  if (isNew) {
+    faqStore.items.unshift(faq) // 將新項目加到列表開頭
+  } else {
+    const index = faqStore.items.findIndex((item) => item._id === faq._id)
+    if (index !== -1) {
+      faqStore.items.splice(index, 1, faq)
+    }
+  }
+  showModal.value = false
+  notify.notifySuccess(`問題已成功${isNew ? '新增' : '更新'}`)
 }
 
 // 檢查 News content 是否包含圖片
@@ -644,34 +992,6 @@ const hasContentImages = (content) => {
 const hasContentVideos = (content) => {
   if (!content || !Array.isArray(content)) return false
   return content.some((block) => block.itemType === 'videoEmbed' && block.videoEmbedUrl)
-}
-
-// 刷新列表
-const refreshList = async (showLoadingIndicator = true) => {
-  if (showLoadingIndicator) {
-    loading.value = true
-  }
-  error.value = ''
-  const store = currentStore()
-  const entityName = activeTab.value === 'news' ? '最新消息' : '常見問題'
-
-  try {
-    await store.fetchAll()
-  } catch (err) {
-    console.error(`刷新${entityName}列表失敗：`, err)
-    const message = err.message || `刷新${entityName}列表失敗`
-    error.value = message
-    // 僅在顯式刷新時提示錯誤
-    if (showLoadingIndicator) {
-      notify.notifyError(message)
-    }
-  } finally {
-    if (showLoadingIndicator) {
-      loading.value = false
-    }
-    // 確保 Modal 在保存後關閉
-    showModal.value = false
-  }
 }
 </script>
 

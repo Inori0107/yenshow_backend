@@ -13,6 +13,7 @@ class FaqController extends EntityController {
 			basicFields: [
 				"question",
 				"answer",
+				"summary",
 				"category",
 				"isActive",
 				"publishDate",
@@ -21,6 +22,7 @@ class FaqController extends EntityController {
 				"videoUrl",
 				"imageUrl",
 				"documentUrl",
+				"relatedFaqs",
 				"createdAt",
 				"updatedAt"
 			]
@@ -52,7 +54,7 @@ class FaqController extends EntityController {
 				query.isActive = true;
 			}
 
-			const item = await this.model.findOne(query);
+			const item = await this.model.findOne(query).populate("relatedFaqs", "question.TW slug");
 			if (!item) {
 				throw new ApiError(StatusCodes.NOT_FOUND, `${this.entityName} 未找到`);
 			}

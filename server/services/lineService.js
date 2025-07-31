@@ -114,17 +114,15 @@ export const handleMessage = async (event) => {
 	const userId = event.source.userId;
 	if (event.message.type === "text") {
 		const userMessage = event.message.text.trim();
-		trackEvent(userId, "receive_text_message", {
-			message_text: userMessage
-		});
+		// 判斷是否為已知關鍵字
 		if (userMessage === "產品一覽") {
 			return sendProductNavigation(event.replyToken, userId);
+		} else {
+			// 只有在所有關鍵字都匹配失敗時，才記錄為未處理訊息
+			trackEvent(userId, "unhandled_text_message", {
+				message_text: userMessage
+			});
 		}
-		// You can add other keyword responses here.
-		// For example, sending a default reply for unhandled messages.
-		trackEvent(userId, "unhandled_text_message", {
-			message_text: userMessage
-		});
 	}
 	return Promise.resolve(null);
 };

@@ -155,22 +155,4 @@ watch(
   },
   { immediate: true },
 )
-
-watch(
-  () => notifications.refreshTriggers.series,
-  (newVal, oldVal) => {
-    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-      loadDataForCurrentSeries()
-    }
-  },
-)
-
-watch(
-  () => notifications.refreshTriggers.hierarchy,
-  (newVal, oldVal) => {
-    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-      loadDataForCurrentSeries()
-    }
-  },
-)
 </script>

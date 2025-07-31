@@ -233,7 +233,7 @@ export class EntityController {
 
 			const results = await this.entityService.search(baseQuery, {
 				keyword,
-				pagination: { page: parseInt(page) || 1, limit: parseInt(limit) || 20 },
+				pagination: { page: parseInt(page) || 1, limit: Math.min(parseInt(limit) || 20, 100) },
 				sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 },
 				populate: populateOption // <--- Pass the determined populate option
 			});

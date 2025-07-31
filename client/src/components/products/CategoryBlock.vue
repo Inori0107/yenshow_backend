@@ -103,7 +103,11 @@
 
         <!-- 產品表格 -->
         <div class="mt-4">
-          <ProductTable :category-data="category" @refresh="$emit('refresh-hierarchy')" />
+          <ProductTable
+            :category-data="category"
+            @product-updated="handleProductUpdate"
+            @product-deleted="handleProductDelete"
+          />
         </div>
       </section>
     </template>
@@ -339,14 +343,96 @@ function handleAddProduct(category) {
 }
 
 // 處理產品提交成功
-function handleProductSubmitSuccess(result) {
-  if (!result) return
-  handleGenericSubmitSuccess(result.isNew ? 'create' : 'update', 'products', result.product?.name)
+function handleProductSubmitSuccess(payload) {
+  if (!payload || !payload.product) return
+
+  // 直接在本地更新數據，而不是全局刷新
+  handleProductUpdate(payload)
+
+  showProductModal.value = false
+  categoryForModal.value = null
+}
+
+const findProductLocation = (productId) => {
+  for (const category of categoryList.value) {
+    if (!category.subCategories) continue
+    for (const subCategory of category.subCategories) {
+      if (!subCategory.specifications) continue
+      for (const spec of subCategory.specifications) {
+        if (!spec.products) continue
+        const productIndex = spec.products.findIndex((p) => p._id === productId)
+        if (productIndex !== -1) {
+          return { category, subCategory, spec, productIndex }
+        }
+      }
+    }
+  }
+  return null
+}
+
+const handleProductUpdate = (payload) => {
+  const { product, isNew } = payload
+  if (!product?._id) return
+
+  const location = findProductLocation(product._id)
+
+  if (isNew) {
+    // 新增產品
+    // 需要找到產品對應的規格並將其添加進去
+    let targetSpec = null
+    for (const category of categoryList.value) {
+      if (!category.subCategories) continue
+      for (const subCategory of category.subCategories) {
+        if (!subCategory.specifications) continue
+        targetSpec = subCategory.specifications.find((s) => s._id === product.specifications)
+        if (targetSpec) break
+      }
+      if (targetSpec) break
+    }
+
+    if (targetSpec) {
+      if (!targetSpec.products) {
+        targetSpec.products = []
+      }
+      targetSpec.products.push(product)
+      notify.notifySuccess(`產品 ${getLocalizedField(product, 'name', '', 'TW')} 已成功新增`)
+    }
+  } else if (location) {
+    // 更新產品
+    location.spec.products.splice(location.productIndex, 1, product)
+    notify.notifySuccess(`產品 ${getLocalizedField(product, 'name', '', 'TW')} 已成功更新`)
+  }
+}
+
+const handleProductDelete = (deletedProduct) => {
+  if (!deletedProduct?._id) return
+
+  const location = findProductLocation(deletedProduct._id)
+
+  if (location) {
+    location.spec.products.splice(location.productIndex, 1)
+    notify.notifySuccess(`產品 ${getLocalizedField(deletedProduct, 'name', '', 'TW')} 已成功刪除`)
+  }
 }
 
 // 通用的提交成功處理函數
 function handleGenericSubmitSuccess(action, modelType, itemName) {
-  notify.refreshAfterAction(action, modelType, { name: itemName || '' })
+  const modelNameMap = {
+    subCategories: '子分類',
+    specifications: '規格',
+    products: '產品',
+  }
+  const actionNameMap = {
+    create: '新增',
+    update: '更新',
+  }
+
+  const modelName = modelNameMap[modelType] || '資料'
+  const actionName = actionNameMap[action] || '操作'
+
+  notify.notifySuccess(
+    `${modelName}「${getLocalizedField({ name: itemName }, 'name', '', 'TW')}」已成功${actionName}`,
+  )
   emit('refresh-hierarchy')
   if (modelType === 'subCategories') showSubCategoryModal.value = false
   if (modelType === 'specifications') showSpecificationModal.value = false

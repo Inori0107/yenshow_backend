@@ -186,10 +186,13 @@ class ProductsController {
 	 */
 	async searchProducts(req, res) {
 		try {
-			const { keyword, specifications, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { keyword, specifications, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc", includeInactive } = req.query;
 
-			// 構建附加條件 - 移除isActive過濾
+			// 預設僅搜尋 active 的產品
 			const additionalConditions = {};
+			if (includeInactive !== "true") {
+				additionalConditions.isActive = true;
+			}
 
 			if (specifications) {
 				additionalConditions.specifications = specifications;
@@ -880,35 +883,44 @@ class ProductsController {
 
 		// Manage file arrays
 		if (isUpdate) {
-			// 對 images, documents, videos 應用相同的檔案管理邏輯
-			const fileTypes = ["images", "documents", "videos"];
-			const markerPrefixes = {
-				images: imageMarkerPrefix,
-				documents: documentMarkerPrefix,
-				videos: videoMarkerPrefix
-			};
-			const pathsToDelete = {
-				images: imagePathsToDelete,
-				documents: documentPathsToDelete,
-				videos: videoPathsToDelete
-			};
+			// Only manage existing files if updating
+			const updatedImages = this._manageProductFileArray(
+				data.images, // client-sent array from payload
+				existingProduct?.images,
+				data._pendingImages,
+				imagePathsToDelete,
+				imageMarkerPrefix
+			);
+			if (updatedImages !== undefined) {
+				data.images = updatedImages;
+			} else {
+				delete data.images;
+			}
 
-			fileTypes.forEach((type) => {
-				const updatedFiles = this._manageProductFileArray(
-					data[type], // client-sent array from payload
-					existingProduct?.[type],
-					data[`_pending${type.charAt(0).toUpperCase() + type.slice(1)}`],
-					pathsToDelete[type],
-					markerPrefixes[type]
-				);
-
-				if (updatedFiles !== undefined) {
-					data[type] = updatedFiles;
-				} else {
-					// 如果 manage 回傳 undefined，表示不應更新此欄位
-					delete data[type];
-				}
-			});
+			const updatedDocuments = this._manageProductFileArray(
+				data.documents, // client-sent array from payload
+				existingProduct?.documents,
+				data._pendingDocuments,
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			if (updatedDocuments !== undefined) {
+				data.documents = updatedDocuments;
+			} else {
+				delete data.documents;
+			}
+			const updatedVideos = this._manageProductFileArray(
+				data.videos, // client-sent array from payload
+				existingProduct?.videos,
+				data._pendingVideos,
+				videoPathsToDelete,
+				videoMarkerPrefix
+			);
+			if (updatedVideos !== undefined) {
+				data.videos = updatedVideos;
+			} else {
+				delete data.videos;
+			}
 		} else {
 			// For create, initialize as empty arrays, will be populated after upload
 			data.images = [];
@@ -926,37 +938,25 @@ class ProductsController {
 	}
 
 	_manageProductFileArray(clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) {
-		// 如果客戶端未提供此欄位，則不進行任何操作
 		if (clientUrls === undefined) {
 			return undefined;
 		}
-
-		// 新增：如果客戶端傳送空陣列且沒有新檔案，也視為「不變更」，以避免意外刪除
-		if (Array.isArray(clientUrls) && clientUrls.length === 0 && (!pendingFiles || pendingFiles.length === 0)) {
-			return undefined;
-		}
-
 		const validClientKeptUrls = [];
 		if (Array.isArray(clientUrls)) {
 			clientUrls.forEach((url) => {
-				if (typeof url !== "string") return;
+				if (typeof url !== "string" || !url) return; // 增加對空字串的檢查
 
-				let relativeUrl = url;
-				// 如果是完整的 URL，嘗試轉換為相對路徑
-				if (url.startsWith("http")) {
-					try {
-						const urlObject = new URL(url);
-						relativeUrl = urlObject.pathname;
-					} catch (e) {
-						console.warn(`無法解析收到的 URL: ${url}`);
-						// 如果解析失敗，則不視為有效路徑
-						return;
-					}
-				}
+				let relativeUrl = "";
 
-				// 確保路徑是我們期望的 /storage/ 格式
-				if (relativeUrl.startsWith("/storage/")) {
+				// 尋找 /storage/ 的位置，使其對 URL 格式更具彈性
+				const storageIndex = url.indexOf("/storage/");
+
+				if (storageIndex !== -1) {
+					// 提取從 /storage/ 開始的路徑
+					relativeUrl = url.substring(storageIndex);
 					validClientKeptUrls.push(relativeUrl);
+				} else {
+					console.warn(`收到的 URL 格式不符合預期，無法處理: ${url}`);
 				}
 			});
 		}
@@ -967,13 +967,6 @@ class ProductsController {
 		if (Array.isArray(existingUrls)) {
 			existingUrls.forEach((oldUrl) => {
 				if (typeof oldUrl === "string" && oldUrl.startsWith("/storage/") && !validClientKeptUrls.includes(oldUrl)) {
-					pathsToDelete.push(oldUrl);
-				} else if (
-					typeof oldUrl === "string" &&
-					!oldUrl.startsWith("/storage/") &&
-					!oldUrl.startsWith(clientMarkerPrefix) &&
-					!validClientKeptUrls.includes(oldUrl)
-				) {
 					pathsToDelete.push(oldUrl);
 				}
 			});

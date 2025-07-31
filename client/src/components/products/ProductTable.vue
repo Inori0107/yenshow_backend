@@ -84,7 +84,64 @@
       </div>
       <div class="px-4 lg:px-6">資料狀態</div>
       <div class="px-4 lg:px-6 flex justify-center gap-[8px] lg:gap-[12px]">上架</div>
-      <div class="px-4 lg:px-6 flex justify-center gap-[8px] lg:gap-[12px]">更新時間</div>
+      <div
+        class="px-4 lg:px-6 flex justify-center gap-[8px] lg:gap-[12px] relative"
+        ref="sortDropdownRef"
+      >
+        <button
+          @click="toggleSortDropdown"
+          class="flex items-center gap-2 px-4 py-2 rounded-[10px] transition-colors"
+          :class="
+            conditionalClass(
+              'border-2 border-[#3F5069] hover:bg-[#3a434c]',
+              'border-2 border-slate-300 bg-white hover:bg-slate-50',
+            )
+          "
+        >
+          <span>{{ currentSortLabel }}</span>
+          <svg
+            class="w-5 h-5 transition-transform"
+            :class="{ 'rotate-180': isSortDropdownOpen }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M19 9l-7 7-7-7"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div
+          v-if="isSortDropdownOpen"
+          class="absolute top-full right-0 z-50 mt-2 min-w-[160px] rounded-[10px] shadow-lg max-h-[300px] overflow-y-auto space-y-1"
+          :class="
+            conditionalClass(
+              'bg-[#1e293b] border border-[#3F5069]',
+              'bg-white border border-slate-200',
+            )
+          "
+        >
+          <button
+            v-for="option in sortOptions"
+            :key="option.label"
+            @click="setSort(option.value)"
+            class="w-full px-4 py-2 text-left flex justify-between items-center gap-2 transition-colors"
+            :class="conditionalClass('hover:bg-[#3a434c]', 'hover:bg-slate-100')"
+          >
+            <span>{{ option.label }}</span>
+            <span
+              v-if="
+                currentSort.field === option.value.field && currentSort.order === option.value.order
+              "
+              class="text-blue-400"
+              >✓</span
+            >
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 產品列表 -->
@@ -216,7 +273,7 @@
         <!-- 時間與操作 -->
         <div class="flex items-center justify-end gap-[8px] lg:gap-[12px] px-4 lg:px-6 w-full">
           <span class="theme-text-secondary whitespace-nowrap">{{
-            formatDate(product?.updatedAt) || '無更新時間'
+            formatDate(product[currentSort.field]) || '無更新時間'
           }}</span>
           <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button
@@ -353,7 +410,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['refresh', 'editProduct'])
+const emit = defineEmits(['product-updated', 'product-deleted', 'editProduct'])
 
 // 使用通知和本地化功能
 const notify = useNotifications()
@@ -377,6 +434,17 @@ const pagination = ref({
 const selectedSubCategoriesId = ref(null)
 const categoriesDropdownRef = ref(null)
 const isCategoriesDropdownOpen = ref(false)
+
+// 排序狀態
+const sortDropdownRef = ref(null)
+const isSortDropdownOpen = ref(false)
+const sortOptions = ref([
+  { label: '最新更新', value: { field: 'updatedAt', order: 'desc' } },
+  { label: '最早更新', value: { field: 'updatedAt', order: 'asc' } },
+  { label: '最新建立', value: { field: 'createdAt', order: 'desc' } },
+  { label: '最早建立', value: { field: 'createdAt', order: 'asc' } },
+])
+const currentSort = ref(sortOptions.value[0].value)
 
 // 編輯產品相關
 const showProductModal = ref(false)
@@ -424,16 +492,35 @@ const allProductsFromProp = computed(() => {
 
 // New: Filter products based on selected subcategory
 const filteredProducts = computed(() => {
-  if (!allProductsFromProp.value) return []
-  if (selectedSubCategoriesId.value === null) {
-    // Show all products from the category
-    return allProductsFromProp.value
-  } else {
-    // Filter by selected subCategory ID
-    return allProductsFromProp.value.filter(
-      (p) => p._subCategoryId === selectedSubCategoriesId.value,
-    )
+  let productsToFilter = []
+  if (allProductsFromProp.value) {
+    if (selectedSubCategoriesId.value === null) {
+      productsToFilter = allProductsFromProp.value
+    } else {
+      productsToFilter = allProductsFromProp.value.filter(
+        (p) => p._subCategoryId === selectedSubCategoriesId.value,
+      )
+    }
   }
+
+  // 排序邏輯
+  const { field, order } = currentSort.value
+  return [...productsToFilter].sort((a, b) => {
+    const valA = a[field]
+    const valB = b[field]
+
+    if (!valA) return order === 'desc' ? 1 : -1
+    if (!valB) return order === 'desc' ? -1 : 1
+
+    const dateA = new Date(valA).getTime()
+    const dateB = new Date(valB).getTime()
+
+    // 增強排序穩定性，處理無效日期
+    if (isNaN(dateA)) return 1
+    if (isNaN(dateB)) return -1
+
+    return order === 'desc' ? dateB - dateA : dateA - dateB
+  })
 })
 
 // New: Watch filtered products to update pagination state
@@ -487,6 +574,14 @@ const selectedCategoriesLabel = computed(() => {
   return getLocalizedField(selected, 'name', '未命名子分類', 'TW')
 })
 
+const currentSortLabel = computed(() => {
+  const option = sortOptions.value.find(
+    (opt) =>
+      opt.value.field === currentSort.value.field && opt.value.order === currentSort.value.order,
+  )
+  return option ? option.label : '排序'
+})
+
 // 顯示的產品列表 (Now handles frontend pagination)
 const displayedProducts = computed(() => {
   const start = (pagination.value.currentPage - 1) * pagination.value.itemsPerPage
@@ -503,12 +598,22 @@ const toggleCategoriesDropdown = () => {
   isCategoriesDropdownOpen.value = !isCategoriesDropdownOpen.value
 }
 
+const toggleSortDropdown = () => {
+  isSortDropdownOpen.value = !isSortDropdownOpen.value
+}
+
+const setSort = (sortValue) => {
+  currentSort.value = sortValue
+  isSortDropdownOpen.value = false
+  pagination.value.currentPage = 1
+}
+
 // 選擇全部子分類
 const selectAllCategories = () => {
   if (selectedSubCategoriesId.value !== null) {
     selectedSubCategoriesId.value = null
     isCategoriesDropdownOpen.value = false
-    pagination.value.currentPage = 1 // Reset page when filter changes
+    // pagination.value.currentPage = 1 // Reset page when filter changes
   } else {
     isCategoriesDropdownOpen.value = false
   }
@@ -519,7 +624,7 @@ const selectSubCategories = (subCategoriesId) => {
   if (selectedSubCategoriesId.value !== subCategoriesId) {
     selectedSubCategoriesId.value = subCategoriesId
     isCategoriesDropdownOpen.value = false
-    pagination.value.currentPage = 1 // Reset page when filter changes
+    // pagination.value.currentPage = 1 // Reset page when filter changes
   } else {
     isCategoriesDropdownOpen.value = false
   }
@@ -541,8 +646,8 @@ const editProduct = (product) => {
 }
 
 // 處理產品提交成功
-const handleProductSubmitSuccess = () => {
-  emit('refresh')
+const handleProductSubmitSuccess = (payload) => {
+  emit('product-updated', payload)
 }
 
 // 確認刪除
@@ -560,15 +665,7 @@ const deleteProduct = async () => {
 
     if (success) {
       showDeleteConfirm.value = false
-      notify.refreshAfterAction('delete', 'products', {
-        name: getLocalizedField(
-          productToDelete.value,
-          'name',
-          productToDelete.value?.code || '未命名產品',
-          'TW',
-        ),
-      })
-      emit('refresh')
+      emit('product-deleted', productToDelete.value)
     } else {
       notify.notifyError('刪除產品失敗 (API)')
     }
@@ -587,10 +684,7 @@ const toggleProductActive = async (product) => {
     const result = await entityApi('products').update(product._id, updatedData)
 
     if (result) {
-      notify.refreshAfterAction('update', 'products', {
-        name: getLocalizedField(product, 'name', product?.code || '未命名產品', 'TW'),
-      })
-      emit('refresh') // Rely on parent to update props
+      emit('product-updated', { product: result, isNew: false }) // Rely on parent to update props
     } else {
       notify.notifyError('更新產品狀態失敗 (API)')
     }
@@ -607,6 +701,9 @@ const toggleProductActive = async (product) => {
 const handleClickOutside = (event) => {
   if (categoriesDropdownRef.value && !categoriesDropdownRef.value.contains(event.target)) {
     isCategoriesDropdownOpen.value = false
+  }
+  if (sortDropdownRef.value && !sortDropdownRef.value.contains(event.target)) {
+    isSortDropdownOpen.value = false
   }
 }
 

@@ -558,7 +558,6 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
@@ -584,7 +583,6 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'submit-success', 'close'])
 
 // 初始化工具與狀態
-const notify = useNotifications()
 const { getLocalizedField } = useLanguage()
 const { validateRequired, errors: validationErrors, clearErrors, setError } = useFormValidation()
 const productsStore = useProductsStore()
@@ -629,6 +627,11 @@ const documentInputRef = ref(null)
 
 const videoFiles = ref([])
 const videoInputRef = ref(null)
+
+// File modification tracking state
+const imagesModified = ref(false)
+const documentsModified = ref(false)
+const videosModified = ref(false)
 
 // 相關數據
 const specifications = ref([])
@@ -869,10 +872,19 @@ const submitForm = async () => {
         features: form.value.features.filter((f) => f.TW || f.EN),
         description: { TW: form.value.description_TW, EN: form.value.description_EN },
         isActive: form.value.isActive,
-        images: form.value.images,
-        documents: form.value.documents,
-        videos: form.value.videos,
       }
+
+      // 只在檔案列表被修改過時才加入 payload
+      if (imagesModified.value) {
+        productPayload.images = form.value.images
+      }
+      if (documentsModified.value) {
+        productPayload.documents = form.value.documents
+      }
+      if (videosModified.value) {
+        productPayload.videos = form.value.videos
+      }
+
       formData.append('productDataPayload', JSON.stringify(productPayload))
     } else {
       // --- 新增邏輯 ---
@@ -910,10 +922,6 @@ const submitForm = async () => {
     }
     // 處理成功
     uploadStatus.value = '上傳成功！'
-    notify.notifySuccess(`產品${isEditing.value ? '更新' : '創建'}成功！`)
-
-    // 觸發資料刷新
-    notify.triggerRefresh('products')
 
     // 發送成功事件並關閉模態框
     emit('submit-success', {
@@ -969,6 +977,11 @@ const resetForm = () => {
   imageFiles.value = []
   documentFiles.value = []
   videoFiles.value = []
+
+  // Reset modification tracking
+  imagesModified.value = false
+  documentsModified.value = false
+  videosModified.value = false
 
   // Clear file inputs
   if (imageInputRef.value) imageInputRef.value.value = ''
@@ -1203,11 +1216,13 @@ const handleImageFiles = (event) => {
     })
     imageFiles.value.push(fileWithPreview)
   })
+  imagesModified.value = true // 標記為已修改
   if (imageInputRef.value) imageInputRef.value.value = ''
 }
 
 const handleDocumentFiles = (event) => {
   documentFiles.value.push(...Array.from(event.target.files))
+  documentsModified.value = true // 標記為已修改
   if (documentInputRef.value) documentInputRef.value.value = ''
 }
 
@@ -1219,28 +1234,35 @@ const handleVideoFiles = (event) => {
     })
     videoFiles.value.push(fileWithPreview)
   })
+  videosModified.value = true // 標記為已修改
   if (videoInputRef.value) videoInputRef.value.value = ''
 }
 
 const removeNewImage = (index) => {
   URL.revokeObjectURL(imageFiles.value[index].previewUrl)
   imageFiles.value.splice(index, 1)
+  imagesModified.value = true // 標記為已修改
 }
 const removeExistingImage = (index) => {
   form.value.images.splice(index, 1)
+  imagesModified.value = true // 標記為已修改
 }
 const removeNewDocument = (index) => {
   documentFiles.value.splice(index, 1)
+  documentsModified.value = true // 標記為已修改
 }
 const removeExistingDocument = (index) => {
   form.value.documents.splice(index, 1)
+  documentsModified.value = true // 標記為已修改
 }
 const removeNewVideo = (index) => {
   URL.revokeObjectURL(videoFiles.value[index].previewUrl)
   videoFiles.value.splice(index, 1)
+  videosModified.value = true // 標記為已修改
 }
 const removeExistingVideo = (index) => {
   form.value.videos.splice(index, 1)
+  videosModified.value = true // 標記為已修改
 }
 
 onBeforeUnmount(() => {

@@ -1,6 +1,16 @@
 import mongoose from "mongoose";
 
 /**
+ * 對字串中的正規表示式特殊字元進行跳脫
+ * @param {string} string - 要進行跳脫的字串
+ * @returns {string} 跳脫後的字串
+ */
+const escapeRegExp = (string) => {
+	// $& 表示整個匹配到的字串
+	return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+/**
  * 準備搜尋條件
  * @param {String} keyword - 搜尋關鍵詞
  * @param {Array} searchFields - 搜尋欄位
@@ -12,15 +22,16 @@ const prepareSearchConditions = (keyword, searchFields = ["name_TW", "name_EN", 
 	// 確保關鍵字是字串類型
 	const keywordString = String(keyword);
 	const trimmedKeyword = keywordString.trim();
+	const escapedKeyword = escapeRegExp(trimmedKeyword); // 對關鍵字進行跳脫
 
 	// 準備精確搜尋條件
 	const exactConditions = searchFields.map((field) => ({
-		[field]: new RegExp(`^${trimmedKeyword}$`, "i")
+		[field]: new RegExp(`^${escapedKeyword}$`, "i")
 	}));
 
 	// 準備模糊搜尋條件
 	const fuzzyConditions = searchFields.map((field) => ({
-		[field]: new RegExp(trimmedKeyword, "i")
+		[field]: new RegExp(escapedKeyword, "i")
 	}));
 
 	return {
@@ -49,9 +60,11 @@ export const performSearch = async ({
 	searchFields = ["name_TW", "name_EN", "code"],
 	sort = "createdAt",
 	sortDirection = "asc",
+	page = 1,
 	limit = 100,
 	populate = null
 }) => {
+	const skip = (page - 1) * limit;
 	const { exactConditions, fuzzyConditions } = prepareSearchConditions(keyword, searchFields);
 
 	// 如果沒有關鍵詞，直接返回基本查詢
@@ -63,6 +76,7 @@ export const performSearch = async ({
 		let findQuery = model
 			.find(query)
 			.sort({ [sort]: sortDirection === "asc" ? 1 : -1 })
+			.skip(skip)
 			.limit(limit);
 
 		if (populate) {
@@ -88,6 +102,7 @@ export const performSearch = async ({
 	let exactFindQuery = model
 		.find(exactQuery)
 		.sort({ [sort]: sortDirection === "asc" ? 1 : -1 })
+		.skip(skip)
 		.limit(limit);
 
 	if (populate) {
@@ -95,12 +110,13 @@ export const performSearch = async ({
 	}
 
 	const exactResults = await exactFindQuery;
+	const totalExact = await model.countDocuments(exactQuery);
 
 	// 如果有精確匹配，返回精確結果
 	if (exactResults.length > 0) {
 		return {
 			items: exactResults,
-			total: exactResults.length,
+			total: totalExact,
 			exactMatch: true
 		};
 	}
@@ -114,6 +130,7 @@ export const performSearch = async ({
 	let fuzzyFindQuery = model
 		.find(fuzzyQuery)
 		.sort({ [sort]: sortDirection === "asc" ? 1 : -1 })
+		.skip(skip)
 		.limit(limit);
 
 	if (populate) {

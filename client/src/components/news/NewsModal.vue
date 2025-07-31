@@ -542,7 +542,6 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useNewsStore } from '@/stores/newsStore'
-import { useNotifications } from '@/composables/notificationCenter'
 import { useThemeClass } from '@/composables/useThemeClass'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { v4 as uuidv4 } from 'uuid'
@@ -569,7 +568,6 @@ const emit = defineEmits(['update:show', 'saved'])
 
 const newsStore = useNewsStore()
 const userStore = useUserStore()
-const notify = useNotifications()
 const { cardClass, inputClass: themeInputClass, conditionalClass } = useThemeClass()
 const {
   errors: validationErrors,
@@ -972,8 +970,6 @@ const submitForm = async () => {
       throw new Error(errMsg)
     }
 
-    notify.notifySuccess(`新聞 ${isEditing.value ? '更新' : '新增'}成功！`)
-    notify.triggerRefresh('news')
     emit('saved', {
       news: result || { _id: form.value._id, ...newsDataPayload },
       isNew: !isEditing.value,

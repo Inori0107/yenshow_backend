@@ -16,10 +16,14 @@ const faqSchema = new Schema(
 				default: () => ({ type: "doc", content: [{ type: "paragraph" }] })
 			}
 		},
+		summary: {
+			TW: { type: String, trim: true },
+			EN: { type: String, trim: true }
+		},
 		category: {
 			main: {
 				type: String,
-				enum: ["名詞解說", "設備參數", "故障排除"],
+				enum: ["名詞解說", "產品介紹", "故障排除"],
 				required: [true, "主分類為必填"]
 			},
 			sub: {
@@ -51,7 +55,13 @@ const faqSchema = new Schema(
 			unique: true,
 			sparse: true,
 			lowercase: true
-		}
+		},
+		relatedFaqs: [
+			{
+				type: Schema.Types.ObjectId,
+				ref: "Faq"
+			}
+		]
 	},
 	{
 		timestamps: true,
@@ -124,6 +134,25 @@ faqSchema.virtual("metaTitle").get(function () {
 
 faqSchema.virtual("metaDescription").get(function () {
 	const maxLength = 155;
+	if (this.summary && (this.summary.TW || this.summary.EN)) {
+		let descTW = this.summary.TW || this.question.TW || "";
+		let descEN = this.summary.EN || this.question.EN || "";
+
+		// TW
+		if (descTW.length > maxLength) {
+			descTW = descTW.substring(0, maxLength - 3) + "...";
+		}
+
+		// EN
+		if (descEN.length > maxLength) {
+			descEN = descEN.substring(0, maxLength - 3) + "...";
+		}
+		return {
+			TW: descTW,
+			EN: descEN
+		};
+	}
+
 	if (this.question) {
 		let descTW = this.question.TW || "";
 		let descEN = this.question.EN || "";

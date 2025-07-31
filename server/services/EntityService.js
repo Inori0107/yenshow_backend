@@ -282,6 +282,7 @@ export class EntityService {
 				searchFields: searchFields,
 				sort: sortField,
 				sortDirection: sortDirection,
+				page: page,
 				limit: limit,
 				populate: populate // Pass populate to performSearch
 			});
