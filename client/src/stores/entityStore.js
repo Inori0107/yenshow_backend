@@ -49,7 +49,16 @@ export const createEntityStore = (entityType, options = {}) => {
             lang: languageStore.currentLang,
           }
 
-          this.items = await entityApi(entityType, { responseKey }).getAll(updatedParams)
+          const result = await entityApi(entityType, { responseKey }).getAll(updatedParams)
+          this.items = result.items || []
+          if (result.pagination) {
+            this.pagination = {
+              page: result.pagination.page || 1,
+              limit: result.pagination.limit || this.pagination.limit,
+              total: result.pagination.total || this.pagination.total,
+              pages: result.pagination.pages || this.pagination.pages,
+            }
+          }
         } catch (error) {
           this.error = error.message || `獲取${entityType}時發生錯誤`
         } finally {

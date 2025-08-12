@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[300px]">
+  <div ref="tableTopRef" class="min-h-[300px]">
     <!-- 表頭 -->
     <div
       class="grid grid-cols-5 justify-items-center items-center py-3 text-center text-[12px] lg:text-[16px] rounded-t-lg"
@@ -193,7 +193,7 @@
               product?.images && product.images.length > 0 ? product.images[0] : '/placeholder.jpg'
             "
             alt="產品圖片"
-            class="w-[48px] h-[48px] mr-3 object-cover rounded-md flex-shrink-0"
+            class="w-[48px] h-[48px] mr-3 object-contain rounded-md flex-shrink-0"
             @error="handleImageError($event)"
           />
           <span class="truncate theme-text">{{
@@ -395,7 +395,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/axios'
@@ -425,7 +425,7 @@ const { cardClass, conditionalClass } = useThemeClass()
 // =====================================================
 const pagination = ref({
   currentPage: 1,
-  itemsPerPage: 10,
+  itemsPerPage: 8,
   totalItems: 0,
   totalPages: 0,
 })
@@ -433,6 +433,7 @@ const pagination = ref({
 // const subCategories = ref([]) // 改為 computed
 const selectedSubCategoriesId = ref(null)
 const categoriesDropdownRef = ref(null)
+const tableTopRef = ref(null)
 const isCategoriesDropdownOpen = ref(false)
 
 // 排序狀態
@@ -636,7 +637,16 @@ const changePage = (page) => {
     return
   }
   pagination.value.currentPage = page
-  // No loadProducts() call needed
+
+  // 切換分頁後自動捲動到表格頂端（預留約 100px ）
+  nextTick(() => {
+    if (tableTopRef.value) {
+      const offset = 150 // 預留空間 (px)
+      const targetTop = tableTopRef.value.getBoundingClientRect().top + window.scrollY - offset
+      const scrollTop = targetTop < 0 ? 0 : targetTop
+      window.scrollTo({ top: scrollTop, behavior: 'smooth' })
+    }
+  })
 }
 
 // 編輯產品
@@ -749,22 +759,6 @@ watch(
   },
   { immediate: true }, // Ensures initial setup
 )
-
-// REMOVED: Watcher for targetSpecificationIds calling resetAndLoadProducts
-/*
-watch(
-  targetSpecificationIds,
-  // ... removed ...
-)
-*/
-
-// REMOVED: Watcher for notify.refreshTriggers.products
-/*
-watch(
-  () => notify.refreshTriggers.products,
-  // ... removed ...
-)
-*/
 
 // Keep Mount/Unmount for handleClickOutside
 onMounted(() => {

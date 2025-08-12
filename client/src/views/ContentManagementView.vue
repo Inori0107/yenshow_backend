@@ -48,8 +48,8 @@
       <button @click="error = ''" class="float-right text-red-100 hover:text-white">&times;</button>
     </div>
 
-    <!-- 載入中提示 -->
-    <div v-if="loading" class="flex flex-col items-center justify-center py-12">
+    <!-- 載入中提示（延遲顯示，減少閃爍） -->
+    <div v-if="showLoading" class="flex flex-col items-center justify-center py-12">
       <div
         class="animate-spin rounded-full h-12 w-12 border-b-2 border-t-2 mb-4"
         :class="conditionalClass('border-white', 'border-blue-600')"
@@ -232,7 +232,7 @@
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
-              <td class="py-3 px-4 lg:px-6 theme-text max-w-[500px] truncate">
+              <td class="py-3 px-4 lg:px-6 theme-text max-w-[450px] truncate">
                 {{ item.title?.TW || '-' }}
               </td>
               <td class="py-3 px-4 lg:px-6 theme-text">{{ item.category || '-' }}</td>
@@ -466,7 +466,7 @@
               :key="item._id"
               :class="conditionalClass('border-b border-white/5', 'border-b border-slate-100')"
             >
-              <td class="py-3 px-4 lg:px-6 theme-text max-w-[500px] truncate">
+              <td class="py-3 px-4 lg:px-6 theme-text max-w-[450px] truncate">
                 {{ item.question?.TW || '-' }}
               </td>
               <td class="py-3 px-4 lg:px-6 theme-text">
@@ -627,6 +627,8 @@ const { cardClass, conditionalClass } = useThemeClass()
 
 // 本地狀態
 const loading = ref(false)
+const showLoading = ref(false)
+let loadingTimer = null
 const error = ref('')
 const activeTab = ref('news') // 'news' or 'faq'
 const showModal = ref(false)
@@ -671,24 +673,18 @@ const pagination = ref({
   totalPages: 1,
 })
 
-// 計算不重複的消息分類
-const newsCategories = computed(() => {
-  if (!newsStore.items) return []
-  const categories = newsStore.items.map((item) => item.category).filter(Boolean)
-  return [...new Set(categories)]
-})
+// 分類下拉：從後端取全量分類，避免因當前頁面資料而縮水
+const allNewsCategories = ref([])
+const newsCategories = computed(() => allNewsCategories.value)
 
 // 計算分類下拉選單的按鈕標籤
 const selectedNewsCategoryLabel = computed(() => {
-  return selectedNewsCategory.value || '分類'
+  return selectedNewsCategory.value || '全部分類'
 })
 
-// 計算不重複的 FAQ 主分類
-const faqCategories = computed(() => {
-  if (!faqStore.items) return []
-  const categories = faqStore.items.map((item) => item.category?.main).filter(Boolean)
-  return [...new Set(categories)]
-})
+// FAQ 分類：從後端取全量分類，避免下拉選項隨列表改變
+const allFaqCategories = ref([])
+const faqCategories = computed(() => allFaqCategories.value)
 
 // 計算 FAQ 分類下拉選單的按鈕標籤
 const selectedFaqCategoryLabel = computed(() => {
@@ -697,47 +693,26 @@ const selectedFaqCategoryLabel = computed(() => {
 
 // 根據 activeTab 和篩選條件決定列表資料
 const filteredItems = computed(() => {
-  let itemsToFilter = []
+  // News：由後端處理分類與排序，前端直接使用
   if (activeTab.value === 'news') {
-    const items = newsStore.items || []
-    if (selectedNewsCategory.value) {
-      itemsToFilter = items.filter((item) => item.category === selectedNewsCategory.value)
-    } else {
-      itemsToFilter = items
-    }
-  } else if (activeTab.value === 'faq') {
-    const items = faqStore.items || []
-    if (selectedFaqCategory.value) {
-      itemsToFilter = items.filter((item) => item.category?.main === selectedFaqCategory.value)
-    } else {
-      itemsToFilter = items
-    }
+    return newsStore.items || []
   }
 
-  // 排序邏輯
-  const { field, order } = currentSort.value
-  return [...itemsToFilter].sort((a, b) => {
-    let valA = field === 'publishDate' ? a.publishDate || a.createdAt : a[field]
-    let valB = field === 'publishDate' ? b.publishDate || b.createdAt : b[field]
-
-    // 確保有值可比較
-    if (!valA) return order === 'desc' ? 1 : -1
-    if (!valB) return order === 'desc' ? -1 : 1
-
-    const dateA = new Date(valA).getTime()
-    const dateB = new Date(valB).getTime()
-
-    // 增強排序穩定性，處理無效日期
-    if (isNaN(dateA)) return 1
-    if (isNaN(dateB)) return -1
-
-    return order === 'desc' ? dateB - dateA : dateA - dateB
-  })
+  // FAQ：也改由後端處理分類與排序
+  return faqStore.items || []
 })
 
 // 依據 activeTab 決定分頁資料來源
 const pagedItems = computed(() => {
   const list = filteredItems.value
+  if (activeTab.value === 'news') {
+    // 後端已分頁，直接使用
+    return list
+  }
+  if (activeTab.value === 'faq') {
+    // FAQ 由後端分頁，直接使用
+    return list
+  }
   const start = (pagination.value.currentPage - 1) * pagination.value.itemsPerPage
   const end = start + pagination.value.itemsPerPage
   return list.slice(start, end)
@@ -764,6 +739,12 @@ const changePage = (page) => {
   if (page < 1 || page > pagination.value.totalPages || page === pagination.value.currentPage)
     return
   pagination.value.currentPage = page
+  if (activeTab.value === 'news') {
+    // 後端分頁
+    fetchData()
+  } else if (activeTab.value === 'faq') {
+    fetchData()
+  }
 }
 
 // 根據 activeTab 獲取對應的 store
@@ -792,6 +773,9 @@ const selectNewsCategory = (category) => {
   selectedNewsCategory.value = category
   isCategoryDropdownOpen.value = false
   pagination.value.currentPage = 1 // 篩選後回到第一頁
+  if (activeTab.value === 'news') {
+    fetchData()
+  }
 }
 
 // FAQ 分類下拉選單操作
@@ -803,6 +787,9 @@ const selectFaqCategory = (category) => {
   selectedFaqCategory.value = category
   isFaqCategoryDropdownOpen.value = false
   pagination.value.currentPage = 1 // 篩選後回到第一頁
+  if (activeTab.value === 'faq') {
+    fetchData()
+  }
 }
 
 // 排序下拉選單操作
@@ -814,16 +801,36 @@ const setSort = (sortValue) => {
   currentSort.value = sortValue
   isSortDropdownOpen.value = false
   pagination.value.currentPage = 1 // 排序後回到第一頁
+  if (activeTab.value === 'news') {
+    fetchData()
+  } else if (activeTab.value === 'faq') {
+    fetchData()
+  }
 }
 
 // 初始化載入
 onMounted(async () => {
   await fetchData()
+  // 初次加載全量分類（避免下拉選項隨列表改變）
+  try {
+    const { useApi } = await import('@/composables/axios')
+    const { entityApi } = useApi()
+    const api = entityApi('news', { responseKey: 'news' })
+    allNewsCategories.value = await api.getCategories()
+    const faqApi = entityApi('faqs', { responseKey: 'faqs' })
+    allFaqCategories.value = await faqApi.getCategories()
+  } catch (e) {
+    console.warn('載入分類清單失敗', e?.message || e)
+  }
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (loadingTimer) {
+    clearTimeout(loadingTimer)
+    loadingTimer = null
+  }
 })
 
 // 點擊外部關閉下拉選單
@@ -847,7 +854,35 @@ const fetchData = async () => {
   const entityName = activeTab.value === 'news' ? '最新消息' : '常見問題'
 
   try {
-    await store.fetchAll()
+    if (activeTab.value === 'news') {
+      const params = {
+        page: pagination.value.currentPage,
+        limit: pagination.value.itemsPerPage,
+        ...(selectedNewsCategory.value ? { category: selectedNewsCategory.value } : {}),
+        sort: currentSort.value.field,
+        sortDirection: currentSort.value.order,
+      }
+      await store.fetchAll(params)
+      // 同步後端分頁資訊到 UI 狀態
+      const p = store.pagination || {}
+      pagination.value.currentPage = p.page || 1
+      pagination.value.itemsPerPage = p.limit || pagination.value.itemsPerPage
+      pagination.value.totalPages = p.pages || 1
+    } else {
+      // FAQ
+      const params = {
+        page: pagination.value.currentPage,
+        limit: pagination.value.itemsPerPage,
+        ...(selectedFaqCategory.value ? { category: selectedFaqCategory.value } : {}),
+        sort: currentSort.value.field,
+        sortDirection: currentSort.value.order,
+      }
+      await store.fetchAll(params)
+      const p = store.pagination || {}
+      pagination.value.currentPage = p.page || 1
+      pagination.value.itemsPerPage = p.limit || pagination.value.itemsPerPage
+      pagination.value.totalPages = p.pages || 1
+    }
     if (!store.items || store.items.length === 0) {
       notify.notifyInfo(`目前沒有任何${entityName}`)
     }
@@ -860,6 +895,22 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+
+// 延遲顯示 loading，避免短請求造成閃爍
+watch(loading, (val) => {
+  if (val) {
+    if (loadingTimer) clearTimeout(loadingTimer)
+    loadingTimer = setTimeout(() => {
+      showLoading.value = true
+    }, 200) // 200ms 後仍在載入才顯示
+  } else {
+    if (loadingTimer) {
+      clearTimeout(loadingTimer)
+      loadingTimer = null
+    }
+    showLoading.value = false
+  }
+})
 
 // 格式化日期
 const formatDate = (dateString) => {

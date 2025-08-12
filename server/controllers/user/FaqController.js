@@ -32,13 +32,45 @@ class FaqController extends EntityController {
 		}
 	}
 
+	// 取得 FAQ 主分類清單
+	getCategories = async (req, res, next) => {
+		try {
+			const categories = Faq.schema.path("category.main").enumValues || [];
+			this._sendResponse(res, StatusCodes.OK, `分類清單獲取成功`, { categories });
+		} catch (error) {
+			this._handleError(error, "獲取分類清單", next);
+		}
+	};
+
 	getAllItems = async (req, res, next) => {
 		try {
+			const { category, sort, sortDirection, page, limit } = req.query;
+
 			const query = {};
-			const items = await this.model.find(query).sort({ publishDate: -1, createdAt: -1 });
+			if (this._shouldFilterActive(req)) {
+				query.isActive = true;
+			}
+			if (category) {
+				query["category.main"] = category;
+			}
+
+			const allowedSortFields = ["publishDate", "createdAt"];
+			const sortField = allowedSortFields.includes(sort) ? sort : "publishDate";
+			const order = sortDirection === "asc" ? 1 : -1;
+			const sortOption = sortField === "createdAt" ? { createdAt: order } : { [sortField]: order, createdAt: -1 };
+
+			const pageNum = Math.max(parseInt(page) || 1, 1);
+			const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+			const skip = (pageNum - 1) * limitNum;
+
+			const total = await this.model.countDocuments(query);
+			const items = await this.model.find(query).sort(sortOption).skip(skip).limit(limitNum).populate("relatedFaqs", "question.TW slug");
 
 			const formattedItems = items.map((item) => this.entityService.formatOutput(item));
-			this._sendResponse(res, StatusCodes.OK, `常見問題列表獲取成功`, { [this.responseKey]: formattedItems });
+			this._sendResponse(res, StatusCodes.OK, `常見問題列表獲取成功`, {
+				[this.responseKey]: formattedItems,
+				pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
+			});
 		} catch (error) {
 			this._handleError(error, "獲取列表", next);
 		}

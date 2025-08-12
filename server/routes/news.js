@@ -9,6 +9,8 @@ const router = express.Router();
 // 公開路由 (不需驗證)
 router.get("/search", checkRole([Permissions.PUBLIC]), NewsController.searchItems); // 搜索
 router.get("/", checkRole([Permissions.PUBLIC]), NewsController.getAllItems); // 獲取所有 (啟用狀態)
+// 取得分類清單（需置於 slug 路由之前）
+router.get("/categories", checkRole([Permissions.PUBLIC]), NewsController.getCategories);
 router.get("/:slug", checkRole([Permissions.PUBLIC]), NewsController.getItemBySlug); // 獲取單個
 
 // 需要身份驗證的路由

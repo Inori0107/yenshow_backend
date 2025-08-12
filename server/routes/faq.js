@@ -17,6 +17,7 @@ const uploadFaqAssets = fileUpload.upload.fields([
 // Public routes (example: get all, get one, search)
 router.get("/", checkRole([Permissions.PUBLIC]), FaqController.getAllItems);
 router.get("/search", checkRole([Permissions.PUBLIC]), FaqController.searchItems);
+router.get("/categories", checkRole([Permissions.PUBLIC]), FaqController.getCategories);
 router.get("/:slug", checkRole([Permissions.PUBLIC]), FaqController.getItemBySlug);
 
 // Protected routes - require authentication

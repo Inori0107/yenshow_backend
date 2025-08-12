@@ -8,7 +8,8 @@
     "init-database": "node scripts/init-database.js",
     "cleanup-orphans": "node scripts/cleanup-orphans.js",
     "create-admin": "node scripts/createInitialAdmin.js",
-    "migrate-product": "node scripts/migrate-product.js"
+    "migrate-product": "node scripts/migrate-product.js",
+    "export-users": "node scripts/export-users.js"
   },
   "keywords": [],
   "author": "",

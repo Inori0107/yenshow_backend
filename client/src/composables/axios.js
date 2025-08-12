@@ -229,7 +229,10 @@ export const useApi = () => {
       // 獲取所有項目 (對應 BaseController.getAllItems)
       getAll: async (params = {}) => {
         const response = await safeApiCall(() => instance.get(`/api/${entityType}`, { params }))
-        return response?.data?.result?.[responseKey] || []
+        return {
+          items: response?.data?.result?.[responseKey] || [],
+          pagination: response?.data?.result?.pagination || null,
+        }
       },
 
       // 獲取單個項目 (對應 BaseController.getItemById)
@@ -238,6 +241,12 @@ export const useApi = () => {
           instance.get(`/api/${entityType}/${id}`, { params }),
         )
         return response?.data?.result?.[entityType] || null
+      },
+
+      // 取得分類列表（News 使用）
+      getCategories: async () => {
+        const response = await safeApiCall(() => instance.get(`/api/${entityType}/categories`))
+        return response?.data?.result?.categories || []
       },
 
       // 搜索項目 (對應 BaseController.searchItems)
