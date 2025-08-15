@@ -90,7 +90,7 @@
                       <span
                         class="absolute right-3 top-3 text-xs"
                         :class="conditionalClass('text-gray-400', 'text-slate-500')"
-                        >繁體中文</span
+                        >TW</span
                       >
                       <input
                         v-model="item.name_TW"
@@ -116,7 +116,7 @@
                       <span
                         class="absolute right-3 top-3 text-xs"
                         :class="conditionalClass('text-gray-400', 'text-slate-500')"
-                        >English</span
+                        >EN</span
                       >
                       <input
                         v-model="item.name_EN"
@@ -368,19 +368,44 @@ const loadData = async () => {
     formData.value.parentId = props.parentId // 設置 parentId
 
     // 新方式：同時檢查 <modelType> 和 <modelType>List 鍵名
-    const listKey = `${props.modelType}List`
+    const listKey = `${props.modelType}List` // 例如 "subCategoriesList"
     const singleKey = props.modelType // 例如 "subCategories"
 
     let itemsData = null
-    if (data.result && Array.isArray(data.result[listKey])) {
-      itemsData = data.result[listKey]
-    } else if (data.result && Array.isArray(data.result[singleKey])) {
-      itemsData = data.result[singleKey]
-    } else {
-      console.warn(
-        `[MultilingualFormDialog] Could not find valid array data under keys '${listKey}' or '${singleKey}'.`,
-      )
+
+    if (data.result) {
+      const dataResultKeys = Object.keys(data.result)
+      let actualKeyToUse = null
+
+      // 優先以不區分大小寫的方式尋找 List 版本的鍵
+      for (const key of dataResultKeys) {
+        if (key.toLowerCase() === listKey.toLowerCase()) {
+          actualKeyToUse = key
+          break
+        }
+      }
+
+      // 如果 List 版本的鍵沒找到，再以不區分大小寫的方式尋找 Single 版本的鍵
+      if (!actualKeyToUse) {
+        for (const key of dataResultKeys) {
+          if (key.toLowerCase() === singleKey.toLowerCase()) {
+            actualKeyToUse = key
+            break
+          }
+        }
+      }
+
+      if (actualKeyToUse && Array.isArray(data.result[actualKeyToUse])) {
+        itemsData = data.result[actualKeyToUse]
+      } else {
+        console.log('data.result', data.result)
+        // 更新警告訊息以反映新的查找邏輯
+        console.warn(
+          `[MultilingualFormDialog] Could not find valid array data. Tried to find keys similar to '${listKey}' or '${singleKey}' (case-insensitive) in the received data.`,
+        )
+      }
     }
+
     if (!Array.isArray(itemsData)) {
       // 保留這個檢查以防萬一
       console.warn('[MultilingualFormDialog] itemsData is not a valid array after checking keys.')
@@ -478,8 +503,8 @@ async function deleteItem() {
     if (itemToDelete.value._id && entityStore.value) {
       // 使用 entityStore 的 delete 方法刪除
       await entityStore.value.delete(itemToDelete.value._id)
-      // 刪除成功後觸發刷新
-      notify.triggerRefresh(props.modelType)
+      // 刪除成功後由事件通知刷新
+      emit('refresh-data')
     }
 
     // 從表單中移除
@@ -623,9 +648,9 @@ async function submitForm() {
     notify.notifySuccess(`${props.itemLabel}「${itemName}」已更新`)
 
     // 觸發刷新
-    notify.triggerRefresh(props.modelType)
-    emit('submit-success', data)
+    // 由事件通知父層刷新
     emit('refresh-data')
+    emit('submit-success', data)
     closeDialog()
   } catch (err) {
     error.value = notify.handleApiError(err, {

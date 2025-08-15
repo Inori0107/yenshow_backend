@@ -4,8 +4,8 @@ export const useLanguageStore = defineStore('language', {
   state: () => ({
     currentLang: 'TW',
     supportedLangs: [
-      { code: 'TW', name: '繁體中文' },
-      { code: 'EN', name: 'English' },
+      { code: 'TW', name: 'TW' },
+      { code: 'EN', name: 'EN' },
     ],
     translations: {
       TW: {},

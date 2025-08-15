@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { login, logout, getProfile, changePassword, extendToken } from "../controllers/authController.js";
-import { getUsers, createUser, updateUser, resetPassword, deactivateUser, activateUser, deleteUser } from "../controllers/admin/admin.js";
+import { login, logout, getProfile, changePassword, extendToken } from "../controllers/user/authController.js";
+import { getUsers, createUser, updateUser, deleteUser } from "../controllers/user/admin.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { checkRole, Permissions } from "../middlewares/permission.js";
 import { login as loginMiddleware } from "../middlewares/auth.js";
@@ -19,13 +19,10 @@ router.patch("/extend", extendToken);
 
 // 客戶特有功能
 
-// 僅管理員可訪問的用戶管理功能
-router.get("/users", checkRole([Permissions.ADMIN]), getUsers);
-router.post("/users", checkRole([Permissions.ADMIN]), createUser);
-router.put("/users/:id", checkRole([Permissions.ADMIN]), updateUser);
-router.delete("/users/:id", checkRole([Permissions.ADMIN]), deleteUser);
-router.post("/users/:id/reset-password", checkRole([Permissions.ADMIN]), resetPassword);
-router.post("/users/:id/deactivate", checkRole([Permissions.ADMIN]), deactivateUser);
-router.post("/users/:id/activate", checkRole([Permissions.ADMIN]), activateUser);
+// 用戶管理功能
+router.get("/users", checkRole([Permissions.ADMIN, Permissions.STAFF]), getUsers);
+router.post("/users", checkRole([Permissions.ADMIN, Permissions.STAFF]), createUser);
+router.put("/users/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), updateUser);
+router.delete("/users/:id", checkRole([Permissions.ADMIN, Permissions.STAFF]), deleteUser);
 
 export default router;

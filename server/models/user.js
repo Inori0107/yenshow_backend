@@ -31,8 +31,6 @@ const schema = new Schema(
 		},
 		email: {
 			type: String,
-			required: [true, "使用者信箱必填"],
-			unique: true,
 			validate: {
 				validator(value) {
 					return !value || validator.isEmail(value);

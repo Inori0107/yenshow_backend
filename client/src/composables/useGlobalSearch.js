@@ -2,11 +2,13 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSearchStore } from '@/stores/core/searchStore'
 import { useLanguageStore } from '@/stores/core/languageStore'
+import { useSeriesStore } from '@/stores/models/series'
 
 export function useGlobalSearch() {
   const searchStore = useSearchStore()
   const languageStore = useLanguageStore()
   const router = useRouter()
+  const seriesStore = useSeriesStore()
 
   // 本地輸入關鍵字，用於防抖處理
   const inputKeyword = ref('')
@@ -61,30 +63,33 @@ export function useGlobalSearch() {
   }
 
   // 點擊搜尋結果進行導航
-  function navigateToResult(entityType, item) {
+  async function navigateToResult(entityType, item) {
     closeSearch()
-
     if (!item || !item._id) return
 
-    // 根據實體類型跳轉到不同頁面
-    switch (entityType) {
-      case 'series':
-        router.push({ path: `/series/${item._id}` })
-        break
-      case 'categories':
-        router.push({ path: `/categories/${item._id}` })
-        break
-      case 'subCategories':
-        router.push({ path: `/sub-categories/${item._id}` })
-        break
-      case 'specifications':
-        router.push({ path: `/specifications/${item._id}` })
-        break
-      case 'products':
-        router.push({ path: `/products/${item._id}` })
-        break
-      default:
-        console.warn(`未知的實體類型: ${entityType}`)
+    try {
+      let seriesCode = null
+
+      if (entityType === 'series') {
+        seriesCode = item.code
+      } else {
+        const seriesId = item.series?._id || item.series
+        if (seriesId) {
+          if (seriesStore.items.length === 0) {
+            await seriesStore.fetchAll()
+          }
+          const series = seriesStore.items.find((s) => s._id === seriesId)
+          seriesCode = series?.code
+        }
+      }
+
+      if (seriesCode) {
+        router.push({ name: 'series-category', params: { seriesCode } })
+      } else {
+        console.warn(`無法確定 '${getEntityName(item)}' 的系列, 導航失敗. Entity: ${entityType}`)
+      }
+    } catch (error) {
+      console.error('導航到搜尋結果時發生錯誤:', error)
     }
   }
 

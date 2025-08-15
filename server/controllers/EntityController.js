@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import { successResponse } from "../utils/responseHandler.js";
 import { EntityService } from "../services/EntityService.js";
+import { getAccessOptions } from "../utils/accessUtils.js";
 
 export class EntityController {
 	constructor(model, options = {}) {
@@ -59,11 +60,22 @@ export class EntityController {
 		// 子類可以覆寫此方法以添加自定義過濾邏輯
 	}
 
+	// 決定是否應該只顯示 active 項目
+	_shouldFilterActive(req) {
+		// 如果 req.query.show_all 為 'true'，則不進行 active 過濾 (顯示所有)
+		// 否則，預設只顯示 active 的項目
+		const accessOptions = getAccessOptions(req);
+		return accessOptions.filterActive;
+	}
+
 	// 獲取所有項目
 	async getAllItems(req, res, next) {
 		try {
 			// 構建查詢條件
-			const query = { isActive: true };
+			const query = {};
+			if (this._shouldFilterActive(req)) {
+				query.isActive = true;
+			}
 
 			// 處理父實體過濾
 			if (this.entityService.parentField) {
@@ -90,16 +102,22 @@ export class EntityController {
 	async getItemById(req, res, next) {
 		try {
 			const { id } = req.params;
+			const filterActive = this._shouldFilterActive(req);
 
 			// 檢查項目是否已通過中間件載入
 			if (req[this.entityName]) {
+				// 如果中間件已載入，且我們需要過濾 active，但實體是 inactive，則應視為未找到
+				if (filterActive && !req[this.entityName].isActive) {
+					throw new ApiError(StatusCodes.NOT_FOUND, `找不到該${this.entityName.toLowerCase()}`);
+				}
 				return this._sendResponse(res, StatusCodes.OK, `獲取${this.entityName}成功`, {
 					[this.entityName]: this.entityService.formatOutput(req[this.entityName])
 				});
 			}
 
 			// 確保實體存在
-			const entity = await this.entityService.ensureExists(id);
+			// 如果需要過濾 active，則傳遞 isActive: true 給 ensureExists
+			const entity = await this.entityService.ensureExists(id, { isActive: filterActive ? true : undefined });
 
 			return this._sendResponse(res, StatusCodes.OK, `獲取${this.entityName}成功`, { [this.entityName]: this.entityService.formatOutput(entity) });
 		} catch (error) {
@@ -171,21 +189,54 @@ export class EntityController {
 	async searchItems(req, res, next) {
 		try {
 			const { keyword, page, limit, sort, sortDirection } = req.query;
+			const filterActive = this._shouldFilterActive(req);
 
 			const parentField = this.entityService.parentField;
 			const parentFilter = parentField && req.query[parentField] ? { [parentField]: req.query[parentField] } : {};
 
-			const results = await this.entityService.search(
-				{
-					isActive: true,
-					...parentFilter
-				},
-				{
-					keyword,
-					pagination: { page: parseInt(page) || 1, limit: parseInt(limit) || 20 },
-					sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 }
-				}
-			);
+			const baseQuery = { ...parentFilter };
+			if (filterActive) {
+				baseQuery.isActive = true;
+			}
+
+			// --- START: Determine populate option based on modelName ---
+			let populateOption = null;
+			const modelName = this.model.modelName;
+
+			if (modelName === "Categories") {
+				// 假設 Categories 已正常工作，但保留以供參考
+				populateOption = "series";
+			} else if (modelName === "SubCategories") {
+				populateOption = {
+					path: "categories",
+					select: "_id name series", // 確保從 categories 中選擇 series
+					populate: {
+						path: "series",
+						select: "_id name" // 選擇 series 的 _id 和 name
+					}
+				};
+			} else if (modelName === "Specifications") {
+				populateOption = {
+					path: "subCategories",
+					select: "_id name categories", // 選擇 subCategories 的 categories
+					populate: {
+						path: "categories",
+						select: "_id name series", // 選擇 categories 的 series
+						populate: {
+							path: "series",
+							select: "_id name" // 選擇 series 的 _id 和 name
+						}
+					}
+				};
+			}
+			// --- END: Determine populate option ---
+
+			const results = await this.entityService.search(baseQuery, {
+				keyword,
+				pagination: { page: parseInt(page) || 1, limit: Math.min(parseInt(limit) || 20, 100) },
+				sort: { [sort || "createdAt"]: sortDirection === "desc" ? -1 : 1 },
+				populate: populateOption // <--- Pass the determined populate option
+			});
 
 			return this._sendResponse(res, StatusCodes.OK, `${this.entityName}搜索結果`, {
 				[this.responseKey]: results.data,

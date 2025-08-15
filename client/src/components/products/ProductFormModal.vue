@@ -1,15 +1,38 @@
 <template>
-  <div
-    v-if="visible"
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="background-color: rgba(0, 0, 0, 0.7)"
-  >
+  <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
     <div
       :class="[
         cardClass,
         'w-full max-w-2xl rounded-[10px] shadow-lg p-[24px] max-h-[90vh] overflow-y-auto relative',
       ]"
     >
+      <button
+        @click="closeModal"
+        class="absolute top-4 right-4 p-1.5 rounded-full transition-colors z-10"
+        :class="
+          conditionalClass(
+            'bg-gray-700 hover:bg-gray-600 text-white',
+            'bg-gray-200 hover:bg-gray-300 text-gray-800',
+          )
+        "
+        title="關閉"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
       <h2
         class="text-[16px] lg:text-[24px] font-bold text-center mb-[12px] lg:mb-[24px] theme-text"
       >
@@ -156,33 +179,33 @@
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <label class="block">產品特點</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  featureLanguage === 'TW' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
-                @click="featureLanguage = 'TW'"
-              >
-                繁體中文
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  featureLanguage === 'EN' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
-                "
-                @click="featureLanguage = 'EN'"
-              >
-                English
-              </button>
-            </div>
+            <language-switcher v-model="featureLanguage" />
           </div>
+
+          <!-- 新增的批次輸入區塊 -->
+          <div class="mb-3 text-right">
+            <textarea
+              v-model="batchFeaturesText"
+              :class="[
+                inputClass,
+                'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
+              ]"
+              rows="3"
+              :placeholder="`在此輸入多個產品特點`"
+            ></textarea>
+            <button
+              type="button"
+              @click="processBatchFeatures"
+              class="mt-2 px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors duration-150"
+            >
+              批次新增
+            </button>
+          </div>
+          <!-- /新增的批次輸入區塊 -->
+
           <div
             v-for="(feature, index) in form.features"
-            :key="index"
+            :key="feature.featureId"
             class="flex items-center mb-3"
           >
             <input
@@ -192,7 +215,7 @@
                 inputClass,
                 'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
               ]"
-              :placeholder="`請輸入產品特點 (${featureLanguage === 'TW' ? '繁體中文' : '英文'})`"
+              :placeholder="`請輸入產品特點 (${featureLanguage === 'TW' ? 'TW' : '英文'})`"
             />
             <div class="flex ml-2">
               <button
@@ -233,33 +256,7 @@
         <div class="mb-6">
           <div class="flex justify-between items-center mb-3">
             <label class="block">產品描述</label>
-            <div class="flex items-center space-x-2">
-              <span class="text-sm">語言:</span>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  descriptionLanguage === 'TW'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                "
-                @click="descriptionLanguage = 'TW'"
-              >
-                繁體中文
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1 text-xs rounded-md"
-                :class="
-                  descriptionLanguage === 'EN'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                "
-                @click="descriptionLanguage = 'EN'"
-              >
-                English
-              </button>
-            </div>
+            <language-switcher v-model="descriptionLanguage" />
           </div>
           <div class="mb-3">
             <textarea
@@ -269,122 +266,277 @@
                 'w-full rounded-[10px] ps-[12px] py-[8px] lg:ps-[16px] lg:py-[12px]',
               ]"
               rows="5"
-              :placeholder="`請輸入產品描述 (${descriptionLanguage === 'TW' ? '繁體中文' : '英文'})`"
+              :placeholder="`請輸入產品描述 (${descriptionLanguage === 'TW' ? 'TW' : '英文'})`"
             ></textarea>
           </div>
         </div>
 
         <!-- 產品圖片上傳 -->
         <div class="mb-6">
-          <label class="block mb-3"> 產品示圖 </label>
+          <label class="block mb-3">產品示圖</label>
           <div
-            class="border-2 border-dashed rounded-[10px] p-4 text-center cursor-pointer hover:border-[#3490dc]"
-            :class="[
-              conditionalClass('border-gray-600', 'border-slate-300'),
-              imageFile && !imagePreview
-                ? conditionalClass('border-green-500', 'border-green-600')
-                : '',
-            ]"
-            @click="$refs.imageInput.click()"
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerImageInput"
           >
-            <input
-              ref="imageInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleImageUpload"
-            />
-            <div v-if="!imagePreview">
+            <div class="space-y-1 text-center">
               <svg
-                class="mx-auto w-12 h-12"
-                :class="conditionalClass('text-gray-500', 'text-slate-400')"
-                fill="none"
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
                 stroke="currentColor"
+                fill="none"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                ></path>
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
               </svg>
-              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
-                點擊或拖曳上傳圖片
-              </p>
-              <p
-                v-if="imageFile"
-                class="mt-1 text-sm"
-                :class="conditionalClass('text-green-500', 'text-green-600')"
-              >
-                檔案已選擇: {{ imageFile.name }}
-              </p>
+              <p class="pl-1">點擊上傳圖片</p>
             </div>
-            <img v-else :src="imagePreview" alt="預覽圖片" class="mx-auto max-h-40 rounded" />
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleImageFiles"
+            />
+          </div>
+          <div
+            v-if="form.images.length > 0 || imageFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+          >
+            <div
+              v-for="(url, index) in form.images"
+              :key="`existing-img-${index}`"
+              class="relative group"
+            >
+              <img :src="url" class="w-full h-24 object-cover rounded-md" />
+              <button
+                type="button"
+                @click.stop="removeExistingImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in imageFiles"
+              :key="`new-img-${index}`"
+              class="relative group"
+            >
+              <img :src="file.previewUrl" class="w-full h-24 object-cover rounded-md" />
+              <button
+                type="button"
+                @click.stop="removeNewImage(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
+            </div>
+          </div>
+          <p v-if="validationErrors.images" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.images }}
+          </p>
+        </div>
+
+        <!-- PDF文件上傳（以語言切換控制 TW/EN） -->
+        <div class="mb-6">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block font-medium">相關文件 (PDF)</label>
+            <language-switcher v-model="documentsLanguage" />
+          </div>
+          <div
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="
+              documentsLanguage === 'TW' ? triggerDocumentInputTW() : triggerDocumentInputEN()
+            "
+          >
+            <div class="space-y-1 text-center">
+              <svg
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+              <p>點擊上傳 {{ documentsLanguage }} 文件</p>
+            </div>
+            <input
+              ref="documentInputRefTW"
+              type="file"
+              accept="application/pdf"
+              multiple
+              class="hidden"
+              @change="handleDocumentFilesTW"
+            />
+            <input
+              ref="documentInputRefEN"
+              type="file"
+              accept="application/pdf"
+              multiple
+              class="hidden"
+              @change="handleDocumentFilesEN"
+            />
+          </div>
+          <div v-if="documentsLanguage === 'TW'" class="mt-3 space-y-2">
+            <div
+              v-for="(url, index) in form.documentsByLang.TW"
+              :key="`existing-doc-tw-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <a :href="url" target="_blank" class="truncate hover:underline">{{
+                getFileNameFromUrl(url)
+              }}</a>
+              <button
+                type="button"
+                @click.stop="removeExistingDocumentLang('TW', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in documentFilesTW"
+              :key="`new-doc-tw-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <span class="truncate">{{ file.name }}</span>
+              <button
+                type="button"
+                @click.stop="removeNewDocumentLang('TW', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+          </div>
+          <div v-else class="mt-3 space-y-2">
+            <div
+              v-for="(url, index) in form.documentsByLang.EN"
+              :key="`existing-doc-en-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <a :href="url" target="_blank" class="truncate hover:underline">{{
+                getFileNameFromUrl(url)
+              }}</a>
+              <button
+                type="button"
+                @click.stop="removeExistingDocumentLang('EN', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in documentFilesEN"
+              :key="`new-doc-en-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <span class="truncate">{{ file.name }}</span>
+              <button
+                type="button"
+                @click.stop="removeNewDocumentLang('EN', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- PDF文件上傳 -->
+        <!-- Video Upload Section -->
         <div class="mb-6">
-          <label class="block mb-3">PDF檔案</label>
+          <label class="block mb-3">相關影片 (可上傳多部)</label>
           <div
-            class="border-2 border-dashed rounded p-4 text-center cursor-pointer hover:border-[#3490dc]"
-            :class="[
-              conditionalClass('border-gray-600', 'border-slate-300'),
-              pdfFile ? conditionalClass('border-green-500', 'border-green-600') : '',
-            ]"
-            @click="$refs.pdfInput.click()"
+            class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
+            :class="conditionalClass('border-gray-600', 'border-gray-300')"
+            @click="triggerVideoInput"
           >
-            <input
-              ref="pdfInput"
-              type="file"
-              accept="application/pdf"
-              class="hidden"
-              @change="handlePdfUpload"
-            />
-            <div v-if="!pdfFileName">
+            <div class="space-y-1 text-center">
               <svg
-                class="mx-auto w-12 h-12"
-                :class="conditionalClass('text-gray-500', 'text-slate-400')"
-                fill="none"
+                class="mx-auto h-12 w-12"
+                :class="conditionalClass('text-gray-500', 'text-gray-400')"
                 stroke="currentColor"
+                fill="none"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                ></path>
+                  stroke-width="1.5"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6v12m-3-10.5v9" />
               </svg>
-              <p class="mt-2 text-sm" :class="conditionalClass('text-gray-400', 'text-slate-500')">
-                點擊或拖曳上傳PDF檔案
-              </p>
-              <p
-                v-if="pdfFile"
-                class="mt-1 text-sm"
-                :class="conditionalClass('text-green-500', 'text-green-600')"
-              >
-                檔案已選擇: {{ pdfFile.name }}
-              </p>
+              <p>點擊上傳影片</p>
             </div>
-            <div v-else class="flex items-center justify-center">
-              <svg
-                class="w-8 h-8 text-red-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <input
+              ref="videoInputRef"
+              type="file"
+              accept="video/*"
+              multiple
+              class="hidden"
+              @change="handleVideoFiles"
+            />
+          </div>
+          <div
+            v-if="form.videos.length > 0 || videoFiles.length > 0"
+            class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"
+          >
+            <div
+              v-for="(url, index) in form.videos"
+              :key="`existing-vid-${index}`"
+              class="relative group"
+            >
+              <video :src="url" class="w-full h-24 object-cover rounded-md bg-black"></video>
+              <button
+                type="button"
+                @click.stop="removeExistingVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                ></path>
-              </svg>
-              <p class="ml-2">{{ pdfFileName }}</p>
+                &#x2715;
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in videoFiles"
+              :key="`new-vid-${index}`"
+              class="relative group"
+            >
+              <video
+                :src="file.previewUrl"
+                class="w-full h-24 object-cover rounded-md bg-black"
+              ></video>
+              <button
+                type="button"
+                @click.stop="removeNewVideo(index)"
+                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100"
+              >
+                &#x2715;
+              </button>
             </div>
           </div>
+          <p v-if="validationErrors.videos" class="text-red-500 text-sm mt-1">
+            {{ validationErrors.videos }}
+          </p>
         </div>
 
         <!-- 上傳進度顯示 -->
@@ -404,19 +556,19 @@
 
         <!-- 上架選項 -->
         <div class="mb-6 flex items-center">
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" v-model="form.isActive" class="sr-only peer" />
-            <div
-              :class="[
-                'w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:left-[2px] after:border after:rounded-full after:h-5 after:w-5 after:transition-all',
-                conditionalClass(
-                  'bg-gray-700 peer-checked:bg-white after:bg-black after:border-gray-300',
-                  'bg-slate-300 peer-checked:bg-blue-600 after:bg-white after:border-slate-300',
-                ),
-              ]"
-            ></div>
-            <span class="ml-3 text-sm font-medium theme-text">上架商品</span>
-          </label>
+          <input
+            id="productIsActive"
+            type="checkbox"
+            v-model="form.isActive"
+            class="h-4 w-4 rounded mr-2"
+            :class="
+              conditionalClass(
+                'border-gray-600 text-blue-500 bg-gray-700 focus:ring-blue-600',
+                'border-gray-300 text-blue-600 bg-blue-100 focus:ring-blue-500 focus:border-blue-500',
+              )
+            "
+          />
+          <label for="productIsActive" class="theme-text font-medium">上架商品</label>
         </div>
 
         <!-- 提交按鈕 -->
@@ -449,12 +601,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useNotifications } from '@/composables/notificationCenter'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useProductsStore } from '@/stores/models/products'
 import { useThemeClass } from '@/composables/useThemeClass'
+import LanguageSwitcher from '@/components/common/languageSwitcher.vue'
 
 const props = defineProps({
   visible: {
@@ -475,7 +627,6 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'submit-success', 'close'])
 
 // 初始化工具與狀態
-const notify = useNotifications()
 const { getLocalizedField } = useLanguage()
 const { validateRequired, errors: validationErrors, clearErrors, setError } = useFormValidation()
 const productsStore = useProductsStore()
@@ -483,14 +634,8 @@ const productsStore = useProductsStore()
 // 獲取主題相關工具
 const { cardClass, inputClass, conditionalClass } = useThemeClass()
 
-// 基本狀態
-const loading = ref(false)
-const formError = ref('')
-const isProcessing = ref(false)
-const isEditing = computed(() => !!props.productId)
-
-// 表單數據
-const form = ref({
+// Helper to get initial form state - DEFINED HERE AND ONLY HERE
+const getInitialFormState = () => ({
   _id: '',
   name_TW: '',
   name_EN: '',
@@ -501,200 +646,62 @@ const form = ref({
   description_TW: '',
   description_EN: '',
   isActive: true,
+  images: [],
+  documents: [],
+  documentsByLang: { TW: [], EN: [] },
+  videos: [],
 })
 
-// 相關數據
-const imageFile = ref(null)
-const imagePreview = ref(null)
-const pdfFile = ref(null)
-const pdfFileName = ref(null)
-const uploadProgress = ref(0)
+// 基本狀態
+const loading = ref(false)
+const formError = ref('')
 const uploadStatus = ref('')
+const uploadProgress = ref(0)
+const isProcessing = ref(false)
+const isEditing = computed(() => !!props.productId)
+
+// 表單數據 - Initialized ONCE here using the function above
+const form = ref(getInitialFormState())
+
+// Attachment state
+const imageFiles = ref([])
+const imageInputRef = ref(null)
+
+const documentFiles = ref([])
+const documentFilesTW = ref([])
+const documentFilesEN = ref([])
+const documentInputRefTW = ref(null)
+const documentInputRefEN = ref(null)
+
+const videoFiles = ref([])
+const videoInputRef = ref(null)
+
+// File modification tracking state
+const imagesModified = ref(false)
+const documentsModified = ref(false)
+const documentsByLangModified = ref(false)
+const videosModified = ref(false)
+
+// 相關數據
 const specifications = ref([])
 
 // 語言切換狀態
 const featureLanguage = ref('TW')
 const descriptionLanguage = ref('TW')
+const documentsLanguage = ref('TW')
+
+// 批次新增產品特點
+const batchFeaturesText = ref('')
+
+const productDataForEdit = ref(null) // Store fetched product data for comparison
 
 // ===== 計算屬性 (用於獲取子分類) =====
 const subCategories = computed(() => {
   const extractedSubCats = props.categoryData?.subCategories || []
-  console.log('[ProductFormModal] Extracted subCategories from prop:', extractedSubCats)
   return extractedSubCats
 })
 
 // ===== 資料載入方法 =====
-
-/**
- * 載入產品數據 (Refactored to use props and search within categoryData for parent IDs)
- */
-const loadProductData = async () => {
-  resetForm() // Reset form before loading/setting new data
-
-  // Pre-populate subCategories from props immediately
-  // No need to call loadSubCategories()
-
-  if (!isEditing.value) {
-    // New Product logic remains the same...
-    if (subCategories.value.length > 0 && !form.value.subCategoriesId) {
-      form.value.subCategoriesId = subCategories.value[0]._id
-      const defaultSubCat = subCategories.value[0]
-      specifications.value = defaultSubCat?.specifications || []
-      form.value.specifications = ''
-    }
-    return
-  }
-
-  // --- Editing Product ---
-  loading.value = true
-  formError.value = ''
-  uploadStatus.value = ''
-  uploadProgress.value = 0
-
-  try {
-    // Step 1: Fetch basic product details (name, desc, images, isActive etc.)
-    // We will IGNORE subCategoriesId and specifications returned from here.
-    const productData = await productsStore.fetchProductById(props.productId)
-    if (!productData) throw new Error('無法載入產品數據')
-
-    // Step 2: Search within props.categoryData to find the product and its true parent IDs
-    let foundSubCatId = ''
-    let foundSpecId = ''
-
-    console.log(
-      `[ProductFormModal] Searching for product ${props.productId} within props.categoryData:`,
-      props.categoryData,
-    )
-    if (props.categoryData?.subCategories) {
-      for (const subCat of props.categoryData.subCategories) {
-        if (subCat.specifications) {
-          for (const spec of subCat.specifications) {
-            if (spec.products && spec.products.some((p) => p._id === props.productId)) {
-              foundSubCatId = subCat._id
-              foundSpecId = spec._id
-              console.log(
-                `[ProductFormModal] Found product ${props.productId} under SubCategory ${foundSubCatId} and Specification ${foundSpecId}`,
-              )
-              break // Found product in spec
-            }
-          }
-        }
-        if (foundSubCatId) break // Found product in subCat
-      }
-    }
-
-    if (!foundSubCatId || !foundSpecId) {
-      console.error(
-        `[ProductFormModal] CRITICAL: Product ID ${props.productId} not found within the provided props.categoryData structure! Cannot determine parent IDs.`,
-      )
-      // Decide how to handle this error - show message, block form? Reset IDs?
-      // For now, let's try using the potentially incorrect ones from productData as a fallback, but log a warning.
-      foundSubCatId = productData.subCategoriesId || ''
-      foundSpecId = productData.specifications || ''
-      if (!foundSubCatId || !foundSpecId) {
-        throw new Error(
-          `無法在提供的分類數據中定位產品 ${props.productId}，且產品自身數據也缺少父級ID。`,
-        )
-      }
-      formError.value = `警告：無法在分類結構中定位產品，預選可能不準確。`
-      console.warn(
-        `[ProductFormModal] Fallback: Using subCategoriesId (${foundSubCatId}) and specifications (${foundSpecId}) from fetched productData because product was not found in props.categoryData.`,
-      )
-    }
-
-    // Step 3: Populate form fields using basic info from productData and FOUND parent IDs
-    form.value = {
-      _id: productData._id,
-      name_TW: productData.name?.TW || '',
-      name_EN: productData.name?.EN || '',
-      code: productData.code || '',
-      subCategoriesId: foundSubCatId, // Use the ID found by searching props.categoryData
-      specifications: foundSpecId, // Use the ID found by searching props.categoryData
-      description_TW: productData.description?.TW || '',
-      description_EN: productData.description?.EN || '',
-      features: processFeatures(productData.features),
-      isActive: productData.isActive !== undefined ? productData.isActive : true,
-    }
-    console.log(
-      '[ProductFormModal] Form value after population (using found IDs):',
-      JSON.parse(JSON.stringify(form.value)),
-    )
-
-    // Step 4: Set files previews (from productData)
-    imagePreview.value =
-      productData.images && productData.images.length > 0 ? productData.images[0] : null
-    pdfFileName.value =
-      productData.documents && productData.documents.length > 0
-        ? productData.documents[0].split('/').pop()
-        : null
-
-    // Step 5: Populate specifications dropdown based on the FOUND subCategoriesId
-    if (form.value.subCategoriesId) {
-      const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
-      // console.log('[ProductFormModal] loadProductData - Found subCategory for dropdown population:', selectedSubCat)
-      specifications.value = selectedSubCat?.specifications || []
-      console.log(
-        '[ProductFormModal] loadProductData - Set specifications dropdown options based on found subCatId:',
-        specifications.value,
-      )
-
-      // Validation check remains useful: ensure the *selected* spec ID is actually in the list for that subCat
-      if (
-        form.value.specifications &&
-        !specifications.value.some((s) => s._id === form.value.specifications)
-      ) {
-        console.warn(
-          `[ProductFormModal] Consistency Check Failed: The determined specification ID ${form.value.specifications} is not found in the specifications list of the determined subCategory ${form.value.subCategoriesId}. Resetting selection.`,
-        )
-        form.value.specifications = '' // Reset if inconsistent
-      }
-    } else {
-      // This case should be less likely now if the search worked, but keep as safety net
-      specifications.value = []
-      form.value.specifications = ''
-      console.log(
-        '[ProductFormModal] loadProductData - Could not determine subCategoryId, specifications dropdown cleared.',
-      )
-    }
-  } catch (error) {
-    console.error('載入產品錯誤:', error)
-    formError.value = '載入產品數據失敗: ' + (error.message || '未知錯誤')
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 處理產品特點資料 - 確保格式統一
- */
-const processFeatures = (features) => {
-  if (!features || features.length === 0) {
-    return [{ TW: '', EN: '', featureId: 'feature_1' }]
-  }
-
-  // 處理陣列格式的特點
-  if (Array.isArray(features)) {
-    return features.map((f, index) => ({
-      TW: f.TW || '',
-      EN: f.EN || '',
-      featureId: f.featureId || `feature_${index + 1}`,
-    }))
-  }
-
-  // 如果是物件格式，轉換為陣列
-  if (typeof features === 'object' && !Array.isArray(features)) {
-    return Object.entries(features).map(([key, value], index) => ({
-      TW: value.TW || '',
-      EN: value.EN || '',
-      featureId: key || `feature_${index + 1}`,
-    }))
-  }
-
-  // 預設返回一個空特點
-  return [{ TW: '', EN: '', featureId: 'feature_1' }]
-}
-
-// ===== 表單處理方法 =====
 
 /**
  * 子分類變更處理 (Refactored)
@@ -753,29 +760,62 @@ const removeFeature = (index) => {
 }
 
 /**
- * 處理圖片上傳
+ * 批次處理產品特點
  */
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file || !file.type.startsWith('image/')) return
-
-  imageFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imagePreview.value = e.target.result
+const processBatchFeatures = () => {
+  if (!batchFeaturesText.value.trim()) {
+    // 如果 textarea 為空或只包含空格，則不執行任何操作
+    return
   }
-  reader.readAsDataURL(file)
-}
 
-/**
- * 處理PDF上傳
- */
-const handlePdfUpload = (event) => {
-  const file = event.target.files[0]
-  if (!file || file.type !== 'application/pdf') return
+  const newFeaturesArray = batchFeaturesText.value
+    .split('\n')
+    .map((featureText) => featureText.trim())
+    .filter((featureText) => featureText !== '')
 
-  pdfFile.value = file
-  pdfFileName.value = file.name
+  if (newFeaturesArray.length === 0) {
+    batchFeaturesText.value = '' // 清空輸入框
+    return
+  }
+
+  // EN 模式：只針對「已有 TW 且 EN 為空」的項目依序補上 EN，不新增新特點
+  if (featureLanguage.value === 'EN') {
+    let inputIdx = 0
+    for (let i = 0; i < form.value.features.length && inputIdx < newFeaturesArray.length; i++) {
+      const f = form.value.features[i]
+      if (f.TW && (!f.EN || f.EN.trim() === '')) {
+        f.EN = newFeaturesArray[inputIdx]
+        inputIdx++
+      }
+    }
+    batchFeaturesText.value = '' // 清空 textarea
+    return
+  }
+
+  newFeaturesArray.forEach((text) => {
+    // 檢查現有 features 是否只有一個空的占位符
+    if (
+      form.value.features.length === 1 &&
+      !form.value.features[0].TW &&
+      !form.value.features[0].EN
+    ) {
+      // 如果是，直接更新這個占位符
+      form.value.features[0][featureLanguage.value] = text
+      form.value.features[0][featureLanguage.value === 'TW' ? 'EN' : 'TW'] = '' // 清空另一語言
+    } else {
+      // 否則，新增一個特點
+      const newIndex = form.value.features.length + 1
+      const newFeature = {
+        TW: '',
+        EN: '',
+        featureId: `feature_${newIndex}`,
+      }
+      newFeature[featureLanguage.value] = text
+      form.value.features.push(newFeature)
+    }
+  })
+
+  batchFeaturesText.value = '' // 清空 textarea
 }
 
 /**
@@ -787,12 +827,12 @@ const generateCode = () => {
     return
   }
 
-  // 轉換英文名稱為代碼
+  // 轉換英文名稱為代碼，規則與後端 fileUpload.js/sanitizeFileName 保持一致
   let code = form.value.name_EN
     .trim()
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9_]/g, '')
-    .toUpperCase()
+    .replace(/\s+/g, '-') // 將空格替換為底線
+    .replace(/[\\/:*?"<>|]/g, '_') // 將檔案系統不合法的字元替換為底線
+    .replace(/_+/g, '_') // 將多個連續的底線合併為一個
 
   // 確保代碼不為空
   if (!code) {
@@ -879,58 +919,61 @@ const submitForm = async () => {
     uploadProgress.value = 0
     uploadStatus.value = '準備上傳...'
 
-    // 構建 FormData - 確保符合後端要求
     const formData = new FormData()
 
-    // 添加基本資料
-    formData.append('specifications', form.value.specifications)
-    formData.append('code', form.value.code)
+    // --- 處理附件 ---
+    imageFiles.value.forEach((file) => formData.append('images', file))
+    // legacy union (if still used)
+    documentFiles.value.forEach((file) => formData.append('documents', file))
+    // language-specific
+    documentFilesTW.value.forEach((file) => formData.append('documents_TW', file))
+    documentFilesEN.value.forEach((file) => formData.append('documents_EN', file))
+    videoFiles.value.forEach((file) => formData.append('videos', file))
 
-    // 添加多語言欄位 - 使用 name[TW] 格式與後端匹配
-    if (form.value.name_TW) {
-      formData.append('name[TW]', form.value.name_TW)
-    }
-    if (form.value.name_EN) {
-      formData.append('name[EN]', form.value.name_EN)
-    }
+    // --- 構建資料 ---
+    if (isEditing.value) {
+      // --- 更新邏輯 ---
+      const productPayload = {
+        name: { TW: form.value.name_TW, EN: form.value.name_EN },
+        code: form.value.code,
+        specifications: form.value.specifications,
+        features: form.value.features.filter((f) => f.TW || f.EN),
+        description: { TW: form.value.description_TW, EN: form.value.description_EN },
+        isActive: form.value.isActive,
+      }
 
-    // 描述欄位
-    if (form.value.description_TW) {
-      formData.append('description[TW]', form.value.description_TW)
-    }
-    if (form.value.description_EN) {
-      formData.append('description[EN]', form.value.description_EN)
-    }
+      // 只在檔案列表被修改過時才加入 payload
+      if (imagesModified.value) {
+        productPayload.images = form.value.images
+      }
+      if (documentsModified.value) {
+        productPayload.documents = form.value.documents
+      }
+      if (documentsByLangModified.value) {
+        productPayload.documentsByLang = {
+          TW: form.value.documentsByLang?.TW || [],
+          EN: form.value.documentsByLang?.EN || [],
+        }
+      }
+      if (videosModified.value) {
+        productPayload.videos = form.value.videos
+      }
 
-    // 處理特點資料
-    if (form.value.features && form.value.features.length > 0) {
+      formData.append('productDataPayload', JSON.stringify(productPayload))
+    } else {
+      // --- 新增邏輯 ---
+      formData.append('specifications', form.value.specifications)
+      formData.append('code', form.value.code)
+      if (form.value.name_TW) formData.append('name[TW]', form.value.name_TW)
+      if (form.value.name_EN) formData.append('name[EN]', form.value.name_EN)
+      if (form.value.description_TW) formData.append('description[TW]', form.value.description_TW)
+      if (form.value.description_EN) formData.append('description[EN]', form.value.description_EN)
       const validFeatures = form.value.features.filter((f) => f.TW || f.EN)
       if (validFeatures.length > 0) {
         formData.append('features', JSON.stringify(validFeatures))
       }
+      formData.append('isActive', form.value.isActive ? 'true' : 'false')
     }
-
-    // 添加檔案 - 關鍵部分：確保檔案正確添加到 FormData 中
-    if (imageFile.value) {
-      formData.append('images', imageFile.value, imageFile.value.name)
-    } else if (imagePreview.value && imagePreview.value.startsWith('data:')) {
-      // 如果是 data URL，轉換為 Blob 並添加
-      try {
-        const response = await fetch(imagePreview.value)
-        const blob = await response.blob()
-        const file = new File([blob], 'image.jpg', { type: 'image/jpeg' })
-        formData.append('images', file)
-      } catch (error) {
-        console.error('轉換圖片預覽失敗:', error)
-      }
-    }
-
-    if (pdfFile.value) {
-      formData.append('documents', pdfFile.value, pdfFile.value.name)
-    }
-
-    // 其他選項
-    formData.append('isActive', form.value.isActive ? 'true' : 'false')
 
     // 使用 products store 提交數據
     let result
@@ -938,10 +981,14 @@ const submitForm = async () => {
 
     if (isEditing.value) {
       // 更新產品
-      result = await productsStore.updateProduct(form.value._id, formData)
+      result = await productsStore.updateProduct(form.value._id, formData, (event) => {
+        uploadProgress.value = Math.round((100 * event.loaded) / event.total)
+      })
     } else {
       // 創建產品
-      result = await productsStore.createProduct(formData)
+      result = await productsStore.createProduct(formData, (event) => {
+        uploadProgress.value = Math.round((100 * event.loaded) / event.total)
+      })
     }
 
     if (!result) {
@@ -949,10 +996,6 @@ const submitForm = async () => {
     }
     // 處理成功
     uploadStatus.value = '上傳成功！'
-    notify.notifySuccess(`產品${isEditing.value ? '更新' : '創建'}成功！`)
-
-    // 觸發資料刷新
-    notify.triggerRefresh('products')
 
     // 發送成功事件並關閉模態框
     emit('submit-success', {
@@ -1002,33 +1045,25 @@ const closeModal = () => {
  * 重置表單 (Updated)
  */
 const resetForm = () => {
-  // 重置基本表單數據
-  form.value = {
-    _id: '',
-    name_TW: '',
-    name_EN: '',
-    code: '',
-    subCategoriesId: '',
-    specifications: '',
-    description_TW: '',
-    description_EN: '',
-    features: [{ TW: '', EN: '', featureId: 'feature_1' }],
-    isActive: true,
-  }
+  form.value = getInitialFormState()
 
-  // Reset specifications list based on potentially available subcategories
-  specifications.value = []
-  if (subCategories.value.length > 0) {
-    // Optionally pre-select first subcategory and its specs?
-    // Or just leave subCat selection blank until user selects.
-    // Let's leave it blank for now.
-  }
+  // Reset attachment state
+  imageFiles.value = []
+  documentFiles.value = []
+  documentFilesTW.value = []
+  documentFilesEN.value = []
+  videoFiles.value = []
 
-  // Reset files and previews
-  imageFile.value = null
-  imagePreview.value = null
-  pdfFile.value = null
-  pdfFileName.value = null
+  // Reset modification tracking
+  imagesModified.value = false
+  documentsModified.value = false
+  videosModified.value = false
+
+  // Clear file inputs
+  if (imageInputRef.value) imageInputRef.value.value = ''
+  if (documentInputRefTW.value) documentInputRefTW.value.value = ''
+  if (documentInputRefEN.value) documentInputRefEN.value.value = ''
+  if (videoInputRef.value) videoInputRef.value.value = ''
 
   // Reset upload status
   uploadStatus.value = ''
@@ -1042,6 +1077,12 @@ const resetForm = () => {
   // Reset language selection
   featureLanguage.value = 'TW'
   descriptionLanguage.value = 'TW'
+
+  // Reset batch features text
+  batchFeaturesText.value = ''
+
+  // Reset specifications list (will be repopulated on subCat change or load)
+  specifications.value = []
 }
 
 // ===== 輔助方法 =====
@@ -1073,7 +1114,16 @@ watch(
       uploadStatus.value = ''
       uploadProgress.value = 0
       formError.value = ''
-      await loadProductData()
+      batchFeaturesText.value = '' // 清空批次輸入框
+
+      // Ensure form arrays are initialized
+      form.value.images = []
+      form.value.documents = []
+      form.value.documentsByLang = { TW: [], EN: [] }
+      form.value.videos = [] // Initialize for video as well
+
+      await loadProductData() // This will now populate imagePreviews and documentPreviews
+      // and set initial videoFileName if an existing video exists.
     } else {
       // Optionally reset form when modal closes
       // resetForm(); // uncomment if needed
@@ -1088,6 +1138,232 @@ watch(
   () => generateCode(),
 )
 
+// Watch featureLanguage to update textarea placeholder (optional, but good UX)
+watch(featureLanguage, () => {
+  // This is to ensure the placeholder updates if the user types, then changes lang, then wants to batch add.
+  // The textarea itself will have its :placeholder re-evaluated, but this is an explicit trigger if needed.
+  // For simple placeholder binding, direct re-evaluation by Vue is usually sufficient.
+})
+
+// Re-add uploadStatus definition (was removed by linter fix but is in template)
+watch(uploadProgress, (newVal) => {
+  if (newVal > 0 && newVal < 100) {
+    uploadStatus.value = `正在上傳資料 (${newVal}%)...`
+  } else if (newVal === 100) {
+    uploadStatus.value = '上傳完成，正在處理...'
+  }
+})
+
 // 初始化 - Handled by watch on visible
 // onMounted(() => { ... })
+
+async function loadProductData() {
+  // Reset form first using the refined initial state logic
+  resetForm()
+
+  if (!isEditing.value || !props.productId) {
+    productDataForEdit.value = null // Clear stored data
+    // If creating a new product, pre-select first subcategory and its specs if available
+    if (subCategories.value.length > 0 && !form.value.subCategoriesId) {
+      form.value.subCategoriesId = subCategories.value[0]._id
+      const defaultSubCat = subCategories.value[0]
+      specifications.value = defaultSubCat?.specifications || []
+      form.value.specifications = '' // Ensure spec is reset or set to a default
+    }
+    return
+  }
+
+  loading.value = true
+  formError.value = ''
+
+  try {
+    const fetchedProductData = await productsStore.fetchProductById(props.productId)
+    if (!fetchedProductData) throw new Error('無法載入產品數據')
+
+    productDataForEdit.value = JSON.parse(JSON.stringify(fetchedProductData)) // Store a copy
+
+    let foundSubCatId = ''
+    let foundSpecId = ''
+
+    if (props.categoryData?.subCategories) {
+      for (const subCat of props.categoryData.subCategories) {
+        if (subCat.specifications) {
+          for (const spec of subCat.specifications) {
+            if (spec.products && spec.products.some((p) => p._id === props.productId)) {
+              foundSubCatId = subCat._id
+              foundSpecId = spec._id
+              console.log(
+                `[ProductFormModal] Found product ${props.productId} under SubCategory ${foundSubCatId} and Specification ${foundSpecId}`,
+              )
+              break
+            }
+          }
+        }
+        if (foundSubCatId) break
+      }
+    }
+
+    if (!foundSubCatId || !foundSpecId) {
+      console.warn(
+        `[ProductFormModal] Product ID ${props.productId} not found within props.categoryData. Using data from fetched product itself for parent IDs. This might be inaccurate if hierarchy changed.`,
+      )
+      foundSubCatId = fetchedProductData.subCategoriesId || ''
+      foundSpecId = fetchedProductData.specifications || ''
+      if (!foundSubCatId || !foundSpecId) {
+        // If still not found, it's a more critical issue or data inconsistency.
+        console.error(
+          `Critical: Parent IDs for product ${props.productId} could not be determined either from hierarchy or product data.`,
+        )
+        // Set to empty to prevent potential errors with dropdowns, user must select.
+        // formError.value = `警告：無法確定產品的分類層級，請手動選擇。`;
+      }
+    }
+    // END of finding parent IDs logic
+
+    // Populate form with a combination of initial state, fetched data, and determined hierarchy IDs
+    form.value = {
+      ...getInitialFormState(), // Start with defaults
+      _id: fetchedProductData._id,
+      name_TW: fetchedProductData.name?.TW || '',
+      name_EN: fetchedProductData.name?.EN || '',
+      code: fetchedProductData.code || '',
+      subCategoriesId: foundSubCatId, // Use determined subCategory ID
+      specifications: foundSpecId, // Use determined specification ID
+      description_TW: fetchedProductData.description?.TW || '',
+      description_EN: fetchedProductData.description?.EN || '',
+      features:
+        fetchedProductData.features && fetchedProductData.features.length > 0
+          ? fetchedProductData.features.map((f, index) => ({
+              TW: f.TW || '',
+              EN: f.EN || '',
+              featureId: f.featureId || `feature_${index + 1}`,
+            }))
+          : [{ TW: '', EN: '', featureId: 'feature_1' }], // Default if no features
+      isActive: fetchedProductData.isActive !== undefined ? fetchedProductData.isActive : true,
+      images: [...(fetchedProductData.images || [])],
+      documents: [...(fetchedProductData.documents || [])],
+      documentsByLang: {
+        TW: [
+          ...((fetchedProductData.documentsByLang && fetchedProductData.documentsByLang.TW) || []),
+        ],
+        EN: [
+          ...((fetchedProductData.documentsByLang && fetchedProductData.documentsByLang.EN) || []),
+        ],
+      },
+      videos: [...(fetchedProductData.videos || [])],
+    }
+
+    // Populate specifications dropdown based on the determined subCategoriesId
+    if (form.value.subCategoriesId) {
+      const selectedSubCat = subCategories.value.find((sc) => sc._id === form.value.subCategoriesId)
+      specifications.value = selectedSubCat?.specifications || []
+      // Ensure the form.value.specifications (which is foundSpecId) is valid within this list
+      if (
+        form.value.specifications &&
+        !specifications.value.some((s) => s._id === form.value.specifications)
+      ) {
+        console.warn(
+          `Product's saved specification ID ${form.value.specifications} not found in the list for subCategory ${form.value.subCategoriesId}. Resetting.`,
+        )
+        form.value.specifications = '' // Reset if inconsistent
+      }
+    } else {
+      specifications.value = []
+      form.value.specifications = '' // No subCat, so no spec
+    }
+  } catch (error) {
+    console.error('載入產品錯誤:', error)
+    formError.value = '載入產品數據失敗: ' + (error.message || '未知錯誤')
+    productDataForEdit.value = null // Clear on error too
+  } finally {
+    loading.value = false
+  }
+}
+
+const getFileNameFromUrl = (url) => {
+  try {
+    const decodedUrl = decodeURIComponent(url)
+    return decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1)
+  } catch /* (e) */ {
+    return url.substring(url.lastIndexOf('/') + 1)
+  }
+}
+
+// --- Attachment Handlers ---
+const triggerImageInput = () => imageInputRef.value?.click()
+const triggerDocumentInputTW = () => documentInputRefTW.value?.click()
+const triggerDocumentInputEN = () => documentInputRefEN.value?.click()
+const triggerVideoInput = () => videoInputRef.value?.click()
+
+const handleImageFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    imageFiles.value.push(fileWithPreview)
+  })
+  imagesModified.value = true // 標記為已修改
+  if (imageInputRef.value) imageInputRef.value.value = ''
+}
+
+const handleDocumentFilesTW = (event) => {
+  documentFilesTW.value.push(...Array.from(event.target.files))
+  documentsByLangModified.value = true
+  if (documentInputRefTW.value) documentInputRefTW.value.value = ''
+}
+const handleDocumentFilesEN = (event) => {
+  documentFilesEN.value.push(...Array.from(event.target.files))
+  documentsByLangModified.value = true
+  if (documentInputRefEN.value) documentInputRefEN.value.value = ''
+}
+
+const handleVideoFiles = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach((file) => {
+    const fileWithPreview = Object.assign(file, {
+      previewUrl: URL.createObjectURL(file),
+    })
+    videoFiles.value.push(fileWithPreview)
+  })
+  videosModified.value = true // 標記為已修改
+  if (videoInputRef.value) videoInputRef.value.value = ''
+}
+
+const removeNewImage = (index) => {
+  URL.revokeObjectURL(imageFiles.value[index].previewUrl)
+  imageFiles.value.splice(index, 1)
+  imagesModified.value = true // 標記為已修改
+}
+const removeExistingImage = (index) => {
+  form.value.images.splice(index, 1)
+  imagesModified.value = true // 標記為已修改
+}
+const removeNewDocumentLang = (lang, index) => {
+  if (lang === 'TW') {
+    documentFilesTW.value.splice(index, 1)
+  } else {
+    documentFilesEN.value.splice(index, 1)
+  }
+  documentsByLangModified.value = true
+}
+const removeExistingDocumentLang = (lang, index) => {
+  if (!form.value.documentsByLang) form.value.documentsByLang = { TW: [], EN: [] }
+  form.value.documentsByLang[lang].splice(index, 1)
+  documentsByLangModified.value = true
+}
+const removeNewVideo = (index) => {
+  URL.revokeObjectURL(videoFiles.value[index].previewUrl)
+  videoFiles.value.splice(index, 1)
+  videosModified.value = true // 標記為已修改
+}
+const removeExistingVideo = (index) => {
+  form.value.videos.splice(index, 1)
+  videosModified.value = true // 標記為已修改
+}
+
+onBeforeUnmount(() => {
+  imageFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
+  videoFiles.value.forEach((file) => URL.revokeObjectURL(file.previewUrl))
+})
 </script>

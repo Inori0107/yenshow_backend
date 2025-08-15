@@ -26,6 +26,10 @@ export const useUserStore = defineStore(
       return role.value === UserRole.ADMIN
     })
 
+    const isStaff = computed(() => {
+      return role.value === UserRole.STAFF
+    })
+
     // ===== 管理員功能狀態 =====
     const users = ref([])
     const loading = ref(false)
@@ -329,80 +333,6 @@ export const useUserStore = defineStore(
       )
     }
 
-    const activateUser = async (userId) => {
-      return await safeApiCall(
-        async () => {
-          loading.value = true
-          console.log('啟用用戶開始:', userId)
-          const { data } = await apiAuth.post(`/api/users/users/${userId}/activate`)
-          console.log('啟用用戶回應:', data)
-
-          if (!data || !data.success) {
-            throw new Error(data?.message || '啟用用戶失敗')
-          }
-
-          // 允許多種可能的格式
-          const updatedUser = data.result?.user || data.user || data.result
-          if (updatedUser) {
-            // 更新本地狀態
-            const index = users.value.findIndex((user) => user._id === userId)
-            if (index !== -1) {
-              users.value[index] = updatedUser
-            }
-            return data.message || '用戶啟用成功'
-          } else {
-            console.warn('回應中找不到更新後的用戶數據:', data)
-            // 重新載入用戶列表
-            await getAllUsers()
-            return data.message || '用戶啟用成功'
-          }
-        },
-        {
-          defaultMessage: '啟用用戶失敗',
-          onFinally: () => {
-            loading.value = false
-          },
-        },
-      )
-    }
-
-    const deactivateUser = async (userId) => {
-      return await safeApiCall(
-        async () => {
-          loading.value = true
-          console.log('停用用戶開始:', userId)
-          const { data } = await apiAuth.post(`/api/users/users/${userId}/deactivate`)
-          console.log('停用用戶回應:', data)
-
-          if (!data || !data.success) {
-            throw new Error(data?.message || '停用用戶失敗')
-          }
-
-          // 允許多種可能的格式
-          const updatedUser = data.result?.user || data.user || data.result
-          if (updatedUser) {
-            // 更新本地狀態
-            const index = users.value.findIndex((user) => user._id === userId)
-            if (index !== -1) {
-              users.value[index] = updatedUser
-            }
-            return data.message || '用戶停用成功'
-          } else {
-            console.warn('回應中找不到更新後的用戶數據:', data)
-            // 重新載入用戶列表
-            await getAllUsers()
-            return data.message || '用戶停用成功'
-          }
-        },
-        {
-          defaultMessage: '停用用戶失敗',
-          onFinally: () => {
-            loading.value = false
-          },
-        },
-      )
-    }
-
     const deleteUser = async (userId) => {
       return await safeApiCall(
         async () => {
@@ -443,6 +373,7 @@ export const useUserStore = defineStore(
       role,
       isLogin,
       isAdmin,
+      isStaff,
       users,
       loading,
       error,
@@ -458,8 +389,6 @@ export const useUserStore = defineStore(
       createUser,
       updateUser,
       resetUserPassword,
-      activateUser,
-      deactivateUser,
       deleteUser,
 
       // 客戶端功能

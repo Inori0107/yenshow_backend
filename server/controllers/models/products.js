@@ -102,6 +102,7 @@ class ProductsController {
 		this.getProducts = this.getProducts.bind(this);
 		this.searchProducts = this.searchProducts.bind(this);
 		this.getProductById = this.getProductById.bind(this);
+		this.getProductBySlug = this.getProductBySlug.bind(this);
 		this.createProduct = this.createProduct.bind(this);
 		this.updateProduct = this.updateProduct.bind(this);
 		this.deleteProduct = this.deleteProduct.bind(this);
@@ -111,6 +112,7 @@ class ProductsController {
 		this._parseJsonFields = this._parseJsonFields.bind(this);
 		this._processFileUploads = this._processFileUploads.bind(this);
 		this._getProductHierarchy = this._getProductHierarchy.bind(this);
+		this._prepareProductData = this._prepareProductData.bind(this);
 	}
 
 	/**
@@ -118,7 +120,7 @@ class ProductsController {
 	 */
 	async getProducts(req, res) {
 		try {
-			const { specifications, withImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { specifications, hasImages, hasDocuments, featuresCount, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
 
 			// 構建查詢條件 - 移除isActive過濾
 			const query = {};
@@ -129,7 +131,7 @@ class ProductsController {
 			}
 
 			// 自定義過濾器
-			if (withImages === "true") {
+			if (hasImages === "true") {
 				query.images = { $exists: true, $ne: [] };
 			}
 
@@ -184,10 +186,13 @@ class ProductsController {
 	 */
 	async searchProducts(req, res) {
 		try {
-			const { keyword, specifications, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc" } = req.query;
+			const { keyword, specifications, page = 1, limit = 20, sort = "createdAt", sortDirection = "asc", includeInactive } = req.query;
 
-			// 構建附加條件 - 移除isActive過濾
+			// 預設僅搜尋 active 的產品
 			const additionalConditions = {};
+			if (includeInactive !== "true") {
+				additionalConditions.isActive = true;
+			}
 
 			if (specifications) {
 				additionalConditions.specifications = specifications;
@@ -243,8 +248,37 @@ class ProductsController {
 	async getProductById(req, res) {
 		try {
 			const { id } = req.params;
-			// 移除isActive過濾
 			const product = await Products.findById(id);
+
+			if (!product) {
+				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
+			}
+
+			// 應用轉換
+			const baseUrl = process.env.PUBLIC_BASE_URL;
+			const transformedProduct = transformProductImagePaths(product.toObject(), baseUrl);
+
+			return res.status(StatusCodes.OK).json({
+				success: true,
+				message: "獲取產品成功",
+				result: { products: transformedProduct }
+			});
+		} catch (error) {
+			console.error("獲取產品失敗:", error);
+			return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
+				success: false,
+				message: `獲取產品失敗: ${error.message}`
+			});
+		}
+	}
+
+	/**
+	 * 獲取單個產品 by Slug
+	 */
+	async getProductBySlug(req, res) {
+		try {
+			const { slug } = req.params;
+			const product = await Products.findOne({ slug });
 
 			if (!product) {
 				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
@@ -273,29 +307,79 @@ class ProductsController {
 	 */
 	async createProduct(req, res) {
 		try {
-			// 1. 處理請求數據
-			const productData = this._processFormData(req);
+			// 1. Prepare data using the helper, which separates files from payload
+			const { processedData } = await this._prepareProductData(req, false, null);
 
-			// 2. 驗證必要參數
-			if (!productData.specifications || !productData.code) {
-				throw new ApiError(StatusCodes.BAD_REQUEST, "缺少必要參數: specifications 和 code");
+			// Keep track of pending files
+			const pendingImages = processedData._pendingImages || [];
+			const pendingDocuments = processedData._pendingDocuments || [];
+			const pendingVideos = processedData._pendingVideos || [];
+			const pendingDocumentsTW = processedData._pendingDocumentsTW || [];
+			const pendingDocumentsEN = processedData._pendingDocumentsEN || [];
+
+			// 2. Clean up temporary fields before initial database insertion
+			delete processedData._pendingImages;
+			delete processedData._pendingDocuments;
+			delete processedData._pendingVideos;
+			delete processedData._pendingDocumentsTW;
+			delete processedData._pendingDocumentsEN;
+
+			// Ensure file arrays are empty for the first creation step
+			processedData.images = [];
+			processedData.documents = [];
+			processedData.videos = [];
+			processedData.documentsByLang = { TW: [], EN: [] };
+
+			// 3. Create the product in the database to obtain a unique, stable ID
+			const newProduct = await Products.create(processedData);
+
+			// 4. Use the new ID to handle file uploads
+			const productId = newProduct._id.toString();
+			const hierarchyData = await this._getProductHierarchy(newProduct.specifications);
+
+			const saveFile = async (file, fileType) => {
+				try {
+					return fileUpload.saveProductFile(file.buffer, {
+						productId: productId,
+						hierarchyData: hierarchyData,
+						productCode: newProduct.code,
+						fileName: file.originalname,
+						fileType: fileType
+					});
+				} catch (uploadError) {
+					console.error(`產品 ${fileType} 上傳失敗: ${file.originalname}`, uploadError);
+					return null;
+				}
+			};
+
+			const newImageUrls = (await Promise.all(pendingImages.map((file) => saveFile(file, "images")))).filter(Boolean);
+			const newDocumentUrls = (await Promise.all(pendingDocuments.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocTwUrls = (await Promise.all(pendingDocumentsTW.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocEnUrls = (await Promise.all(pendingDocumentsEN.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newVideoUrls = (await Promise.all(pendingVideos.map((file) => saveFile(file, "videos")))).filter(Boolean);
+
+			let itemChangedByFileUpload = false;
+			if (newImageUrls.length > 0) {
+				newProduct.images = newImageUrls;
+				itemChangedByFileUpload = true;
+			}
+			// documents (legacy union) + language-specific
+			if (newDocumentUrls.length > 0 || newDocTwUrls.length > 0 || newDocEnUrls.length > 0) {
+				newProduct.documents = [...(newProduct.documents || []), ...newDocumentUrls, ...newDocTwUrls, ...newDocEnUrls];
+				newProduct.documentsByLang = newProduct.documentsByLang || { TW: [], EN: [] };
+				newProduct.documentsByLang.TW = [...(newProduct.documentsByLang.TW || []), ...newDocTwUrls];
+				newProduct.documentsByLang.EN = [...(newProduct.documentsByLang.EN || []), ...newDocEnUrls];
+				itemChangedByFileUpload = true;
+			}
+			if (newVideoUrls.length > 0) {
+				newProduct.videos = newVideoUrls;
+				itemChangedByFileUpload = true;
 			}
 
-			// 3. 處理檔案上傳
-			if (req.files && Object.keys(req.files).length > 0) {
-				const fileResults = await this._processFileUploads(req, productData);
-
-				if (fileResults.images.length > 0) {
-					productData.images = fileResults.images;
-				}
-
-				if (fileResults.documents.length > 0) {
-					productData.documents = fileResults.documents;
-				}
+			// 5. If any files were successfully uploaded, save their URLs to the product document
+			if (itemChangedByFileUpload) {
+				await newProduct.save();
 			}
-
-			// 4. 創建產品
-			const newProduct = await Products.create(productData);
 
 			return res.status(StatusCodes.CREATED).json({
 				success: true,
@@ -304,6 +388,7 @@ class ProductsController {
 			});
 		} catch (error) {
 			console.error("創建產品失敗:", error);
+			// In a production app, consider logic to delete the `newProduct` if it was created but subsequent steps failed.
 			return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
 				success: false,
 				message: `創建產品失敗: ${error.message}`
@@ -324,59 +409,122 @@ class ProductsController {
 				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
 			}
 
-			// 2. 處理請求數據
-			const productData = this._processFormData(req);
+			// 2. 準備數據，包括文件處理邏輯
+			const { processedData, imagePathsToDelete, documentPathsToDelete, videoPathsToDelete, productCodeForContext } = await this._prepareProductData(
+				req,
+				true,
+				existingProduct
+			);
 
-			// 3. 處理檔案上傳 - 使用替換策略
-			if (req.files && Object.keys(req.files).length > 0) {
-				const fileResults = await this._processFileUploads(req, productData);
+			const hierarchyData = await this._getProductHierarchy(processedData.specifications || existingProduct.specifications.toString());
+			const productCode = productCodeForContext;
 
-				// 處理圖片: 如果上傳新圖片，則替換舊圖片
-				if (fileResults.images.length > 0) {
-					// 刪除舊圖片
-					if (existingProduct.images && existingProduct.images.length > 0) {
-						for (const imagePath of existingProduct.images) {
-							fileUpload.deleteFileByWebPath(imagePath);
-							console.log(`更新時刪除舊圖片: ${imagePath}`);
-						}
-					}
+			const pendingImages = processedData._pendingImages || [];
+			const pendingDocuments = processedData._pendingDocuments || [];
+			const pendingVideos = processedData._pendingVideos || [];
+			const pendingDocumentsTW = processedData._pendingDocumentsTW || [];
+			const pendingDocumentsEN = processedData._pendingDocumentsEN || [];
 
-					// 設置新圖片
-					productData.images = fileResults.images;
-				} else {
-					// 保留原有圖片
-					productData.images = existingProduct.images || [];
+			// Remove temporary/internal fields before forming update payload
+			delete processedData._pendingImages;
+			delete processedData._pendingDocuments;
+			delete processedData._pendingVideos;
+			delete processedData._pendingDocumentsTW;
+			delete processedData._pendingDocumentsEN;
+
+			const updatePayload = { ...processedData }; // Start with text field updates
+
+			// 3. 處理新檔案上傳並合併 URL
+			const saveFile = async (file, fileType) => {
+				try {
+					return fileUpload.saveProductFile(file.buffer, {
+						productId: id, // Use existing product ID for update
+						hierarchyData,
+						productCode,
+						fileName: file.originalname,
+						fileType: fileType
+					});
+				} catch (uploadError) {
+					console.error(`產品 ${fileType} 上傳失敗: ${file.originalname}`, uploadError);
+					return null;
 				}
+			};
 
-				// 處理文檔: 如果上傳新文檔，則替換舊文檔
-				if (fileResults.documents.length > 0) {
-					// 刪除舊文檔
-					if (existingProduct.documents && existingProduct.documents.length > 0) {
-						for (const docPath of existingProduct.documents) {
-							fileUpload.deleteFileByWebPath(docPath);
-							console.log(`更新時刪除舊文檔: ${docPath}`);
-						}
-					}
+			const newImageUrls = (await Promise.all(pendingImages.map((file) => saveFile(file, "images")))).filter(Boolean);
+			const newDocumentUrls = (await Promise.all(pendingDocuments.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocTwUrls = (await Promise.all(pendingDocumentsTW.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocEnUrls = (await Promise.all(pendingDocumentsEN.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newVideoUrls = (await Promise.all(pendingVideos.map((file) => saveFile(file, "videos")))).filter(Boolean);
 
-					// 設置新文檔
-					productData.documents = fileResults.documents;
-				} else {
-					// 保留原有文檔
-					productData.documents = existingProduct.documents || [];
-				}
-			} else {
-				// 如果沒有上傳新檔案，則保留原有的檔案
-				productData.images = existingProduct.images || [];
-				productData.documents = existingProduct.documents || [];
+			if (updatePayload.images !== undefined) {
+				updatePayload.images = (updatePayload.images || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newImageUrls);
 			}
 
-			// 4. 更新產品
-			const updatedProduct = await Products.findByIdAndUpdate(id, productData, { new: true, runValidators: true });
+			// --- Documents 合成/刪除一致性處理 ---
+			const filterValid = (url) => typeof url === "string" && !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_");
+
+			// 語系清單：若前端有提供(表示有修改)，以其為準；否則沿用現有值，再附加新上傳
+			const currentByLang = existingProduct.documentsByLang || { TW: [], EN: [] };
+			if (updatePayload.documentsByLang !== undefined) {
+				const twBase = (updatePayload.documentsByLang.TW || []).filter(filterValid);
+				const enBase = (updatePayload.documentsByLang.EN || []).filter(filterValid);
+				updatePayload.documentsByLang = {
+					TW: twBase.concat(newDocTwUrls),
+					EN: enBase.concat(newDocEnUrls)
+				};
+			} else {
+				updatePayload.documentsByLang = {
+					TW: (currentByLang.TW || []).concat(newDocTwUrls),
+					EN: (currentByLang.EN || []).concat(newDocEnUrls)
+				};
+			}
+
+			// 統一 `documents`：
+			// 若前端有傳 `documents` 或 `documentsByLang`，以兩者合併(去除 placeholder)為基底；
+			// 否則以資料庫舊值為基底。最後再附加新上傳檔案並去除重複。
+			let unionBase = [];
+			const clientProvidedByLang = Object.prototype.hasOwnProperty.call(processedData, "documentsByLang");
+			if (updatePayload.documents !== undefined || clientProvidedByLang) {
+				const fromDocs = (updatePayload.documents || []).filter(filterValid);
+				const fromByLang = []
+					.concat(updatePayload.documentsByLang?.TW || [])
+					.concat(updatePayload.documentsByLang?.EN || [])
+					.filter(filterValid);
+				unionBase = Array.from(new Set([...fromDocs, ...fromByLang]));
+			} else {
+				unionBase = (existingProduct.documents || []).filter(filterValid);
+			}
+			updatePayload.documents = Array.from(new Set(unionBase.concat(newDocumentUrls, newDocTwUrls, newDocEnUrls)));
+
+			if (updatePayload.videos !== undefined) {
+				updatePayload.videos = (updatePayload.videos || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newVideoUrls);
+			}
+
+			// 4. 更新產品: Apply updates to the existing item
+			Object.keys(updatePayload).forEach((key) => {
+				// Allow setting null or empty arrays explicitly if provided in payload
+				if (updatePayload[key] !== undefined) {
+					existingProduct[key] = updatePayload[key];
+				}
+			});
+			const updatedProductDb = await existingProduct.save();
+
+			// 5. 刪除舊檔案
+			[...imagePathsToDelete, ...documentPathsToDelete, ...videoPathsToDelete].forEach((filePath) => {
+				try {
+					if (filePath && filePath.startsWith("/storage")) {
+						fileUpload.deleteFileByWebPath(filePath);
+						console.log("已刪除舊產品檔案:", filePath);
+					}
+				} catch (deleteError) {
+					console.error("刪除舊產品檔案失敗:", filePath, deleteError);
+				}
+			});
 
 			return res.status(StatusCodes.OK).json({
 				success: true,
 				message: "產品更新成功",
-				result: { products: updatedProduct }
+				result: { products: updatedProductDb } // Return the saved product
 			});
 		} catch (error) {
 			console.error("更新產品失敗:", error);
@@ -394,53 +542,17 @@ class ProductsController {
 		try {
 			const { id } = req.params;
 
-			// 檢查產品是否存在
-			const product = await Products.findById(id);
+			// Find and delete the product document in one go
+			const product = await Products.findByIdAndDelete(id);
 			if (!product) {
 				throw new ApiError(StatusCodes.NOT_FOUND, "找不到該產品");
 			}
 
-			// 刪除產品關聯的所有檔案
-			console.log(`正在刪除產品 ${id} 的關聯檔案...`);
-
-			// 刪除圖片檔案
-			if (product.images && product.images.length > 0) {
-				for (const imagePath of product.images) {
-					const deleted = fileUpload.deleteFileByWebPath(imagePath);
-					console.log(`刪除圖片 ${imagePath}: ${deleted ? "成功" : "失敗"}`);
-				}
+			// If the product existed and was deleted, delete its entire directory using its ID
+			if (product._id) {
+				const entityContext = { id: product._id.toString() };
+				fileUpload.deleteEntityDirectory("products", entityContext);
 			}
-
-			// 刪除文檔檔案
-			if (product.documents && product.documents.length > 0) {
-				for (const docPath of product.documents) {
-					const deleted = fileUpload.deleteFileByWebPath(docPath);
-					console.log(`刪除文檔 ${docPath}: ${deleted ? "成功" : "失敗"}`);
-				}
-			}
-
-			// 新增部分：刪除產品目錄（僅刪除 images 和 documents 子目錄）
-			try {
-				// 獲取產品層級結構
-				const hierarchyData = await this._getProductHierarchy(product.specifications);
-
-				// 刪除產品目錄
-				const deleteResult = fileUpload.deleteProductDirectories(hierarchyData, product.code);
-
-				if (deleteResult.success) {
-					console.log(`成功刪除產品 '${product.code}' 的主目錄: ${deleteResult.physicalPath}`);
-				} else {
-					console.log(`刪除產品 '${product.code}' 的主目錄失敗: ${deleteResult.message || "未知原因"}`);
-					// 可以在這裡記錄更詳細的錯誤信息，例如 deleteResult.path
-					console.log(`(目標路徑: ${deleteResult.physicalPath})`);
-				}
-			} catch (dirError) {
-				// 目錄刪除失敗不應該阻止產品刪除，因此僅記錄錯誤
-				console.error(`刪除產品目錄時出錯:`, dirError);
-			}
-
-			// 執行真正的刪除（而非軟刪除）
-			await Products.findByIdAndDelete(id);
 
 			return res.status(StatusCodes.OK).json({
 				success: true,
@@ -591,6 +703,11 @@ class ProductsController {
 		for (const key in data) {
 			const matches = key.match(multilingualPattern);
 
+			// 檢查 data[key] 是否為 undefined 或 null，若是則跳過
+			if (data[key] === undefined || data[key] === null) {
+				continue;
+			}
+
 			if (matches) {
 				const [, field, lang] = matches;
 
@@ -631,7 +748,9 @@ class ProductsController {
 	async _processFileUploads(req, productData) {
 		const result = {
 			images: [],
-			documents: []
+			documents: [],
+			videos: [],
+			documentsByLang: { TW: [], EN: [] }
 		};
 
 		// 檢查是否有上傳檔案
@@ -684,6 +803,55 @@ class ProductsController {
 			}
 		}
 
+		// 按語言處理文檔
+		if (req.files.documents_TW && req.files.documents_TW.length > 0) {
+			for (const file of req.files.documents_TW) {
+				try {
+					const virtualPath = fileUpload.saveProductFile(file.buffer, {
+						hierarchyData,
+						productCode: code,
+						fileName: file.originalname,
+						fileType: "documents"
+					});
+					result.documentsByLang.TW.push(virtualPath);
+				} catch (err) {
+					console.error(`處理文檔(TW) ${file.originalname} 失敗:`, err);
+				}
+			}
+		}
+		if (req.files.documents_EN && req.files.documents_EN.length > 0) {
+			for (const file of req.files.documents_EN) {
+				try {
+					const virtualPath = fileUpload.saveProductFile(file.buffer, {
+						hierarchyData,
+						productCode: code,
+						fileName: file.originalname,
+						fileType: "documents"
+					});
+					result.documentsByLang.EN.push(virtualPath);
+				} catch (err) {
+					console.error(`處理文檔(EN) ${file.originalname} 失敗:`, err);
+				}
+			}
+		}
+
+		// 處理影片
+		if (req.files.videos && req.files.videos.length > 0) {
+			for (const file of req.files.videos) {
+				try {
+					const virtualPath = fileUpload.saveProductFile(file.buffer, {
+						hierarchyData,
+						productCode: code,
+						fileName: file.originalname,
+						fileType: "videos"
+					});
+					result.videos.push(virtualPath);
+				} catch (err) {
+					console.error(`處理影片 ${file.originalname} 失敗:`, err);
+				}
+			}
+		}
+
 		return result;
 	}
 
@@ -691,12 +859,12 @@ class ProductsController {
 	 * 獲取產品層級結構
 	 * @private
 	 */
-	async _getProductHierarchy(specifications) {
+	async _getProductHierarchy(specificationsId) {
 		try {
 			// 查詢規格信息
-			const specification = await Specifications.findById(specifications);
+			const specification = await Specifications.findById(specificationsId);
 			if (!specification) {
-				throw new ApiError(StatusCodes.NOT_FOUND, `找不到規格 ID: ${specifications}`);
+				throw new ApiError(StatusCodes.NOT_FOUND, `找不到規格 ID: ${specificationsId}`);
 			}
 
 			// 查詢子分類信息
@@ -725,9 +893,200 @@ class ProductsController {
 				specification
 			};
 		} catch (error) {
-			console.error(`獲取產品層級結構失敗 (ID: ${specifications}):`, error);
+			console.error(`獲取產品層級結構失敗 (ID: ${specificationsId}):`, error);
 			throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `無法取得產品層級結構: ${error.message}`);
 		}
+	}
+
+	async _prepareProductData(req, isUpdate = false, existingProduct = null) {
+		let rawData;
+		if (req.is("multipart/form-data") && req.body.productDataPayload) {
+			try {
+				rawData = JSON.parse(req.body.productDataPayload);
+			} catch (e) {
+				console.error("解析 productDataPayload 失敗:", req.body.productDataPayload, e);
+				throw new ApiError(StatusCodes.BAD_REQUEST, "無法解析 productDataPayload JSON 字串");
+			}
+		} else {
+			// Fallback or error if productDataPayload is expected but not found
+			// For now, let's assume it might still come directly from req.body for some reason
+			console.warn("productDataPayload 未找到，嘗試從 req.body 直接讀取欄位。建議前端始終發送 productDataPayload。");
+			rawData = { ...req.body };
+		}
+
+		const data = { ...rawData }; // data 將是純淨的JS對象
+		const files = req.files || {};
+
+		// For file uploads and deletions
+		data._pendingImages = files.images || [];
+		data._pendingDocuments = files.documents || [];
+		data._pendingVideos = files.videos || [];
+		data._pendingDocumentsTW = files.documents_TW || [];
+		data._pendingDocumentsEN = files.documents_EN || [];
+
+		let imagePathsToDelete = [];
+		let documentPathsToDelete = [];
+		let videoPathsToDelete = [];
+
+		if (isUpdate && data._id) {
+			delete data._id; // Don't allow updating _id
+		}
+
+		// For context in file path generation if needed, or for other logic
+		let productCodeForContext = "untitled_product";
+		if (data.code) {
+			productCodeForContext = data.code;
+		} else if (isUpdate && existingProduct?.code) {
+			productCodeForContext = existingProduct.code;
+		}
+
+		// Basic Validations (can be expanded)
+		if (!data.specifications && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "規格為必填");
+		if (!data.code && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "產品代碼為必填");
+		if (!data.name?.TW && !data.name?.EN && !isUpdate) throw new ApiError(StatusCodes.BAD_REQUEST, "產品名稱 (至少一種語言) 為必填");
+
+		// Handle features - ensure it's an array of objects
+		if (data.features && typeof data.features === "string") {
+			try {
+				data.features = JSON.parse(data.features);
+			} catch (e) {
+				console.warn("無法解析產品特點 JSON 字串，將其視為空陣列:", data.features);
+				data.features = [];
+			}
+		}
+		if (!Array.isArray(data.features)) {
+			data.features = [];
+		}
+		data.features = data.features.filter((f) => f && (f.TW || f.EN) && f.featureId);
+		this._processMultilingualFormData(data);
+		this._parseJsonFields(data);
+
+		const imageMarkerPrefix = "__PRODUCT_IMAGE_MARKER_"; // Example, align with frontend if used
+		const documentMarkerPrefix = "__PRODUCT_DOCUMENT_MARKER_";
+		const videoMarkerPrefix = "__PRODUCT_VIDEO_MARKER_";
+
+		// Manage file arrays
+		if (isUpdate) {
+			// Only manage existing files if updating
+			const updatedImages = this._manageProductFileArray(
+				data.images, // client-sent array from payload
+				existingProduct?.images,
+				data._pendingImages,
+				imagePathsToDelete,
+				imageMarkerPrefix
+			);
+			if (updatedImages !== undefined) {
+				data.images = updatedImages;
+			} else {
+				delete data.images;
+			}
+
+			const updatedDocuments = this._manageProductFileArray(
+				data.documents, // client-sent array from payload
+				existingProduct?.documents,
+				data._pendingDocuments,
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			if (updatedDocuments !== undefined) {
+				data.documents = updatedDocuments;
+			} else {
+				delete data.documents;
+			}
+
+			// Language-specific: manage TW
+			const existingByLang = existingProduct?.documentsByLang || { TW: [], EN: [] };
+			const clientByLang = data.documentsByLang || {};
+			const updatedDocumentsTW = this._manageProductFileArray(
+				clientByLang.TW,
+				existingByLang.TW,
+				data._pendingDocumentsTW || [],
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			const updatedDocumentsEN = this._manageProductFileArray(
+				clientByLang.EN,
+				existingByLang.EN,
+				data._pendingDocumentsEN || [],
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			if (updatedDocumentsTW !== undefined || updatedDocumentsEN !== undefined) {
+				data.documentsByLang = {
+					TW: updatedDocumentsTW !== undefined ? updatedDocumentsTW : existingByLang.TW || [],
+					EN: updatedDocumentsEN !== undefined ? updatedDocumentsEN : existingByLang.EN || []
+				};
+			} else {
+				delete data.documentsByLang;
+			}
+			const updatedVideos = this._manageProductFileArray(
+				data.videos, // client-sent array from payload
+				existingProduct?.videos,
+				data._pendingVideos,
+				videoPathsToDelete,
+				videoMarkerPrefix
+			);
+			if (updatedVideos !== undefined) {
+				data.videos = updatedVideos;
+			} else {
+				delete data.videos;
+			}
+		} else {
+			// For create, initialize as empty arrays, will be populated after upload
+			data.images = [];
+			data.documents = [];
+			data.videos = [];
+			data.documentsByLang = { TW: [], EN: [] };
+		}
+
+		return {
+			processedData: data,
+			imagePathsToDelete,
+			documentPathsToDelete,
+			videoPathsToDelete,
+			productCodeForContext
+		};
+	}
+
+	_manageProductFileArray(clientUrls, existingUrls, pendingFiles, pathsToDelete, clientMarkerPrefix) {
+		if (clientUrls === undefined) {
+			return undefined;
+		}
+		const validClientKeptUrls = [];
+		if (Array.isArray(clientUrls)) {
+			clientUrls.forEach((url) => {
+				if (typeof url !== "string" || !url) return; // 增加對空字串的檢查
+
+				let relativeUrl = "";
+
+				// 尋找 /storage/ 的位置，使其對 URL 格式更具彈性
+				const storageIndex = url.indexOf("/storage/");
+
+				if (storageIndex !== -1) {
+					// 提取從 /storage/ 開始的路徑
+					relativeUrl = url.substring(storageIndex);
+					validClientKeptUrls.push(relativeUrl);
+				} else {
+					console.warn(`收到的 URL 格式不符合預期，無法處理: ${url}`);
+				}
+			});
+		}
+
+		const finalUrls = [...validClientKeptUrls]; // 從客戶端希望保留的有效 /storage/ URL 開始
+
+		// 識別需要刪除的檔案：資料庫中存在的 /storage/ URL，但客戶端不再希望保留它們
+		if (Array.isArray(existingUrls)) {
+			existingUrls.forEach((oldUrl) => {
+				if (typeof oldUrl === "string" && oldUrl.startsWith("/storage/") && !validClientKeptUrls.includes(oldUrl)) {
+					pathsToDelete.push(oldUrl);
+				}
+			});
+		}
+
+		pendingFiles.forEach((_, index) => {
+			finalUrls.push(`__PENDING_PRODUCT_FILE_PLACEHOLDER_${index}__`);
+		});
+		return finalUrls;
 	}
 }
 

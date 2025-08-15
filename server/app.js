@@ -16,6 +16,8 @@ import userRoutes from "./routes/user.js";
 import hierarchyRoutes from "./routes/hierarchyRoutes.js";
 import faqRoutes from "./routes/faq.js";
 import newsRoutes from "./routes/news.js";
+import contactRoutes from "./routes/contactRoutes.js";
+import lineRoutes from "./routes/line.js";
 // 導入模型 - 僅用於初始化檢查，確保模型正確載入
 import "./models/products.js";
 import "./models/categories.js";
@@ -38,41 +40,44 @@ const configureApp = () => {
 	// 基本安全性設定
 	app.use(helmet());
 
+	// LINE Webhook 必須在 express.json() 之前，以保留 raw body 進行簽名驗證
+	app.use("/api/line", lineRoutes);
+
 	// 添加請求大小限制
 	app.use(express.json({ limit: "50mb" }));
 	app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 	// CORS 配置
-	app.use(
-		cors({
-			origin: function (origin, callback) {
-				// 允許的來源清單
-				const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3001";
-				const allowedOrigins = corsOrigin.split(",");
+	const corsOptions = {
+		origin: function (origin, callback) {
+			// 允許的來源清單
+			const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3002";
+			const allowedOrigins = corsOrigin.split(",");
 
-				// 開發環境放寬限制
-				const isDevelopment = process.env.NODE_ENV === "development";
+			// 開發環境放寬限制
+			const isDevelopment = process.env.NODE_ENV === "development";
 
-				// 允許沒有來源的請求 (如 Postman)
-				if (!origin) return callback(null, true);
+			// 允許沒有來源的請求 (如 Postman)
+			if (!origin) return callback(null, true);
 
-				// 在開發模式下允許所有來源
-				if (isDevelopment) {
-					return callback(null, true);
-				}
+			// 在開發模式下允許所有來源
+			if (isDevelopment) {
+				return callback(null, true);
+			}
 
-				if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
-					callback(null, true);
-				} else {
-					console.warn(`CORS 拒絕來源: ${origin}`);
-					callback(new Error("CORS 不允許的來源"));
-				}
-			},
-			methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-			allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-secret"],
-			credentials: true // 允許跨域請求攜帶憑證
-		})
-	);
+			if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
+				callback(null, true);
+			} else {
+				console.warn(`CORS 拒絕來源: ${origin}`);
+				callback(new Error("CORS 不允許的來源"));
+			}
+		},
+		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-secret", "X-App-Context"],
+		credentials: true // 允許跨域請求攜帶憑證
+	};
+
+	app.use(cors(corsOptions));
 
 	// 基礎中間件
 	app.use(morgan("dev"));
@@ -170,6 +175,7 @@ const configureRoutes = (app) => {
 	app.use("/api", hierarchyRoutes);
 	app.use("/api/faqs", faqRoutes);
 	app.use("/api/news", newsRoutes);
+	app.use("/api", contactRoutes);
 
 	// 調試路由 - 修改路徑
 	app.get("/api/ping", (req, res) => {
@@ -245,7 +251,7 @@ const startHttpServer = (app) => {
 	return app.listen(port, host, () => {
 		console.log(`✅ 伺服器啟動於 ${host}:${port}`);
 		console.log(`📌 API 基礎路徑: http://${host}:${port}/`);
-		console.log(`🔒 允許的 CORS 來源: ${process.env.CORS_ORIGIN || "http://localhost:3001"}`);
+		console.log(`🔒 允許的 CORS 來源: ${process.env.CORS_ORIGIN || "http://localhost:3002"}`);
 	});
 };
 

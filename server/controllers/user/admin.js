@@ -31,8 +31,8 @@ export const createUser = async (req, res, next) => {
 		const { account, email, password, role, ...additionalInfo } = req.body;
 
 		// 基本驗證
-		if (!account || !password || !email || !role) {
-			throw ApiError.badRequest("帳號、密碼、郵箱和角色為必填欄位");
+		if (!account || !password || !role) {
+			throw ApiError.badRequest("帳號、密碼和角色為必填欄位");
 		}
 
 		// 角色驗證
@@ -82,8 +82,24 @@ export const updateUser = async (req, res, next) => {
 		const { id } = req.params;
 		const { email, role, isActive, clientInfo, staffInfo } = req.body;
 
+		// 檢查是否嘗試更新自己
+		if (id === req.user.id) {
+			throw ApiError.badRequest("不能更新自己的帳號");
+		}
+
 		// 基本更新數據
-		const updateData = { email, role, isActive };
+		const updateData = {};
+
+		// 只更新提供的欄位
+		if (email !== undefined) updateData.email = email;
+		if (role !== undefined) {
+			// 角色驗證
+			if (!Object.values(UserRole).includes(role)) {
+				throw ApiError.badRequest("無效的用戶角色");
+			}
+			updateData.role = role;
+		}
+		if (isActive !== undefined) updateData.isActive = isActive;
 
 		// 根據角色添加特定資訊
 		if (role === UserRole.CLIENT && clientInfo) {
@@ -99,74 +115,6 @@ export const updateUser = async (req, res, next) => {
 		}
 
 		return successResponse(res, StatusCodes.OK, "用戶更新成功", { user });
-	} catch (error) {
-		next(error);
-	}
-};
-
-/**
- * 重置用戶密碼
- */
-export const resetPassword = async (req, res, next) => {
-	try {
-		const { id } = req.params;
-		const { password } = req.body;
-
-		if (!password) {
-			throw ApiError.badRequest("密碼為必填欄位");
-		}
-
-		const user = await User.findById(id);
-		if (!user) {
-			throw ApiError.notFound("用戶不存在");
-		}
-
-		user.password = password;
-		user.isFirstLogin = true;
-		await user.save();
-
-		return successResponse(res, StatusCodes.OK, "密碼重置成功", {
-			user: {
-				_id: user._id,
-				account: user.account
-			}
-		});
-	} catch (error) {
-		next(error);
-	}
-};
-
-/**
- * 啟用用戶
- */
-export const activateUser = async (req, res, next) => {
-	try {
-		const { id } = req.params;
-		const user = await User.findByIdAndUpdate(id, { isActive: true }, { new: true }).select("-password -tokens");
-
-		if (!user) {
-			throw ApiError.notFound("用戶不存在");
-		}
-
-		return successResponse(res, StatusCodes.OK, "用戶已啟用", { user });
-	} catch (error) {
-		next(error);
-	}
-};
-
-/**
- * 停用用戶
- */
-export const deactivateUser = async (req, res, next) => {
-	try {
-		const { id } = req.params;
-		const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true }).select("-password -tokens");
-
-		if (!user) {
-			throw ApiError.notFound("用戶不存在");
-		}
-
-		return successResponse(res, StatusCodes.OK, "用戶已停用", { user });
 	} catch (error) {
 		next(error);
 	}

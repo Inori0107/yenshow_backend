@@ -2,6 +2,38 @@ import { ApiError } from "../utils/responseHandler.js";
 import { StatusCodes } from "http-status-codes";
 import { EntityService } from "./EntityService.js";
 
+// 排序輔助函數
+function sortItemsByCode(items) {
+	if (!Array.isArray(items)) return [];
+
+	const parseCode = (code) => {
+		if (typeof code !== "string" || !code) {
+			return { num: Infinity, textPart: code || "" };
+		}
+		// 尋找第一個數字序列及其後的任何字符
+		const match = code.match(/(\d+)(.*)/);
+		if (match) {
+			const num = parseInt(match[1], 10);
+			const textPart = match[2] || ""; // 數字後的所有字符
+			return { num, textPart };
+		}
+		// 如果沒有數字，則整個作為文本比較，將 num 設為 Infinity 使其排在後面
+		return { num: Infinity, textPart: code };
+	};
+
+	return [...items].sort((a, b) => {
+		// 假設 item 對象有 code 屬性
+		const valA = parseCode(a.code);
+		const valB = parseCode(b.code);
+
+		if (valA.num !== valB.num) {
+			return valA.num - valB.num; // 按數字升序
+		}
+		// 數字相同時，按文本部分進行不區分大小寫的排序
+		return valA.textPart.localeCompare(valB.textPart, undefined, { sensitivity: "base" });
+	});
+}
+
 /**
  * HierarchyService 類 - 處理跨模型的層級關係邏輯
  */
@@ -89,6 +121,7 @@ class HierarchyService {
 		const currentDepth = options.currentDepth || 0;
 		const maxDepth = options.maxDepth === undefined ? 5 : options.maxDepth; // 默認深度 5
 		const language = options.language; // 提取語言選項
+		const accessOptions = options.accessOptions || { filterActive: true }; // <--- 獲取 accessOptions，預設為官網過濾
 
 		// 檢查深度限制
 		if (maxDepth !== -1 && currentDepth > maxDepth) {
@@ -112,6 +145,11 @@ class HierarchyService {
 			const item = await service.ensureExists(id); // 通常只獲取 active 的項目
 			if (!item) return null; // 如果項目不存在或 inactive，則不包含在樹中
 
+			// 如果是產品層級，且需要過濾 active，但當前產品是 inactive，則不應包含在樹中
+			if (type === "products" && accessOptions.filterActive && !item.isActive) {
+				return null;
+			}
+
 			// 格式化當前項目，傳遞 language 選項
 			const formattedItem = service.formatOutput(item, { language });
 
@@ -133,17 +171,22 @@ class HierarchyService {
 			const childService = await this.getEntityService(childType);
 
 			// 獲取子項
+			const searchQuery = { [childService.parentField]: id };
+			// 如果子層是 products，且需要過濾 active，則加入 isActive: true
+			if (childType === "products" && accessOptions.filterActive) {
+				searchQuery.isActive = true;
+			}
+
 			const childrenResult = await childService.search(
-				{
-					[childService.parentField]: id // 使用子服務的 parentField
-				},
-				{ language, sort: { createdAt: 1 } } // 傳遞 language 和排序選項
+				searchQuery,
+				{ language } // 移除 sort 選項，排序將由後續的 sortItemsByCode 處理
 			);
 
 			// 遞迴處理每個子項
 			const childrenWithSubtree = [];
 			if (childrenResult && childrenResult.data) {
-				for (const child of childrenResult.data) {
+				const sortedChildren = sortItemsByCode(childrenResult.data); // 在此排序
+				for (const child of sortedChildren) {
 					// 遞迴調用，增加深度
 					const childWithSubtree = await this.buildHierarchyTree(childType, child._id, { ...options, currentDepth: currentDepth + 1 });
 					if (childWithSubtree) {
@@ -177,18 +220,19 @@ class HierarchyService {
 	 * @returns {Promise<Array>} 完整的層次結構數據
 	 */
 	async getFullHierarchyData(options = {}) {
-		const { language, maxDepth } = options;
+		const { language, maxDepth, accessOptions } = options;
 
 		// 獲取所有系列（最頂層）
 		const seriesService = await this.getEntityService("series");
-		const seriesResult = await seriesService.search({ language, sort: { createdAt: 1 } });
+		// 系列本身不過濾 isActive，但其下的產品會通過 buildHierarchyTree 過濾
+		const seriesResult = await seriesService.search({}, { language, sort: { createdAt: 1 } });
 
 		const hierarchyData = [];
 
 		// 對每個系列，遞迴獲取完整的層次結構
 		for (const series of seriesResult.data) {
 			// 使用 buildHierarchyTree
-			const seriesWithChildren = await this.buildHierarchyTree("series", series._id, { language, maxDepth });
+			const seriesWithChildren = await this.buildHierarchyTree("series", series._id, { language, maxDepth, accessOptions });
 			if (seriesWithChildren) {
 				// 只添加成功構建的樹
 				hierarchyData.push(seriesWithChildren);
@@ -206,7 +250,7 @@ class HierarchyService {
 	 * @returns {Promise<Object>} 子項列表及父項信息 { children: Array, childType: String, parent: Object }
 	 */
 	async getChildrenByParentIdData(parentType, parentId, options = {}) {
-		const { language } = options;
+		const { language, accessOptions } = options;
 
 		// 檢查父層級類型有效性
 		this._validateEntityType(parentType);
@@ -227,15 +271,23 @@ class HierarchyService {
 		const childService = await this.getEntityService(childType);
 
 		// 獲取子項
-		const childItemsResult = await childService.search(
-			{
-				[childService.parentField]: parentId
-			},
-			{ language, sort: { createdAt: 1 } }
-		);
+		const childSearchQuery = { [childService.parentField]: parentId };
+		// 如果子層是 products，且需要過濾 active，則加入 isActive: true
+		// (這也適用於其他層級，如果它們也需要根據 accessOptions 過濾 isActive 的話)
+		if (childType === "products" && accessOptions && accessOptions.filterActive) {
+			childSearchQuery.isActive = true;
+		}
+		// 你也可以考慮為所有層級的 search 都加入 accessOptions.filterActive 判斷
+		// else if (accessOptions && accessOptions.filterActive && childService.model.schema.paths.isActive) {
+		//   childSearchQuery.isActive = true;
+		// }
+
+		const childItemsResult = await childService.search(childSearchQuery, { language });
+
+		const sortedChildren = sortItemsByCode(childItemsResult.data || []); // 在此排序
 
 		return {
-			children: childItemsResult.data || [],
+			children: sortedChildren, // 使用排序後的子項
 			childType: childType,
 			parent: {
 				type: parentType,
@@ -252,7 +304,7 @@ class HierarchyService {
 	 * @returns {Promise<Array>} 從頂層到底層的父層級項目列表
 	 */
 	async getParentHierarchyData(itemType, itemId, options = {}) {
-		const { language } = options;
+		const { language, accessOptions } = options; // accessOptions 在此方法中可能不需要，因為父層通常都需要存在
 
 		// 檢查項目類型有效性
 		this._validateEntityType(itemType);
@@ -332,17 +384,17 @@ class HierarchyService {
 	 * @returns {Promise<Object|null>} 子階層樹或 null
 	 */
 	async getSubHierarchyData(itemType, itemId, options = {}) {
-		const { language, maxDepth } = options;
+		const { language, maxDepth, accessOptions } = options;
 
 		// 檢查層級類型有效性
 		this._validateEntityType(itemType);
 
-		// 確保起始項目存在且 active (通常我們只關心 active 的子樹)
+		// 確保起始項目存在。如果 accessOptions.filterActive 為 true，則起始項目也必須是 active。
 		const startService = await this.getEntityService(itemType);
-		await startService.ensureExists(itemId);
+		await startService.ensureExists(itemId, { isActive: accessOptions && accessOptions.filterActive ? true : undefined });
 
 		// 遞迴建立子階層樹
-		const subHierarchyData = await this.buildHierarchyTree(itemType, itemId, { language, maxDepth });
+		const subHierarchyData = await this.buildHierarchyTree(itemType, itemId, { language, maxDepth, accessOptions });
 
 		// buildHierarchyTree 在找不到項目時會返回 null
 		if (!subHierarchyData) {
