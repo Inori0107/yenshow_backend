@@ -344,13 +344,18 @@
           </p>
         </div>
 
-        <!-- PDF文件上傳 -->
+        <!-- PDF文件上傳（以語言切換控制 TW/EN） -->
         <div class="mb-6">
-          <label class="block mb-3">相關文件 (PDF)</label>
+          <div class="flex justify-between items-center mb-2">
+            <label class="block font-medium">相關文件 (PDF)</label>
+            <language-switcher v-model="documentsLanguage" />
+          </div>
           <div
             class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-[10px] cursor-pointer hover:border-blue-400"
             :class="conditionalClass('border-gray-600', 'border-gray-300')"
-            @click="triggerDocumentInput"
+            @click="
+              documentsLanguage === 'TW' ? triggerDocumentInputTW() : triggerDocumentInputEN()
+            "
           >
             <div class="space-y-1 text-center">
               <svg
@@ -368,21 +373,29 @@
                   d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                 />
               </svg>
-              <p>點擊上傳文件</p>
+              <p>點擊上傳 {{ documentsLanguage }} 文件</p>
             </div>
             <input
-              ref="documentInputRef"
+              ref="documentInputRefTW"
               type="file"
               accept="application/pdf"
               multiple
               class="hidden"
-              @change="handleDocumentFiles"
+              @change="handleDocumentFilesTW"
+            />
+            <input
+              ref="documentInputRefEN"
+              type="file"
+              accept="application/pdf"
+              multiple
+              class="hidden"
+              @change="handleDocumentFilesEN"
             />
           </div>
-          <div v-if="form.documents.length > 0 || documentFiles.length > 0" class="mt-4 space-y-2">
+          <div v-if="documentsLanguage === 'TW'" class="mt-3 space-y-2">
             <div
-              v-for="(url, index) in form.documents"
-              :key="`existing-doc-${index}`"
+              v-for="(url, index) in form.documentsByLang.TW"
+              :key="`existing-doc-tw-${index}`"
               class="flex items-center justify-between p-2 rounded-md"
               :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
             >
@@ -391,31 +404,62 @@
               }}</a>
               <button
                 type="button"
-                @click.stop="removeExistingDocument(index)"
+                @click.stop="removeExistingDocumentLang('TW', index)"
                 class="ml-4 text-red-500"
               >
                 移除
               </button>
             </div>
             <div
-              v-for="(file, index) in documentFiles"
-              :key="`new-doc-${index}`"
+              v-for="(file, index) in documentFilesTW"
+              :key="`new-doc-tw-${index}`"
               class="flex items-center justify-between p-2 rounded-md"
               :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
             >
               <span class="truncate">{{ file.name }}</span>
               <button
                 type="button"
-                @click.stop="removeNewDocument(index)"
+                @click.stop="removeNewDocumentLang('TW', index)"
                 class="ml-4 text-red-500"
               >
                 移除
               </button>
             </div>
           </div>
-          <p v-if="validationErrors.documents" class="text-red-500 text-sm mt-1">
-            {{ validationErrors.documents }}
-          </p>
+          <div v-else class="mt-3 space-y-2">
+            <div
+              v-for="(url, index) in form.documentsByLang.EN"
+              :key="`existing-doc-en-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <a :href="url" target="_blank" class="truncate hover:underline">{{
+                getFileNameFromUrl(url)
+              }}</a>
+              <button
+                type="button"
+                @click.stop="removeExistingDocumentLang('EN', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in documentFilesEN"
+              :key="`new-doc-en-${index}`"
+              class="flex items-center justify-between p-2 rounded-md"
+              :class="conditionalClass('bg-gray-700/50', 'bg-gray-100')"
+            >
+              <span class="truncate">{{ file.name }}</span>
+              <button
+                type="button"
+                @click.stop="removeNewDocumentLang('EN', index)"
+                class="ml-4 text-red-500"
+              >
+                移除
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Video Upload Section -->
@@ -604,6 +648,7 @@ const getInitialFormState = () => ({
   isActive: true,
   images: [],
   documents: [],
+  documentsByLang: { TW: [], EN: [] },
   videos: [],
 })
 
@@ -623,7 +668,10 @@ const imageFiles = ref([])
 const imageInputRef = ref(null)
 
 const documentFiles = ref([])
-const documentInputRef = ref(null)
+const documentFilesTW = ref([])
+const documentFilesEN = ref([])
+const documentInputRefTW = ref(null)
+const documentInputRefEN = ref(null)
 
 const videoFiles = ref([])
 const videoInputRef = ref(null)
@@ -631,6 +679,7 @@ const videoInputRef = ref(null)
 // File modification tracking state
 const imagesModified = ref(false)
 const documentsModified = ref(false)
+const documentsByLangModified = ref(false)
 const videosModified = ref(false)
 
 // 相關數據
@@ -639,6 +688,7 @@ const specifications = ref([])
 // 語言切換狀態
 const featureLanguage = ref('TW')
 const descriptionLanguage = ref('TW')
+const documentsLanguage = ref('TW')
 
 // 批次新增產品特點
 const batchFeaturesText = ref('')
@@ -725,6 +775,20 @@ const processBatchFeatures = () => {
 
   if (newFeaturesArray.length === 0) {
     batchFeaturesText.value = '' // 清空輸入框
+    return
+  }
+
+  // EN 模式：只針對「已有 TW 且 EN 為空」的項目依序補上 EN，不新增新特點
+  if (featureLanguage.value === 'EN') {
+    let inputIdx = 0
+    for (let i = 0; i < form.value.features.length && inputIdx < newFeaturesArray.length; i++) {
+      const f = form.value.features[i]
+      if (f.TW && (!f.EN || f.EN.trim() === '')) {
+        f.EN = newFeaturesArray[inputIdx]
+        inputIdx++
+      }
+    }
+    batchFeaturesText.value = '' // 清空 textarea
     return
   }
 
@@ -859,7 +923,11 @@ const submitForm = async () => {
 
     // --- 處理附件 ---
     imageFiles.value.forEach((file) => formData.append('images', file))
+    // legacy union (if still used)
     documentFiles.value.forEach((file) => formData.append('documents', file))
+    // language-specific
+    documentFilesTW.value.forEach((file) => formData.append('documents_TW', file))
+    documentFilesEN.value.forEach((file) => formData.append('documents_EN', file))
     videoFiles.value.forEach((file) => formData.append('videos', file))
 
     // --- 構建資料 ---
@@ -880,6 +948,12 @@ const submitForm = async () => {
       }
       if (documentsModified.value) {
         productPayload.documents = form.value.documents
+      }
+      if (documentsByLangModified.value) {
+        productPayload.documentsByLang = {
+          TW: form.value.documentsByLang?.TW || [],
+          EN: form.value.documentsByLang?.EN || [],
+        }
       }
       if (videosModified.value) {
         productPayload.videos = form.value.videos
@@ -976,6 +1050,8 @@ const resetForm = () => {
   // Reset attachment state
   imageFiles.value = []
   documentFiles.value = []
+  documentFilesTW.value = []
+  documentFilesEN.value = []
   videoFiles.value = []
 
   // Reset modification tracking
@@ -985,7 +1061,8 @@ const resetForm = () => {
 
   // Clear file inputs
   if (imageInputRef.value) imageInputRef.value.value = ''
-  if (documentInputRef.value) documentInputRef.value.value = ''
+  if (documentInputRefTW.value) documentInputRefTW.value.value = ''
+  if (documentInputRefEN.value) documentInputRefEN.value.value = ''
   if (videoInputRef.value) videoInputRef.value.value = ''
 
   // Reset upload status
@@ -1042,6 +1119,7 @@ watch(
       // Ensure form arrays are initialized
       form.value.images = []
       form.value.documents = []
+      form.value.documentsByLang = { TW: [], EN: [] }
       form.value.videos = [] // Initialize for video as well
 
       await loadProductData() // This will now populate imagePreviews and documentPreviews
@@ -1164,6 +1242,14 @@ async function loadProductData() {
       isActive: fetchedProductData.isActive !== undefined ? fetchedProductData.isActive : true,
       images: [...(fetchedProductData.images || [])],
       documents: [...(fetchedProductData.documents || [])],
+      documentsByLang: {
+        TW: [
+          ...((fetchedProductData.documentsByLang && fetchedProductData.documentsByLang.TW) || []),
+        ],
+        EN: [
+          ...((fetchedProductData.documentsByLang && fetchedProductData.documentsByLang.EN) || []),
+        ],
+      },
       videos: [...(fetchedProductData.videos || [])],
     }
 
@@ -1205,7 +1291,8 @@ const getFileNameFromUrl = (url) => {
 
 // --- Attachment Handlers ---
 const triggerImageInput = () => imageInputRef.value?.click()
-const triggerDocumentInput = () => documentInputRef.value?.click()
+const triggerDocumentInputTW = () => documentInputRefTW.value?.click()
+const triggerDocumentInputEN = () => documentInputRefEN.value?.click()
 const triggerVideoInput = () => videoInputRef.value?.click()
 
 const handleImageFiles = (event) => {
@@ -1220,10 +1307,15 @@ const handleImageFiles = (event) => {
   if (imageInputRef.value) imageInputRef.value.value = ''
 }
 
-const handleDocumentFiles = (event) => {
-  documentFiles.value.push(...Array.from(event.target.files))
-  documentsModified.value = true // 標記為已修改
-  if (documentInputRef.value) documentInputRef.value.value = ''
+const handleDocumentFilesTW = (event) => {
+  documentFilesTW.value.push(...Array.from(event.target.files))
+  documentsByLangModified.value = true
+  if (documentInputRefTW.value) documentInputRefTW.value.value = ''
+}
+const handleDocumentFilesEN = (event) => {
+  documentFilesEN.value.push(...Array.from(event.target.files))
+  documentsByLangModified.value = true
+  if (documentInputRefEN.value) documentInputRefEN.value.value = ''
 }
 
 const handleVideoFiles = (event) => {
@@ -1247,13 +1339,18 @@ const removeExistingImage = (index) => {
   form.value.images.splice(index, 1)
   imagesModified.value = true // 標記為已修改
 }
-const removeNewDocument = (index) => {
-  documentFiles.value.splice(index, 1)
-  documentsModified.value = true // 標記為已修改
+const removeNewDocumentLang = (lang, index) => {
+  if (lang === 'TW') {
+    documentFilesTW.value.splice(index, 1)
+  } else {
+    documentFilesEN.value.splice(index, 1)
+  }
+  documentsByLangModified.value = true
 }
-const removeExistingDocument = (index) => {
-  form.value.documents.splice(index, 1)
-  documentsModified.value = true // 標記為已修改
+const removeExistingDocumentLang = (lang, index) => {
+  if (!form.value.documentsByLang) form.value.documentsByLang = { TW: [], EN: [] }
+  form.value.documentsByLang[lang].splice(index, 1)
+  documentsByLangModified.value = true
 }
 const removeNewVideo = (index) => {
   URL.revokeObjectURL(videoFiles.value[index].previewUrl)

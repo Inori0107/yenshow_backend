@@ -9,7 +9,8 @@
     "cleanup-orphans": "node scripts/cleanup-orphans.js",
     "create-admin": "node scripts/createInitialAdmin.js",
     "migrate-product": "node scripts/migrate-product.js",
-    "export-users": "node scripts/export-users.js"
+    "export-users": "node scripts/export-users.js",
+    "migrate-documents": "node scripts/migrate-documents-to-by-lang.js"
   },
   "keywords": [],
   "author": "",

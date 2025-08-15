@@ -503,8 +503,8 @@ async function deleteItem() {
     if (itemToDelete.value._id && entityStore.value) {
       // 使用 entityStore 的 delete 方法刪除
       await entityStore.value.delete(itemToDelete.value._id)
-      // 刪除成功後觸發刷新
-      notify.triggerRefresh(props.modelType)
+      // 刪除成功後由事件通知刷新
+      emit('refresh-data')
     }
 
     // 從表單中移除
@@ -648,9 +648,9 @@ async function submitForm() {
     notify.notifySuccess(`${props.itemLabel}「${itemName}」已更新`)
 
     // 觸發刷新
-    notify.triggerRefresh(props.modelType)
-    emit('submit-success', data)
+    // 由事件通知父層刷新
     emit('refresh-data')
+    emit('submit-success', data)
     closeDialog()
   } catch (err) {
     error.value = notify.handleApiError(err, {

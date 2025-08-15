@@ -51,11 +51,17 @@ class FileUpload {
 				}
 			}
 			// Handling for product uploads
-			else if (file.fieldname === "images" || file.fieldname === "documents" || file.fieldname === "videos") {
+			else if (
+				file.fieldname === "images" ||
+				file.fieldname === "documents" ||
+				file.fieldname === "videos" ||
+				file.fieldname === "documents_TW" ||
+				file.fieldname === "documents_EN"
+			) {
 				if (file.fieldname === "images" && !file.mimetype.startsWith("image/")) {
 					return cb(new ApiError(400, "產品示圖只允許上傳圖片檔案"), false);
 				}
-				if (file.fieldname === "documents" && file.mimetype !== "application/pdf") {
+				if ((file.fieldname === "documents" || file.fieldname === "documents_TW" || file.fieldname === "documents_EN") && file.mimetype !== "application/pdf") {
 					return cb(new ApiError(400, "產品文檔僅允許 PDF 格式"), false);
 				}
 				if (file.fieldname === "videos" && !file.mimetype.startsWith("video/")) {
@@ -127,7 +133,9 @@ class FileUpload {
 	getProductUploadMiddleware() {
 		return this.upload.fields([
 			{ name: "images", maxCount: 10 },
-			{ name: "documents", maxCount: 5 },
+			{ name: "documents", maxCount: 5 }, // legacy field
+			{ name: "documents_TW", maxCount: 5 },
+			{ name: "documents_EN", maxCount: 5 },
 			{ name: "videos", maxCount: 5 }
 		]);
 	}

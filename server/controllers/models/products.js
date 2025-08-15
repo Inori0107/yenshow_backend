@@ -314,16 +314,21 @@ class ProductsController {
 			const pendingImages = processedData._pendingImages || [];
 			const pendingDocuments = processedData._pendingDocuments || [];
 			const pendingVideos = processedData._pendingVideos || [];
+			const pendingDocumentsTW = processedData._pendingDocumentsTW || [];
+			const pendingDocumentsEN = processedData._pendingDocumentsEN || [];
 
 			// 2. Clean up temporary fields before initial database insertion
 			delete processedData._pendingImages;
 			delete processedData._pendingDocuments;
 			delete processedData._pendingVideos;
+			delete processedData._pendingDocumentsTW;
+			delete processedData._pendingDocumentsEN;
 
 			// Ensure file arrays are empty for the first creation step
 			processedData.images = [];
 			processedData.documents = [];
 			processedData.videos = [];
+			processedData.documentsByLang = { TW: [], EN: [] };
 
 			// 3. Create the product in the database to obtain a unique, stable ID
 			const newProduct = await Products.create(processedData);
@@ -349,6 +354,8 @@ class ProductsController {
 
 			const newImageUrls = (await Promise.all(pendingImages.map((file) => saveFile(file, "images")))).filter(Boolean);
 			const newDocumentUrls = (await Promise.all(pendingDocuments.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocTwUrls = (await Promise.all(pendingDocumentsTW.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocEnUrls = (await Promise.all(pendingDocumentsEN.map((file) => saveFile(file, "documents")))).filter(Boolean);
 			const newVideoUrls = (await Promise.all(pendingVideos.map((file) => saveFile(file, "videos")))).filter(Boolean);
 
 			let itemChangedByFileUpload = false;
@@ -356,8 +363,12 @@ class ProductsController {
 				newProduct.images = newImageUrls;
 				itemChangedByFileUpload = true;
 			}
-			if (newDocumentUrls.length > 0) {
-				newProduct.documents = newDocumentUrls;
+			// documents (legacy union) + language-specific
+			if (newDocumentUrls.length > 0 || newDocTwUrls.length > 0 || newDocEnUrls.length > 0) {
+				newProduct.documents = [...(newProduct.documents || []), ...newDocumentUrls, ...newDocTwUrls, ...newDocEnUrls];
+				newProduct.documentsByLang = newProduct.documentsByLang || { TW: [], EN: [] };
+				newProduct.documentsByLang.TW = [...(newProduct.documentsByLang.TW || []), ...newDocTwUrls];
+				newProduct.documentsByLang.EN = [...(newProduct.documentsByLang.EN || []), ...newDocEnUrls];
 				itemChangedByFileUpload = true;
 			}
 			if (newVideoUrls.length > 0) {
@@ -411,11 +422,15 @@ class ProductsController {
 			const pendingImages = processedData._pendingImages || [];
 			const pendingDocuments = processedData._pendingDocuments || [];
 			const pendingVideos = processedData._pendingVideos || [];
+			const pendingDocumentsTW = processedData._pendingDocumentsTW || [];
+			const pendingDocumentsEN = processedData._pendingDocumentsEN || [];
 
 			// Remove temporary/internal fields before forming update payload
 			delete processedData._pendingImages;
 			delete processedData._pendingDocuments;
 			delete processedData._pendingVideos;
+			delete processedData._pendingDocumentsTW;
+			delete processedData._pendingDocumentsEN;
 
 			const updatePayload = { ...processedData }; // Start with text field updates
 
@@ -437,16 +452,50 @@ class ProductsController {
 
 			const newImageUrls = (await Promise.all(pendingImages.map((file) => saveFile(file, "images")))).filter(Boolean);
 			const newDocumentUrls = (await Promise.all(pendingDocuments.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocTwUrls = (await Promise.all(pendingDocumentsTW.map((file) => saveFile(file, "documents")))).filter(Boolean);
+			const newDocEnUrls = (await Promise.all(pendingDocumentsEN.map((file) => saveFile(file, "documents")))).filter(Boolean);
 			const newVideoUrls = (await Promise.all(pendingVideos.map((file) => saveFile(file, "videos")))).filter(Boolean);
 
 			if (updatePayload.images !== undefined) {
 				updatePayload.images = (updatePayload.images || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newImageUrls);
 			}
-			if (updatePayload.documents !== undefined) {
-				updatePayload.documents = (updatePayload.documents || [])
-					.filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_"))
-					.concat(newDocumentUrls);
+
+			// --- Documents 合成/刪除一致性處理 ---
+			const filterValid = (url) => typeof url === "string" && !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_");
+
+			// 語系清單：若前端有提供(表示有修改)，以其為準；否則沿用現有值，再附加新上傳
+			const currentByLang = existingProduct.documentsByLang || { TW: [], EN: [] };
+			if (updatePayload.documentsByLang !== undefined) {
+				const twBase = (updatePayload.documentsByLang.TW || []).filter(filterValid);
+				const enBase = (updatePayload.documentsByLang.EN || []).filter(filterValid);
+				updatePayload.documentsByLang = {
+					TW: twBase.concat(newDocTwUrls),
+					EN: enBase.concat(newDocEnUrls)
+				};
+			} else {
+				updatePayload.documentsByLang = {
+					TW: (currentByLang.TW || []).concat(newDocTwUrls),
+					EN: (currentByLang.EN || []).concat(newDocEnUrls)
+				};
 			}
+
+			// 統一 `documents`：
+			// 若前端有傳 `documents` 或 `documentsByLang`，以兩者合併(去除 placeholder)為基底；
+			// 否則以資料庫舊值為基底。最後再附加新上傳檔案並去除重複。
+			let unionBase = [];
+			const clientProvidedByLang = Object.prototype.hasOwnProperty.call(processedData, "documentsByLang");
+			if (updatePayload.documents !== undefined || clientProvidedByLang) {
+				const fromDocs = (updatePayload.documents || []).filter(filterValid);
+				const fromByLang = []
+					.concat(updatePayload.documentsByLang?.TW || [])
+					.concat(updatePayload.documentsByLang?.EN || [])
+					.filter(filterValid);
+				unionBase = Array.from(new Set([...fromDocs, ...fromByLang]));
+			} else {
+				unionBase = (existingProduct.documents || []).filter(filterValid);
+			}
+			updatePayload.documents = Array.from(new Set(unionBase.concat(newDocumentUrls, newDocTwUrls, newDocEnUrls)));
+
 			if (updatePayload.videos !== undefined) {
 				updatePayload.videos = (updatePayload.videos || []).filter((url) => !url.startsWith("__PENDING_PRODUCT_FILE_PLACEHOLDER_")).concat(newVideoUrls);
 			}
@@ -700,7 +749,8 @@ class ProductsController {
 		const result = {
 			images: [],
 			documents: [],
-			videos: []
+			videos: [],
+			documentsByLang: { TW: [], EN: [] }
 		};
 
 		// 檢查是否有上傳檔案
@@ -749,6 +799,38 @@ class ProductsController {
 					result.documents.push(virtualPath);
 				} catch (err) {
 					console.error(`處理文檔 ${file.originalname} 失敗:`, err);
+				}
+			}
+		}
+
+		// 按語言處理文檔
+		if (req.files.documents_TW && req.files.documents_TW.length > 0) {
+			for (const file of req.files.documents_TW) {
+				try {
+					const virtualPath = fileUpload.saveProductFile(file.buffer, {
+						hierarchyData,
+						productCode: code,
+						fileName: file.originalname,
+						fileType: "documents"
+					});
+					result.documentsByLang.TW.push(virtualPath);
+				} catch (err) {
+					console.error(`處理文檔(TW) ${file.originalname} 失敗:`, err);
+				}
+			}
+		}
+		if (req.files.documents_EN && req.files.documents_EN.length > 0) {
+			for (const file of req.files.documents_EN) {
+				try {
+					const virtualPath = fileUpload.saveProductFile(file.buffer, {
+						hierarchyData,
+						productCode: code,
+						fileName: file.originalname,
+						fileType: "documents"
+					});
+					result.documentsByLang.EN.push(virtualPath);
+				} catch (err) {
+					console.error(`處理文檔(EN) ${file.originalname} 失敗:`, err);
 				}
 			}
 		}
@@ -839,6 +921,8 @@ class ProductsController {
 		data._pendingImages = files.images || [];
 		data._pendingDocuments = files.documents || [];
 		data._pendingVideos = files.videos || [];
+		data._pendingDocumentsTW = files.documents_TW || [];
+		data._pendingDocumentsEN = files.documents_EN || [];
 
 		let imagePathsToDelete = [];
 		let documentPathsToDelete = [];
@@ -909,6 +993,32 @@ class ProductsController {
 			} else {
 				delete data.documents;
 			}
+
+			// Language-specific: manage TW
+			const existingByLang = existingProduct?.documentsByLang || { TW: [], EN: [] };
+			const clientByLang = data.documentsByLang || {};
+			const updatedDocumentsTW = this._manageProductFileArray(
+				clientByLang.TW,
+				existingByLang.TW,
+				data._pendingDocumentsTW || [],
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			const updatedDocumentsEN = this._manageProductFileArray(
+				clientByLang.EN,
+				existingByLang.EN,
+				data._pendingDocumentsEN || [],
+				documentPathsToDelete,
+				documentMarkerPrefix
+			);
+			if (updatedDocumentsTW !== undefined || updatedDocumentsEN !== undefined) {
+				data.documentsByLang = {
+					TW: updatedDocumentsTW !== undefined ? updatedDocumentsTW : existingByLang.TW || [],
+					EN: updatedDocumentsEN !== undefined ? updatedDocumentsEN : existingByLang.EN || []
+				};
+			} else {
+				delete data.documentsByLang;
+			}
 			const updatedVideos = this._manageProductFileArray(
 				data.videos, // client-sent array from payload
 				existingProduct?.videos,
@@ -926,6 +1036,7 @@ class ProductsController {
 			data.images = [];
 			data.documents = [];
 			data.videos = [];
+			data.documentsByLang = { TW: [], EN: [] };
 		}
 
 		return {

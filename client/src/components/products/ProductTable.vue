@@ -196,9 +196,7 @@
             class="w-[48px] h-[48px] mr-3 object-contain rounded-md flex-shrink-0"
             @error="handleImageError($event)"
           />
-          <span class="truncate theme-text">{{
-            getLocalizedField(product, 'code', '未命名產品', 'TW')
-          }}</span>
+          <span class="truncate theme-text">{{ formatProductModel(product) }}</span>
         </div>
 
         <!-- 規格欄 (改為產品名稱) -->
@@ -234,13 +232,10 @@
             特點{{ product.features && product.features.length > 0 ? '✓' : '✗' }}
           </span>
           <span
-            :title="'文件: ' + (product.documents && product.documents.length > 0 ? '✓' : '✗')"
-            :class="
-              product.documents && product.documents.length > 0 ? 'text-green-500' : 'text-red-500'
-            "
+            :title="'文件: ' + (hasDocs(product) ? '✓' : '✗')"
+            :class="hasDocs(product) ? 'text-green-500' : 'text-red-500'"
           >
-            型錄{{ product.documents && product.documents.length > 0 ? '✓' : '✗' }}
-            <!-- L for Legacy 'documents' -->
+            型錄{{ hasDocs(product) ? '✓' : '✗' }}
           </span>
           <span
             :title="'影片: ' + (product.videos && product.videos.length > 0 ? '✓' : '✗')"
@@ -398,6 +393,7 @@
 import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useNotifications } from '@/composables/notificationCenter'
 import { useLanguage } from '@/composables/useLanguage'
+import { useLanguageStore } from '@/stores/core/languageStore'
 import { useApi } from '@/composables/axios'
 import { useThemeClass } from '@/composables/useThemeClass'
 import ProductFormModal from '@/components/products/ProductFormModal.vue'
@@ -415,6 +411,14 @@ const emit = defineEmits(['product-updated', 'product-deleted', 'editProduct'])
 // 使用通知和本地化功能
 const notify = useNotifications()
 const { getLocalizedField } = useLanguage()
+const languageStore = useLanguageStore()
+
+// 僅依據 documentsByLang 與目前語言檢查是否有文件
+const hasDocs = (product) => {
+  const lang = languageStore.currentLang || 'TW'
+  const byLang = product?.documentsByLang
+  return Array.isArray(byLang?.[lang]) && byLang[lang].length > 0
+}
 const { entityApi } = useApi()
 
 // 主題相關
@@ -455,6 +459,15 @@ const editingProductId = ref('')
 const deleting = ref(false)
 const showDeleteConfirm = ref(false)
 const productToDelete = ref(null)
+
+// 友善顯示產品型號：優先使用 name.EN，其次使用 code；無論來源為何，將第一個連字號替換為空白
+const formatProductModel = (product) => {
+  const source =
+    (product?.name?.EN && typeof product.name.EN === 'string' && product.name.EN.trim()) ||
+    (product?.code && product.code.toString()) ||
+    ''
+  return source.replace('-', ' ')
+}
 
 // =====================================================
 // 計算屬性 (Derived from props and state)

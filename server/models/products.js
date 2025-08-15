@@ -39,6 +39,11 @@ const productSchema = new Schema(
 		],
 		images: [{ type: String }],
 		documents: [{ type: String }],
+		// New: language-specific document collections
+		documentsByLang: {
+			TW: { type: [String], default: [] },
+			EN: { type: [String], default: [] }
+		},
 		videos: [{ type: String }],
 		isActive: { type: Boolean, default: false, index: true },
 		slug: {
